@@ -10,6 +10,7 @@ type WorkspaceState = {
   sidebarCollapsed: boolean
   layout: 'grid' | 'list'
   createSong: (init?: { title?: string; folderId?: string | null }) => string
+  renameSong: (songId: string, title: string) => void
   moveSong: (songId: string, folderId: string | null) => void
   trashSong: (songId: string) => void
   restoreSong: (songId: string) => void
@@ -38,6 +39,10 @@ export const useWorkspace = create<WorkspaceState>()(
         }))
         return id
       },
+      renameSong: (songId, title) =>
+        set((s) => ({
+          songs: s.songs.map((song) => (song.id === songId ? { ...song, title, editedAt: Date.now() } : song)),
+        })),
       moveSong: (songId, folderId) =>
         set((s) => ({ songs: s.songs.map((song) => (song.id === songId ? { ...song, folderId } : song)) })),
       trashSong: (songId) =>

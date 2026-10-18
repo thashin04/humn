@@ -86,6 +86,7 @@ type SongState = {
   /** Sets the current song's clips. */
   arrange: (clips: Clip[]) => void
   addComment: (where: SongComment['where'], text: string, author: string) => void
+  moveComment: (id: string, where: SongComment['where']) => void
   /** Resolving a comment clears it away. */
   resolveComment: (id: string) => void
   /** Selects this node on the canvas and brings it into view. */
@@ -265,6 +266,12 @@ export const useSong = create<SongState>()(
               [s.songId]: [...(s.comments[s.songId] ?? []), { id: nanoid(8), author, text, at: Date.now(), where }],
             },
           }
+        : s,
+    ),
+  moveComment: (id, where) =>
+    set((s) =>
+      s.songId
+        ? { comments: { ...s.comments, [s.songId]: (s.comments[s.songId] ?? []).map((c) => (c.id === id ? { ...c, where } : c)) } }
         : s,
     ),
   resolveComment: (id) =>

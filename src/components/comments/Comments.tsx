@@ -16,15 +16,47 @@ function ago(at: number) {
  * A comment's marker: the author's face in a speech-bubble shape, its point at
  * the bottom-left on the spot it's about.
  */
-export function Pin({ author, open, onClick }: { author: string; open?: boolean; onClick?: () => void }) {
+export function Pin({
+  author,
+  open,
+  onClick,
+  onDrag,
+}: {
+  author: string
+  open?: boolean
+  onClick?: () => void
+  /** Called as the pin is dragged, with how far it's moved in screen pixels since the press. */
+  onDrag?: (dx: number, dy: number) => void
+}) {
   const c = collaborator(author)
+  // A press that moves drags the pin; one that doesn't opens it.
+  const dragged = useRef(false)
   return (
     <button
       type="button"
-      onClick={onClick}
+      onPointerDown={(e) => {
+        if (!onDrag || e.button !== 0) return
+        e.stopPropagation()
+        const x0 = e.clientX
+        const y0 = e.clientY
+        dragged.current = false
+        const move = (ev: PointerEvent) => {
+          const dx = ev.clientX - x0
+          const dy = ev.clientY - y0
+          if (!dragged.current && Math.hypot(dx, dy) < 3) return
+          dragged.current = true
+          onDrag(dx, dy)
+        }
+        window.addEventListener('pointermove', move)
+        window.addEventListener('pointerup', () => window.removeEventListener('pointermove', move), { once: true })
+      }}
+      onClick={() => {
+        if (!dragged.current) onClick?.()
+        dragged.current = false
+      }}
       aria-label={`Comment from ${c.name}`}
       className={cn(
-        'nodrag nopan flex size-7 items-center justify-center rounded-full rounded-bl-[3px] border-2 border-card text-[11px] font-semibold text-on-ink shadow-lift transition-transform duration-200 ease-spring hover:scale-110',
+        'nodrag nopan flex size-7 touch-none items-center justify-center rounded-full rounded-bl-[3px] border-2 border-card text-[11px] font-semibold text-on-ink shadow-lift transition-transform duration-200 ease-spring hover:scale-110',
         open && 'scale-110',
       )}
       style={{ background: c.color }}
@@ -108,14 +140,16 @@ export function PinWithCard({
   comment,
   open,
   onToggle,
+  onDrag,
 }: {
   comment: SongComment
   open: boolean
   onToggle: () => void
+  onDrag?: (dx: number, dy: number) => void
 }) {
   return (
     <div className="relative" style={{ transform: 'translateY(-100%)' }}>
-      <Pin author={comment.author} open={open} onClick={onToggle} />
+      <Pin author={comment.author} open={open} onClick={onToggle} onDrag={onDrag} />
       {open && (
         <div className="absolute top-0 left-9 z-10">
           <Thread comment={comment} />

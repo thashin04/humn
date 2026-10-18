@@ -23,7 +23,7 @@ import { Hint } from '@/components/chrome/Hint'
 import { DraftPin, PinWithCard } from '@/components/comments/Comments'
 import { EmptyState } from '@/components/empty/EmptyState'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
-import { TimelineView } from '@/components/timeline/TimelineView'
+import { CLIP_PANEL, TimelineView } from '@/components/timeline/TimelineView'
 import { PipeEdge } from '@/components/wires/PipeEdge'
 import { WireLine } from '@/components/wires/WireLine'
 import { ME } from '@/data/collaborators'
@@ -36,6 +36,7 @@ import { useWorkspace } from '@/store/workspace'
 const edgeTypes: EdgeTypes = { pipe: PipeEdge }
 // Kept stable: React Flow copies this into its store on every change, over any fitView queued in between.
 const FIT = { padding: 0.25, maxZoom: 1 }
+const FIT_ANIMATED = { ...FIT, duration: 300 }
 
 /**
  * The wires are read off each section's sockets, so a section is the one place
@@ -108,8 +109,10 @@ export function SongCanvas() {
         <Canvas />
 
         <div className="absolute top-5 left-5">
-          <TitlePill title={song.title} />
+          <TitlePill songId={song.id} title={song.title} />
         </div>
+        {/* The timeline's clip panel lands here, on the right of the canvas. */}
+        <div id={CLIP_PANEL} className="pointer-events-none absolute top-[76px] right-5 bottom-5 z-10 flex items-start" />
         <div className="absolute top-5 right-5">
           <People ids={song.collaboratorIds} />
         </div>
@@ -138,8 +141,9 @@ export function SongCanvas() {
   )
 }
 
-/** Undo and redo, and V / C for the select and comment tools, anywhere but while typing. */
+/** Undo and redo, V / C for the select and comment tools, and zooming, anywhere but while typing. */
 function useShortcuts() {
+  const { zoomIn, zoomOut, fitView } = useReactFlow()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof Element && e.target.closest('input, textarea, [contenteditable]')) return
@@ -155,10 +159,18 @@ function useShortcuts() {
       } else if (!mod && !e.altKey && e.key === 'v') setTool('select')
       else if (!mod && !e.altKey && e.key === 'c') setTool('comment')
       else if (e.key === 'Escape' && tool === 'comment') setTool('select')
+      // + and − zoom the canvas, with or without ⌘ (instead of the browser zooming the page); ⇧1 fits it all.
+      else if (e.key === '=' || e.key === '+') {
+        e.preventDefault()
+        zoomIn({ duration: 200 })
+      } else if (e.key === '-') {
+        e.preventDefault()
+        zoomOut({ duration: 200 })
+      } else if (e.shiftKey && e.code === 'Digit1') fitView(FIT_ANIMATED)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [zoomIn, zoomOut, fitView])
 }
 
 /** Comments left on the canvas. They stay the same size however far in or out it's zoomed. */
@@ -176,6 +188,7 @@ function CanvasComments({
   setOpen: (id: string | null) => void
 }) {
   const comments = useSong((s) => (s.songId ? s.comments[s.songId] : undefined))
+  const moveComment = useSong((s) => s.moveComment)
   const { zoom } = useViewport()
   const place = (x: number, y: number) => ({ transform: `translate(${x}px, ${y}px) scale(${1 / zoom})`, transformOrigin: '0 0' })
   return (
@@ -183,7 +196,13 @@ function CanvasComments({
       {comments?.map((c) =>
         'x' in c.where ? (
           <div key={c.id} className="pointer-events-auto absolute top-0 left-0 z-[1000]" style={place(c.where.x, c.where.y)}>
-            <PinWithCard comment={c} open={open === c.id} onToggle={() => setOpen(open === c.id ? null : c.id)} />
+            <PinWithCard
+              comment={c}
+              open={open === c.id}
+              onToggle={() => setOpen(open === c.id ? null : c.id)}
+              // Screen pixels to canvas units, from where the pin was when the drag began.
+              onDrag={((from) => (dx: number, dy: number) => moveComment(c.id, { x: from.x + dx / zoom, y: from.y + dy / zoom }))(c.where)}
+            />
           </div>
         ) : null,
       )}
@@ -301,9 +320,9 @@ function Canvas() {
       <div className="absolute top-5 left-1/2 -translate-x-1/2">
         <Hint />
       </div>
-      {/* Centred in the room between the title and the toolbar, so a docked timeline can't push it under either. */}
-      <div className="pointer-events-none absolute top-[76px] bottom-[76px] left-5 flex items-center">
-        <div className="pointer-events-auto">
+      {/* Centred in the open space between the title and the canvas's bottom edge, timeline or not. */}
+      <div className="pointer-events-none absolute top-[76px] bottom-5 left-5">
+        <div className="flex h-full items-center">
           <Rail />
         </div>
       </div>

@@ -13,7 +13,9 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'iconoir-react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { nanoid } from 'nanoid'
+import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
 import iconSection from '@/assets/figma/node-icon-section.svg'
 import { DraftPin, PinWithCard } from '@/components/comments/Comments'
@@ -29,6 +31,8 @@ const HEAD = 112
 const PAD = 16
 const TRACK_H = 112
 const STEP = 4
+/** Where the selected clip's panel goes: a spot on the right of the canvas. */
+export const CLIP_PANEL = 'clip-panel'
 const DOCK_MIN = 200
 const CANVAS_MIN = 470
 const NAMES = ['Verse', 'Chorus', 'Bridge', 'Outro']
@@ -217,6 +221,7 @@ export function TimelineView() {
     't' in c.where ? [{ ...c, t: c.where.t }] : [],
   )
   const addComment = useSong((s) => s.addComment)
+  const moveComment = useSong((s) => s.moveComment)
   const [draft, setDraft] = useState<number | null>(null)
   const [openNote, setOpenNote] = useState<string | null>(null)
   if (!commenting && draft !== null) setDraft(null)
@@ -300,6 +305,8 @@ export function TimelineView() {
   }
 
   const chosen = sel >= 0 ? items[sel] : null
+  const panelSlot = document.getElementById(CLIP_PANEL)
+  const still = useReducedMotion()
 
   return (
     <div className="relative flex border-t border-rule bg-card" style={{ height: dockHeight }}>
@@ -355,7 +362,13 @@ export function TimelineView() {
                 <div className="relative z-[6] flex-1" onPointerDown={scrub}>
                   {notes?.map((c) => (
                     <div key={c.id} className="absolute top-[38px] left-0" style={{ transform: `translateX(${PAD + c.t * pps}px)` }}>
-                      <PinWithCard comment={c} open={openNote === c.id} onToggle={() => setOpenNote(openNote === c.id ? null : c.id)} />
+                      <PinWithCard
+                        comment={c}
+                        open={openNote === c.id}
+                        onToggle={() => setOpenNote(openNote === c.id ? null : c.id)}
+                        // Along the lane only: sideways is earlier or later in the song.
+                        onDrag={((from) => (dx: number) => moveComment(c.id, { t: clamp(from + dx / pps, 0, total) }))(c.t)}
+                      />
                     </div>
                   ))}
                   {draft !== null && (
@@ -457,20 +470,36 @@ export function TimelineView() {
         )}
       </div>
 
-      {chosen && (
-        <Properties
-          key={chosen.clip.id}
-          clip={chosen.clip}
-          section={chosen.section}
-          take={takeOf(chosen.section.id)}
-          canSplit={time > starts[sel] && time < starts[sel] + times[sel]}
-          onChange={(patch) => update(chosen.clip.id, patch)}
-          onSplit={split}
-          onDuplicate={() => duplicate(sel)}
-          onRemove={() => remove(sel)}
-          onClose={() => setPicked(null)}
-        />
-      )}
+      {/* The selected clip's panel floats on the right of the canvas. */}
+      {panelSlot &&
+        createPortal(
+          <AnimatePresence>
+            {chosen && (
+              <motion.div
+                key="clip-panel"
+                className="pointer-events-auto flex max-h-full"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 12 }}
+                transition={still ? { duration: 0 } : { type: 'spring', duration: 0.35, bounce: 0 }}
+              >
+              <Properties
+                key={chosen.clip.id}
+                clip={chosen.clip}
+                section={chosen.section}
+                take={takeOf(chosen.section.id)}
+                canSplit={time > starts[sel] && time < starts[sel] + times[sel]}
+                onChange={(patch) => update(chosen.clip.id, patch)}
+                onSplit={split}
+                onDuplicate={() => duplicate(sel)}
+                onRemove={() => remove(sel)}
+                onClose={() => setPicked(null)}
+              />
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          panelSlot,
+        )}
     </div>
   )
 }
@@ -778,7 +807,7 @@ function Properties({
   const changed = (Object.keys(CLIP_DEFAULTS) as (keyof typeof CLIP_DEFAULTS)[]).some((k) => clip[k] !== CLIP_DEFAULTS[k])
 
   return (
-    <aside className="flex w-[300px] shrink-0 animate-drawer-swap flex-col overflow-hidden border-l border-rule bg-card">
+    <aside className="flex w-[300px] flex-col overflow-hidden rounded-[18px] bg-card shadow-lift">
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-rule pr-2 pl-4">
         <img src={iconSection} alt="" className="size-[14px]" />
         <div className="min-w-0 flex-1">

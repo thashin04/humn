@@ -1,4 +1,5 @@
-import { AlignBottomBox, ChatBubbleEmpty, CursorPointer, Redo, Undo } from 'iconoir-react'
+import { useReactFlow, useViewport } from '@xyflow/react'
+import { AlignBottomBox, ChatBubbleEmpty, CursorPointer, Redo, Undo, ZoomIn, ZoomOut } from 'iconoir-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
@@ -26,8 +27,35 @@ export function Toolkit() {
         <Redo {...ICON} />
       </ToolButton>
       <Sep />
+      <Zoom />
+      <Sep />
       <TimelineToggle />
     </div>
+  )
+}
+
+/** Zooming the canvas: out, how far in it is now (press it to fit everything), and in. */
+function Zoom() {
+  const { zoomIn, zoomOut, fitView } = useReactFlow()
+  const { zoom } = useViewport()
+  return (
+    <>
+      <ToolButton label="Zoom out (−)" onClick={() => zoomOut({ duration: 200 })}>
+        <ZoomOut {...ICON} />
+      </ToolButton>
+      <button
+        type="button"
+        title="Zoom to fit (⇧1)"
+        aria-label={`Zoom ${Math.round(zoom * 100)}%, zoom to fit`}
+        onClick={() => fitView({ padding: 0.25, maxZoom: 1, duration: 300 })}
+        className="h-[30px] w-12 rounded-full font-mono text-[11.5px] text-ink-2 tabular-nums transition-colors hover:bg-well hover:text-ink-1"
+      >
+        {Math.round(zoom * 100)}%
+      </button>
+      <ToolButton label="Zoom in (+)" onClick={() => zoomIn({ duration: 200 })}>
+        <ZoomIn {...ICON} />
+      </ToolButton>
+    </>
   )
 }
 
