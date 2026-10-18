@@ -1,36 +1,31 @@
-import { PanelBottom } from 'lucide-react'
+import { AlignBottomBox, ChatBubbleEmpty, CursorPointer, Redo, Undo } from 'iconoir-react'
 import type { ReactNode } from 'react'
-import comment from '@/assets/figma/tool-comment.svg'
-import hand from '@/assets/figma/tool-hand.svg'
-import select from '@/assets/figma/tool-select.svg'
-import undo from '@/assets/figma/tool-undo.svg'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
+
+const ICON = { width: 18, height: 18, strokeWidth: 1.5 }
 
 export function Toolkit() {
   const { tool, setTool, timelineOpen, toggleTimeline } = useSong()
 
   return (
-    <div className="flex h-[42px] items-center gap-1 rounded-full bg-card px-1.5 shadow-lift">
+    <div className="flex h-[42px] items-center gap-2 rounded-full bg-card px-1.5 shadow-lift">
       <ToolButton label="Select" active={tool === 'select'} onClick={() => setTool('select')}>
-        <img src={select} alt="" />
-      </ToolButton>
-      <ToolButton label="Pan" active={tool === 'hand'} onClick={() => setTool('hand')}>
-        <img src={hand} alt="" />
+        <CursorPointer {...ICON} />
       </ToolButton>
       <ToolButton label="Comment">
-        <img src={comment} alt="" />
+        <ChatBubbleEmpty {...ICON} />
       </ToolButton>
       <Sep />
       <ToolButton label="Undo">
-        <img src={undo} alt="" />
+        <Undo {...ICON} />
       </ToolButton>
       <ToolButton label="Redo">
-        <img src={undo} alt="" className="-scale-x-100" />
+        <Redo {...ICON} />
       </ToolButton>
       <Sep />
       <ToolButton label="Timeline" active={timelineOpen} onClick={toggleTimeline}>
-        <PanelBottom className="size-4 text-ink-2" strokeWidth={1.5} />
+        <AlignBottomBox {...ICON} />
       </ToolButton>
     </div>
   )
@@ -54,8 +49,8 @@ function ToolButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'flex size-[30px] items-center justify-center rounded-full border border-transparent hover:bg-well',
-        active && 'border-rule bg-well',
+        'flex size-[30px] items-center justify-center rounded-full transition-[background-color,color,transform] duration-200 ease-soft active:scale-95',
+        active ? 'bg-ink text-on-ink' : 'text-ink-2 hover:bg-well hover:text-ink-1',
       )}
     >
       {children}
@@ -64,5 +59,5 @@ function ToolButton({
 }
 
 function Sep() {
-  return <span className="h-[18px] w-px bg-rule" />
+  return <span className="mx-0.5 h-[18px] w-px bg-rule" />
 }

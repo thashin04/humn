@@ -5,11 +5,12 @@ import {
   FeelingNode,
   InstrumentNode,
   PhotoNode,
+  SectionNode,
   SoundNode,
   VoiceNode,
   WordsNode,
 } from './nodes'
-import { SectionNode, TakeNode } from './section'
+import { TakeNode } from './take'
 
 export const nodeTypes: NodeTypes = {
   words: WordsNode,

@@ -1,31 +1,16 @@
-import { useEffect, useState } from 'react'
-import chords from '@/assets/figma/rail-chords.svg'
-import color from '@/assets/figma/rail-color.svg'
-import feeling from '@/assets/figma/rail-feeling.svg'
-import instrument from '@/assets/figma/rail-instrument.svg'
-import photo from '@/assets/figma/rail-photo.svg'
-import sound from '@/assets/figma/rail-sound.svg'
-import voice from '@/assets/figma/rail-voice.svg'
-import words from '@/assets/figma/rail-words.svg'
-import section from '@/assets/figma/icon-section.svg'
+import { useEffect, useRef, useState } from 'react'
+import { AppWindow } from 'iconoir-react'
+import { motion, MotionConfig } from 'motion/react'
 import { DRAWERS } from '@/data/library'
 import type { Kind } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { Drawer } from './Drawer'
+import { KIND_ICONS } from './kindIcons'
 import { useAddNode } from './useAddNode'
 
-// One button per kind of thing, with its role dot. Section last.
-const KINDS: { id: Kind; icon: string }[] = [
-  { id: 'words', icon: words },
-  { id: 'voice', icon: voice },
-  { id: 'photo', icon: photo },
-  { id: 'feeling', icon: feeling },
-  { id: 'sound', icon: sound },
-  { id: 'color', icon: color },
-  { id: 'instrument', icon: instrument },
-  { id: 'chords', icon: chords },
-]
+// One button per kind of thing. Section last.
+const KINDS: Kind[] = ['words', 'voice', 'photo', 'sound', 'color', 'instrument']
 
 /**
  * The rail grows into a drawer, still one floating card: pressing a kind opens
@@ -35,60 +20,110 @@ const KINDS: { id: Kind; icon: string }[] = [
 export function Rail() {
   const { drawer, setDrawer } = useSong()
   const add = useAddNode()
-  // Keep showing the last drawer while it fades out.
+  const ref = useRef<HTMLDivElement>(null)
+  // Keep showing the last drawer while it fades out, and note when one drawer
+  // replaces another so the new contents can settle in instead of popping.
   const [shown, setShown] = useState(drawer)
-  if (drawer && drawer !== shown) setShown(drawer)
+  const [prev, setPrev] = useState(drawer)
+  const [swapped, setSwapped] = useState(false)
+  if (drawer !== prev) {
+    setPrev(drawer)
+    if (drawer) {
+      setSwapped(prev !== null)
+      setShown(drawer)
+    }
+  }
 
+  // Escape or a press anywhere outside the rail tucks the drawer away.
   useEffect(() => {
     if (!drawer) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDrawer(null)
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setDrawer(null)
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onDown, true)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onDown, true)
+    }
   }, [drawer, setDrawer])
 
+  // Opening: the card grows with a hint of spring, then the contents drift in.
+  // Closing: the contents leave first, then the card settles back to a pill.
   return (
     <div
+      ref={ref}
       className={cn(
-        'flex overflow-hidden rounded-[26px] bg-card shadow-lift transition-[width,height] duration-300 ease-soft',
-        drawer ? 'h-[min(632px,calc(100dvh-180px))] w-[369px]' : 'h-[395px] w-[52px]',
+        'flex overflow-hidden rounded-[26px] bg-card shadow-lift transition-[width,height] motion-reduce:transition-none',
+        drawer
+          ? 'h-[min(632px,calc(100dvh-180px))] w-[369px] duration-[380ms] ease-spring'
+          : 'h-[311px] w-[52px] delay-[60ms] duration-[280ms] ease-soft',
       )}
     >
+      <MotionConfig reducedMotion="user">
       <div className="flex w-[52px] shrink-0 flex-col items-center justify-center gap-1 px-[7px] py-2">
-        {KINDS.map((k) => (
-          <button
-            key={k.id}
-            title={DRAWERS[k.id].label}
-            aria-label={DRAWERS[k.id].label}
-            aria-expanded={drawer === k.id}
-            onClick={() => setDrawer(drawer === k.id ? null : k.id)}
-            className={cn(
-              'shrink-0 rounded-full transition-[background-color,transform] duration-150 active:scale-95',
-              drawer === k.id ? 'bg-button' : 'hover:bg-well',
-            )}
-          >
-            <img src={k.icon} alt="" />
-          </button>
-        ))}
+        {KINDS.map((k) => {
+          const Icon = KIND_ICONS[k]
+          return (
+            <button
+              key={k}
+              title={DRAWERS[k].label}
+              aria-label={DRAWERS[k].label}
+              aria-expanded={drawer === k}
+              onClick={() => setDrawer(drawer === k ? null : k)}
+              className={cn(
+                'relative flex size-[38px] shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform] ease-soft active:scale-95',
+                // The icon whitens as the pill arrives, rather than before it gets there.
+                drawer === k ? 'text-on-ink delay-[50ms] duration-200' : 'text-ink-2 duration-200 hover:bg-well hover:text-ink-1',
+              )}
+            >
+              {drawer === k && (
+                // One dark pill shared by every button: picking another kind slides it over.
+                <motion.span
+                  layoutId="rail-selected"
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', visualDuration: 0.26, bounce: 0.28 }}
+                  className="absolute inset-0 rounded-full bg-ink"
+                />
+              )}
+              <Icon width={18} height={18} strokeWidth={1.5} className="relative" />
+            </button>
+          )
+        })}
         <span className="h-px w-[22px] shrink-0 bg-rule" />
         <button
           title="Section"
           aria-label="Section"
           onClick={() => add('section')}
-          className="flex size-[38px] shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-150 hover:bg-well active:scale-95"
+          className="flex size-[38px] shrink-0 items-center justify-center rounded-full text-ink-2 transition-[background-color,transform] duration-150 hover:bg-well active:scale-95"
         >
-          <img src={section} alt="" />
+          <AppWindow width={18} height={18} strokeWidth={1.5} />
         </button>
       </div>
+      </MotionConfig>
 
-      <span className="w-px shrink-0 bg-rule" />
+      <span
+        className={cn(
+          'w-px shrink-0 bg-rule transition-opacity duration-200 motion-reduce:transition-none',
+          drawer ? 'opacity-100' : 'opacity-0 delay-[120ms]',
+        )}
+      />
       <div
         className={cn(
-          'w-[316px] shrink-0 transition-opacity duration-200',
-          drawer ? 'opacity-100 delay-100' : 'pointer-events-none opacity-0',
+          'w-[316px] shrink-0 transition-[opacity,transform,filter] motion-reduce:transition-none',
+          drawer
+            ? 'translate-x-0 opacity-100 blur-none delay-[120ms] duration-[280ms] ease-soft'
+            : 'pointer-events-none -translate-x-1.5 opacity-0 blur-[2px] duration-[140ms] ease-soft',
         )}
         inert={!drawer}
       >
-        {shown && <Drawer key={shown} kind={shown} onClose={() => setDrawer(null)} />}
+        {shown && (
+          <div key={shown} className={cn('h-full', swapped && 'animate-drawer-swap')}>
+            <Drawer kind={shown} onClose={() => setDrawer(null)} />
+          </div>
+        )}
       </div>
     </div>
   )

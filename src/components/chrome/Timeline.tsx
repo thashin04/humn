@@ -1,4 +1,4 @@
-import play from '@/assets/figma/timeline-play.svg'
+import { Play } from 'iconoir-react'
 
 export function Timeline() {
   return (
@@ -7,9 +7,9 @@ export function Timeline() {
         <p className="type-caption text-ink-2">Song timeline</p>
         <button
           aria-label="Play song"
-          className="flex size-9 items-center justify-center rounded-full border border-rule bg-well"
+          className="flex size-9 items-center justify-center rounded-full border border-rule bg-well text-ink-1"
         >
-          <img src={play} alt="" />
+          <Play width={16} height={16} strokeWidth={1.5} />
         </button>
       </div>
       <div className="flex h-[100px] items-center gap-2 px-6">

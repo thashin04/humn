@@ -140,11 +140,6 @@ export function Sidebar() {
 
       <div className="flex-1" />
 
-      {!collapsed && (
-        <p className="type-small border-t border-rule px-1.5 pt-3 pb-1 text-ink-3">
-          Songs you make with Kofi, Sol and Ada show up in both of your lists.
-        </p>
-      )}
     </aside>
   )
 }

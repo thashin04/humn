@@ -1,6 +1,6 @@
 import birthday from '@/assets/photos/template-birthday.jpg'
 import redHouse from '@/assets/photos/template-photo.jpg'
-import type { AnySongNode, Pipe, Role } from './nodes'
+import type { AnySongNode, Role } from './nodes'
 
 export type TemplateId = 'photo' | 'birthday'
 
@@ -49,33 +49,20 @@ const SEEDS: Record<TemplateId, Seed[]> = {
   ],
 }
 
-/** Fresh nodes for a template, already piped into a Verse; ids are prefixed so a song can hold more than one. */
-export function templateNodes(id: TemplateId, prefix: string): { nodes: AnySongNode[]; edges: Pipe[] } {
-  const sectionId = `${prefix}-section`
-  const edges: Pipe[] = []
+/** Fresh nodes for a template, already plugged into a Verse; ids are prefixed so a song can hold more than one. */
+export function templateNodes(id: TemplateId, prefix: string): AnySongNode[] {
+  const sources: Partial<Record<Role, string[]>> = {}
   const nodes = SEEDS[id].map((s) => {
     const nodeId = `${prefix}-${s.id}`
-    if (s.role) edges.push(pipe(nodeId, sectionId, s.role))
+    if (s.role) (sources[s.role] ??= []).push(nodeId)
     return { ...structuredClone(s.node), id: nodeId, origin: [0.5, 0.5] } as AnySongNode
   })
   const section = {
-    id: sectionId,
+    id: `${prefix}-section`,
     type: 'section',
     position: { x: 420, y: 0 },
     origin: [0.5, 0.5],
-    data: { name: 'Verse', length: 30 },
+    data: { name: 'Verse', length: 30, sources },
   } as AnySongNode
-  return { nodes: [...nodes, section], edges }
-}
-
-export function pipe(source: string, target: string, role?: Role): Pipe {
-  return {
-    id: `${source}>${target}:${role ?? 'take'}`,
-    type: 'pipe',
-    source,
-    sourceHandle: 'out',
-    target,
-    targetHandle: role ?? 'in',
-    data: { role },
-  }
+  return [...nodes, section]
 }

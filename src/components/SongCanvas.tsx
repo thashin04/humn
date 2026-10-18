@@ -1,6 +1,14 @@
-import { ReactFlow, useNodesInitialized, useReactFlow, type Connection, type EdgeTypes, type IsValidConnection } from '@xyflow/react'
+import {
+  Background,
+  BackgroundVariant,
+  ReactFlow,
+  useNodesInitialized,
+  useReactFlow,
+  type EdgeChange,
+  type EdgeTypes,
+} from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
@@ -10,35 +18,64 @@ import { TitlePill } from '@/components/chrome/TitlePill'
 import { Toolkit } from '@/components/chrome/Toolkit'
 import { Hint } from '@/components/chrome/Hint'
 import { EmptyState } from '@/components/empty/EmptyState'
-import { PipeConnectionLine, PipeEdge } from '@/components/pipes/PipeEdge'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
+import { PipeEdge } from '@/components/wires/PipeEdge'
+import { WireLine } from '@/components/wires/WireLine'
 import { NODE_DRAG_TYPE } from '@/data/library'
-import type { Kind, Pipe } from '@/data/nodes'
+import { ROLES, type AnySongNode, type Kind } from '@/data/nodes'
 import type { TemplateId } from '@/data/templates'
 import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 
 const edgeTypes: EdgeTypes = { pipe: PipeEdge }
 
-/** Only a thing's connector into one of a section's role plugs. */
-const canPlug: IsValidConnection<Pipe> = (c) => {
-  const { nodes } = useSong.getState()
-  const from = nodes.find((n) => n.id === c.source)
-  const to = nodes.find((n) => n.id === c.target)
-  return (
-    c.sourceHandle === 'out' &&
-    !!from &&
-    from.type !== 'section' &&
-    from.type !== 'take' &&
-    to?.type === 'section' &&
-    !!(c as Connection).targetHandle &&
-    c.targetHandle !== 'in'
+/**
+ * The wires are read off each section's sockets, so a section is the one place
+ * that says what's plugged in. Each take also gets a wire in from its section.
+ */
+function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
+  const ids = new Set(nodes.map((n) => n.id))
+  return nodes.flatMap((sec): PipeEdge[] =>
+    sec.type === 'take'
+      ? ids.has(sec.data.sectionId)
+        ? [
+            {
+              id: `${sec.data.sectionId}|${sec.id}`,
+              type: 'pipe',
+              source: sec.data.sectionId,
+              sourceHandle: 'take',
+              target: sec.id,
+              targetHandle: 'in',
+              selectable: false,
+              focusable: false,
+              data: {},
+            },
+          ]
+        : []
+      : sec.type !== 'section'
+        ? []
+        : ROLES.flatMap((r) =>
+          (sec.data.sources[r.id] ?? [])
+            .filter((src) => ids.has(src))
+            .map((src) => ({
+              id: `${src}|${sec.id}`,
+              type: 'pipe' as const,
+              source: src,
+              target: sec.id,
+              targetHandle: r.id,
+              selectable: false,
+              focusable: false,
+              data: { role: r.id },
+            })),
+        ),
   )
 }
 
 export function SongCanvas() {
-  const { nodes, edges, tool, timelineOpen, templatePicker, open, onNodesChange, onEdgesChange, connect } = useSong()
+  const { nodes, tool, timelineOpen, templatePicker, open, onNodesChange } = useSong()
   const { openTemplatePicker, closeTemplatePicker, selectTemplate, addNode, fitRequest } = useSong()
+  const { connect, disconnect, setSnap } = useSong()
+  const edges = useMemo(() => wiresOf(nodes), [nodes])
   const { screenToFlowPosition, fitView } = useReactFlow()
   const { songId } = useParams()
   const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
@@ -87,12 +124,19 @@ export function SongCanvas() {
           edges={edges}
           nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
+          onEdgesChange={(changes: EdgeChange[]) =>
+            changes.forEach((c) => c.type === 'remove' && disconnect(...(c.id.split('|') as [string, string])))
+          }
           edgeTypes={edgeTypes}
-          onEdgesChange={onEdgesChange}
-          onConnect={connect}
-          isValidConnection={canPlug}
-          connectionLineComponent={PipeConnectionLine}
-          connectionRadius={44}
+          connectionLineComponent={WireLine}
+          connectOnClick={false}
+          connectionRadius={0}
+          // Let go near a section and the wire plugs into whichever socket it was drawn to.
+          onConnectEnd={(_, state) => {
+            const snap = useSong.getState().snap
+            if (snap && state.fromNode) connect(state.fromNode.id, snap.section, snap.role)
+            setSnap(null)
+          }}
           fitView
           fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
           panOnDrag={tool === 'hand'}
@@ -100,7 +144,9 @@ export function SongCanvas() {
           panOnScroll
           proOptions={{ hideAttribution: true }}
           className={tool === 'hand' ? 'cursor-grab' : undefined}
-        />
+        >
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color="var(--soft-dot)" />
+        </ReactFlow>
 
         {nodes.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">

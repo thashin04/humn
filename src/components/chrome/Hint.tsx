@@ -11,14 +11,14 @@ const B = ({ children }: { children: ReactNode }) => <span className="font-mediu
 export function Hint() {
   const conn = useConnection()
   const dragKind = useSong((s) => s.dragKind)
+  const snap = useSong((s) => s.snap)
   const next = useSong((s) => {
-    const sections = s.nodes.filter((n) => n.type === 'section')
+    const sections = s.nodes.flatMap((n) => (n.type === 'section' ? [n] : []))
     if (!sections.length || s.nodes.length < 2) return null
-    if (!s.edges.some((e) => e.data?.role)) return 'connect'
+    const plugged = (sec: (typeof sections)[number]) => Object.values(sec.data.sources).some((ids) => ids?.length)
+    if (!sections.some(plugged)) return 'connect'
     const waiting = sections.some(
-      (sec) =>
-        s.edges.some((e) => e.target === sec.id) &&
-        !s.nodes.some((n) => n.type === 'take' && n.data.sectionId === sec.id),
+      (sec) => plugged(sec) && !s.nodes.some((n) => n.type === 'take' && n.data.sectionId === sec.id),
     )
     return waiting ? 'make' : null
   })
@@ -32,10 +32,10 @@ export function Hint() {
         <B>{roleName(DEFAULT_ROLE[dragKind])}</B>.
       </>
     )
-  } else if (conn.inProgress && conn.toHandle?.id) {
+  } else if (conn.inProgress && snap) {
     text = (
       <>
-        Let go to plug it into <B>{roleName(conn.toHandle.id as Role)}</B>.
+        Let go to plug it into <B>{roleName(snap.role)}</B>.
       </>
     )
   } else if (conn.inProgress || next === 'connect') {
