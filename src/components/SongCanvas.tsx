@@ -4,29 +4,35 @@ import {
   ReactFlow,
   useNodesInitialized,
   useReactFlow,
+  useViewport,
+  ViewportPortal,
   type Edge,
   type EdgeChange,
   type Node,
   type NodeChange,
   type EdgeTypes,
+  type XYPosition,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
 import { Rail } from '@/components/chrome/Rail'
 import { SectionPanel } from '@/components/chrome/SectionPanel'
-import { Timeline } from '@/components/chrome/Timeline'
 import { TitlePill } from '@/components/chrome/TitlePill'
 import { Toolkit } from '@/components/chrome/Toolkit'
 import { Hint } from '@/components/chrome/Hint'
+import { DraftPin, PinWithCard } from '@/components/comments/Comments'
 import { EmptyState } from '@/components/empty/EmptyState'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
+import { CLIP_PANEL, TimelineView } from '@/components/timeline/TimelineView'
 import { PipeBody, PipeEdge, PipeEdgeLine } from '@/components/wires/PipeEdge'
 import { WireLine } from '@/components/wires/WireLine'
 import { GhostEdge } from '@/components/wires/GhostEdge'
 import { GHOST_ID, type GhostNode } from '@/components/nodes/ghost'
+import { ME } from '@/data/collaborators'
 import { interpret } from '@/data/interpret'
 import { NODE_DRAG_TYPE } from '@/data/library'
 import { ROLES, type AnySongNode, type Kind } from '@/data/nodes'
@@ -35,6 +41,9 @@ import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 
 const edgeTypes: EdgeTypes = { pipe: PipeEdge, pipeBody: PipeBody, pipeEdge: PipeEdgeLine, ghost: GhostEdge }
+// Kept stable: React Flow copies this into its store on every change, over any fitView queued in between.
+const FIT = { padding: 0.25, maxZoom: 1 }
+const FIT_ANIMATED = { ...FIT, duration: 300 }
 
 /**
  * The wires are read off each section's sockets, so a section is the one place
@@ -54,13 +63,13 @@ function linesOf(nodes: AnySongNode[]): PipeEdge[] {
   const ids = new Set(nodes.map((n) => n.id))
   return nodes.flatMap((sec): PipeEdge[] =>
     sec.type === 'take'
-      ? ids.has(sec.data.sectionId)
+      ? ids.has(sec.data.branchOf ?? sec.data.sectionId)
         ? [
             {
-              id: `${sec.data.sectionId}|${sec.id}`,
+              id: `${sec.data.branchOf ?? sec.data.sectionId}|${sec.id}`,
               type: 'pipe',
-              source: sec.data.sectionId,
-              sourceHandle: 'take',
+              source: sec.data.branchOf ?? sec.data.sectionId,
+              sourceHandle: sec.data.branchOf ? 'out' : 'take',
               target: sec.id,
               targetHandle: 'in',
               selectable: false,
@@ -130,9 +139,154 @@ function suggestFirstPart(nodes: AnySongNode[], drafting: string | null, measure
 }
 
 export function SongCanvas() {
-  const { nodes, tool, timelineOpen, templatePicker, open, onNodesChange } = useSong()
-  const { openTemplatePicker, closeTemplatePicker, selectTemplate, addNode, fitRequest } = useSong()
-  const { connect, disconnect, setSnap } = useSong()
+  const timelineOpen = useSong((s) => s.timelineOpen)
+  const still = useReducedMotion()
+  const templatePicker = useSong((s) => s.templatePicker)
+  const { songId } = useParams()
+  const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
+  const updateSongTitle = useWorkspace((s) => s.updateSongTitle)
+  const { open, closeTemplatePicker, applyTemplate } = useSong()
+  const starter = (useLocation().state as { template?: TemplateId } | null)?.template
+
+  useEffect(() => {
+    if (songId) open(songId)
+  }, [songId, open])
+
+  // Workspace starters go straight into their occasion; the picker is reserved for blank songs.
+  useEffect(() => {
+    if (!starter) return
+    applyTemplate(starter)
+  }, [starter, applyTemplate])
+  useEffect(() => closeTemplatePicker, [songId, closeTemplatePicker])
+  useShortcuts()
+
+  if (!song || song.trashed) return <Navigate to="/" replace />
+
+  return (
+    <div className="flex h-dvh w-screen flex-col overflow-hidden bg-ground">
+      <div className="relative min-h-0 flex-1">
+        <Canvas />
+
+        <div className="absolute top-5 left-5">
+          <TitlePill songId={song.id} title={song.title} />
+        </div>
+        {/* A selected section's settings, or the timeline's selected clip, open here on the right. Never both: picking one lets go of the other. */}
+        <div className="pointer-events-none absolute top-[76px] right-5 bottom-5 flex items-start">
+          <SectionPanel />
+        </div>
+        <div id={CLIP_PANEL} className="pointer-events-none absolute top-[76px] right-5 bottom-5 z-10 flex items-start" />
+        <div className="absolute top-5 right-5">
+          <People ids={song.collaboratorIds} songId={song.id} title={song.title} />
+        </div>
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
+          <Toolkit />
+        </div>
+      </div>
+
+      {/* The dock grows up from the bottom edge, and the canvas gives way as it does. */}
+      <AnimatePresence initial={false}>
+        {timelineOpen && (
+          <motion.div
+            key="timeline"
+            className="shrink-0 overflow-hidden"
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0 }}
+            transition={still ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0 }}
+          >
+            <TimelineView />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {templatePicker.open && <TemplatePicker />}
+      {song.title === 'Untitled song' && <NameSongDialog onSave={(title) => updateSongTitle(song.id, title)} />}
+    </div>
+  )
+}
+
+/** Undo and redo, V / C for the select and comment tools, and zooming, anywhere but while typing. */
+function useShortcuts() {
+  const { zoomIn, zoomOut, fitView } = useReactFlow()
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof Element && e.target.closest('input, textarea, [contenteditable]')) return
+      const { undo, redo, setTool, tool } = useSong.getState()
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+      } else if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        redo()
+      } else if (!mod && !e.altKey && e.key === 'v') setTool('select')
+      else if (!mod && !e.altKey && e.key === 'c') setTool('comment')
+      else if (e.key === 'Escape' && tool === 'comment') setTool('select')
+      // + and − zoom the canvas, with or without ⌘ (instead of the browser zooming the page); ⇧1 fits it all.
+      else if (e.key === '=' || e.key === '+') {
+        e.preventDefault()
+        zoomIn({ duration: 200 })
+      } else if (e.key === '-') {
+        e.preventDefault()
+        zoomOut({ duration: 200 })
+      } else if (e.shiftKey && e.code === 'Digit1') fitView(FIT_ANIMATED)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zoomIn, zoomOut, fitView])
+}
+
+/** Comments left on the canvas. They stay the same size however far in or out it's zoomed. */
+function CanvasComments({
+  draft,
+  onPost,
+  onCancel,
+  open,
+  setOpen,
+}: {
+  draft: XYPosition | null
+  onPost: (text: string) => void
+  onCancel: () => void
+  open: string | null
+  setOpen: (id: string | null) => void
+}) {
+  const comments = useSong((s) => (s.songId ? s.comments[s.songId] : undefined))
+  const moveComment = useSong((s) => s.moveComment)
+  const { zoom } = useViewport()
+  const place = (x: number, y: number) => ({ transform: `translate(${x}px, ${y}px) scale(${1 / zoom})`, transformOrigin: '0 0' })
+  return (
+    <ViewportPortal>
+      {comments?.map((c) =>
+        'x' in c.where ? (
+          <div key={c.id} className="pointer-events-auto absolute top-0 left-0 z-[1000]" style={place(c.where.x, c.where.y)}>
+            <PinWithCard
+              comment={c}
+              open={open === c.id}
+              onToggle={() => setOpen(open === c.id ? null : c.id)}
+              // Screen pixels to canvas units, from where the pin was when the drag began.
+              onDrag={((from) => (dx: number, dy: number) => moveComment(c.id, { x: from.x + dx / zoom, y: from.y + dy / zoom }))(c.where)}
+            />
+          </div>
+        ) : null,
+      )}
+      {draft && (
+        <div className="pointer-events-auto absolute top-0 left-0 z-[1001]" style={place(draft.x, draft.y)}>
+          <DraftPin onPost={onPost} onCancel={onCancel} />
+        </div>
+      )}
+    </ViewportPortal>
+  )
+}
+
+/** The node canvas, with the rail to add to it and the hint for what to do next. */
+function Canvas() {
+  const { nodes, tool, onNodesChange } = useSong()
+  const { addNode, fitRequest, focus, clearFocus } = useSong()
+  const { connect, disconnect, setSnap, addComment } = useSong()
+  const commenting = tool === 'comment'
+  const [draft, setDraft] = useState<XYPosition | null>(null)
+  const [openComment, setOpenComment] = useState<string | null>(null)
+  if (!commenting && draft) setDraft(null)
   const edges = useMemo(() => wiresOf(nodes), [nodes])
   const drafting = useSong((s) => s.drafting)
   // The ghost isn't kept with the song, so remember its measured size here or React Flow would hide it again.
@@ -141,20 +295,6 @@ export function SongCanvas() {
   const shownNodes = useMemo(() => (ghost ? [...nodes, ghost.node] : nodes) as Node[], [nodes, ghost])
   const shownEdges = useMemo(() => (ghost?.edge ? [...edges, ghost.edge] : edges) as Edge[], [edges, ghost])
   const { screenToFlowPosition, fitView } = useReactFlow()
-  const { songId } = useParams()
-  const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
-  const starter = (useLocation().state as { template?: TemplateId } | null)?.template
-
-  // Opening a song from a workspace starter lands on the picker with it chosen.
-  useEffect(() => {
-    if (!starter) return
-    selectTemplate(starter)
-    openTemplatePicker()
-  }, [starter, selectTemplate, openTemplatePicker])
-  useEffect(() => closeTemplatePicker, [songId, closeTemplatePicker])
-  useEffect(() => {
-    if (songId) open(songId)
-  }, [songId, open])
   // A template just landed: bring all of it into view once every node is measured.
   const measured = useNodesInitialized()
   const fitted = useRef(fitRequest)
@@ -163,13 +303,17 @@ export function SongCanvas() {
     fitted.current = fitRequest
     fitView({ padding: 0.25, maxZoom: 1, duration: 500 })
   }, [measured, fitRequest, fitView])
-
-  if (!song || song.trashed) return <Navigate to="/" replace />
+  // Asked from the timeline to show a card or section: bring it into view.
+  useEffect(() => {
+    if (!measured || !focus) return
+    fitView({ nodes: [{ id: focus }], padding: 0.3, maxZoom: 1, duration: 500 })
+    clearFocus()
+  }, [measured, focus, fitView, clearFocus])
 
   return (
-    <div className="flex h-dvh w-screen flex-col overflow-hidden bg-ground">
+    <>
       <div
-        className="relative min-h-0 flex-1"
+        className="absolute inset-0"
         onDragOver={(e) => {
           if (!e.dataTransfer.types.includes(NODE_DRAG_TYPE)) return
           e.preventDefault()
@@ -208,13 +352,36 @@ export function SongCanvas() {
             setSnap(null)
           }}
           fitView
-          fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
+          fitViewOptions={FIT}
           panOnDrag={tool === 'hand'}
           selectionOnDrag={tool === 'select'}
+          // Commenting: a press anywhere, on a card or not, starts a comment there.
+          nodesDraggable={!commenting}
+          nodesConnectable={!commenting}
+          elementsSelectable={!commenting}
+          onPaneClick={(e) => {
+            setOpenComment(null)
+            if (commenting) setDraft(screenToFlowPosition({ x: e.clientX, y: e.clientY }))
+          }}
+          onNodeClick={(e) => {
+            if (!commenting) return
+            setOpenComment(null)
+            setDraft(screenToFlowPosition({ x: e.clientX, y: e.clientY }))
+          }}
           panOnScroll
           proOptions={{ hideAttribution: true }}
-          className={tool === 'hand' ? 'cursor-grab' : undefined}
+          className={tool === 'hand' ? 'cursor-grab' : commenting ? 'commenting' : undefined}
         >
+          <CanvasComments
+            draft={draft}
+            open={openComment}
+            setOpen={setOpenComment}
+            onCancel={() => setDraft(null)}
+            onPost={(text) => {
+              if (draft) addComment(draft, text, ME)
+              setDraft(null)
+            }}
+          />
           <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color="var(--soft-dot)" />
         </ReactFlow>
 
@@ -223,30 +390,62 @@ export function SongCanvas() {
             <EmptyState />
           </div>
         )}
-
-        <div className="absolute top-5 left-1/2 -translate-x-1/2">
-          <Hint />
-        </div>
-
-        <div className="absolute top-5 left-5">
-          <TitlePill title={song.title} />
-        </div>
-        <div className="absolute top-5 right-5">
-          <People ids={song.collaboratorIds} />
-        </div>
-        <div className="pointer-events-none absolute top-[78px] right-5 bottom-[84px] flex items-start">
-          <SectionPanel />
-        </div>
-        <div className="absolute top-1/2 left-5 -translate-y-1/2">
-          <Rail />
-        </div>
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
-          <Toolkit />
-        </div>
       </div>
 
-      {timelineOpen && <Timeline />}
-      {templatePicker.open && <TemplatePicker />}
+      <div className="absolute top-5 left-1/2 -translate-x-1/2">
+        <Hint />
+      </div>
+      {/* Centred in the open space between the title and the canvas's bottom edge, timeline or not. */}
+      <div className="pointer-events-none absolute top-[76px] bottom-5 left-5">
+        <div className="flex h-full items-center">
+          <Rail />
+        </div>
+      </div>
+    </>
+  )
+}
+
+function NameSongDialog({ onSave }: { onSave: (title: string) => void }) {
+  const [title, setTitle] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => inputRef.current?.focus(), [])
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    const name = title.trim()
+    if (name) onSave(name)
+  }
+
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-ink/10 p-4 backdrop-blur-[2px]">
+      <form
+        onSubmit={submit}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="name-song-title"
+        className="flex w-105 max-w-full flex-col gap-5 rounded-[20px] bg-card p-7 shadow-lift"
+      >
+        <div className="flex flex-col gap-2">
+          <h2 id="name-song-title" className="type-display text-ink">Name your song</h2>
+          <p className="type-body text-ink-2">Give this song a name so it’s easy to find in your workspace.</p>
+        </div>
+        <input
+          ref={inputRef}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="e.g. Childhood memories"
+          aria-label="Song name"
+          className="h-11 rounded-[10px] border border-rule-strong bg-well px-3 text-ink outline-none placeholder:text-ink-3 focus:border-select focus:ring-2 focus:ring-select/20"
+        />
+        <button
+          type="submit"
+          disabled={!title.trim()}
+          className="shine-button type-action self-end rounded-full bg-ink px-4 py-2.5 text-on-ink transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Continue
+        </button>
+      </form>
     </div>
   )
 }

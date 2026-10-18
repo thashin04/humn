@@ -1,7 +1,8 @@
 import { AppWindow, InfoCircle, NavArrowDown, Xmark } from 'iconoir-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { type CSSProperties, type ReactNode } from 'react'
 import { nameOf } from '@/data/library'
+import { purposeOf } from '@/data/interpret'
 import { LENGTHS, PARTS } from '@/data/parts'
 import { ROLES, type AnySongNode, type Kind, type SongNode, type Vocals } from '@/data/nodes'
 import { cn } from '@/lib/utils'
@@ -24,14 +25,21 @@ export function SectionPanel() {
     const picked = s.nodes.filter((n) => n.selected)
     if (picked.length !== 1 || picked[0].type !== 'section') return null
     const section = picked[0] as SongNode<'section'>
-    // Only once something beyond the prompt is shaping it (until then there's little to set), or when it's just been created.
+    // Once something beyond the prompt is shaping it (until then there's little to set), when it's just been
+    // created, or when one of its inputs has been picked to look at.
     const shaped = ROLES.some(
       (r) =>
         r.id !== 'intent' &&
         (section.data.sources[r.id] ?? []).some((src) => s.nodes.some((x) => x.id === src)),
     )
-    return shaped || section.id === s.made ? section : null
+    return shaped || section.id === s.made || !!s.focusedInputId ? section : null
   })
+  const focusedInputId = useSong((s) => s.focusedInputId)
+  const nodes = useSong((s) => s.nodes)
+  const setFocusedInput = useSong((s) => s.setFocusedInput)
+  const focusedInput = section && focusedInputId
+    ? connectedInputs(section, nodes).find(({ node }) => node.id === focusedInputId)
+    : null
 
   return (
     <MotionConfig reducedMotion="user">
@@ -47,7 +55,11 @@ export function SectionPanel() {
             className="pointer-events-auto flex max-h-full w-[300px] flex-col overflow-hidden rounded-[26px] bg-card shadow-lift"
             aria-label="Section settings"
           >
-            <Settings section={section} />
+            {focusedInput ? (
+              <InputSettings input={focusedInput} onBack={() => setFocusedInput(null)} />
+            ) : (
+              <Settings section={section} onOpenInput={setFocusedInput} />
+            )}
           </motion.aside>
         )}
       </AnimatePresence>
@@ -55,7 +67,7 @@ export function SectionPanel() {
   )
 }
 
-function Settings({ section }: { section: SongNode<'section'> }) {
+function Settings({ section, onOpenInput }: { section: SongNode<'section'>; onOpenInput: (inputId: string) => void }) {
   const { updateData, onNodesChange } = useSong()
   const { id, data } = section
   const set = (patch: Partial<SongNode<'section'>['data']>) => updateData(id, patch)
@@ -66,7 +78,10 @@ function Settings({ section }: { section: SongNode<'section'> }) {
     <>
       <div className="flex items-start gap-2.5 px-5 pt-[18px] pb-3">
         <AppWindow width={18} height={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-ink-1" />
-        <p className="min-w-0 flex-1 text-[15px] leading-[1.3] font-medium text-ink-1">{data.name}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] leading-[1.3] font-medium text-ink-1">Shape this {data.name.toLowerCase()}</p>
+          <p className="type-small text-ink-3">Choose what this part should feel like.</p>
+        </div>
         <button
           aria-label={`Close ${data.name.toLowerCase()} settings`}
           title="Close"
@@ -78,7 +93,7 @@ function Settings({ section }: { section: SongNode<'section'> }) {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pt-1 pb-5 [&>*]:shrink-0">
-        <Field label="Part of the song" note={part?.hint}>
+        <Field label="Part" note={part?.hint}>
           <Pills
             options={PARTS.map((p) => ({ id: p.name, label: p.name }))}
             value={data.name}
@@ -95,7 +110,9 @@ function Settings({ section }: { section: SongNode<'section'> }) {
           />
         </Field>
 
-        <Field label={`How should these shape your ${data.name.toLowerCase()}?`}>
+        <Connected section={section} onOpenInput={onOpenInput} />
+
+        <Field label="Creative direction" aside="Optional" note="Only changes this part.">
           <textarea
             value={data.direction ?? ''}
             onChange={(e) => set({ direction: e.target.value })}
@@ -109,7 +126,7 @@ function Settings({ section }: { section: SongNode<'section'> }) {
 
         <div className="flex flex-col gap-4">
           <p className="text-[14px] leading-[1.3] font-medium text-ink-1">Shape the sound</p>
-          <Field label="Energy">
+          <Field label="Energy" note="How much motion this part should have.">
             <input
               type="range"
               min={0}
@@ -131,11 +148,9 @@ function Settings({ section }: { section: SongNode<'section'> }) {
           </Field>
         </div>
 
-        <Connected section={section} />
-
         <p className="type-small flex items-center gap-1.5 text-ink-3">
           <InfoCircle width={14} height={14} strokeWidth={1.5} className="shrink-0" />
-          These shape the next takes you make.
+          Next: choose “Hear 2 ideas” on the canvas card.
         </p>
       </div>
     </>
@@ -190,66 +205,142 @@ function Pills({
 }
 
 /** What's plugged into this section, folded away until asked for. */
-function Connected({ section }: { section: SongNode<'section'> }) {
-  const [open, setOpen] = useState(false)
+function Connected({ section, onOpenInput }: { section: SongNode<'section'>; onOpenInput: (inputId: string) => void }) {
   const nodes = useSong((s) => s.nodes)
-  const plugged = ROLES.flatMap((r) =>
-    (section.data.sources[r.id] ?? []).flatMap((src) => {
-      const n = nodes.find((x) => x.id === src)
-      return n ? [{ node: n, role: r }] : []
-    }),
-  )
+  const plugged = connectedInputs(section, nodes)
 
   return (
-    <div className="overflow-hidden rounded-[14px] border border-rule">
-      <button
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        disabled={!plugged.length}
-        className="flex h-11 w-full items-center gap-2.5 px-3.5 text-left transition-colors hover:bg-well disabled:hover:bg-transparent"
-      >
-        <span className="type-caption flex-1 text-ink-1">
-          {plugged.length ? `Plugged in · ${plugged.length}` : 'Nothing plugged in yet'}
-        </span>
-        {plugged.length > 0 && (
-          <NavArrowDown
-            width={16}
-            height={16}
-            strokeWidth={1.5}
-            className={cn('text-ink-3 transition-transform duration-300 ease-soft', open && 'rotate-180')}
-          />
-        )}
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.ul
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ type: 'spring', visualDuration: 0.3, bounce: 0 }}
-            className="flex flex-col gap-0.5 border-t border-rule px-1.5 py-1.5"
-          >
-            {plugged.map(({ node, role }) => (
-              <Plugged key={node.id} node={node} role={role.name} roleId={role.id} />
-            ))}
-          </motion.ul>
-        )}
-      </AnimatePresence>
+    <div className="flex flex-col gap-3 rounded-[14px] border border-rule p-2">
+      <div className="flex items-center justify-between px-1.5">
+        <p className="type-caption text-ink-1">Inputs shaping this part</p>
+        <p className="type-small text-ink-3">{plugged.length}</p>
+      </div>
+      {plugged.length ? (
+        <div className="flex flex-col gap-1" role="list" aria-label="Inputs shaping this part">
+          {plugged.map(({ node, role }) => {
+            const Icon = node.type in KIND_ICONS ? KIND_ICONS[node.type as Kind] : null
+            return (
+              <button
+                key={node.id}
+                type="button"
+                role="listitem"
+                onClick={() => onOpenInput(node.id)}
+                className="flex min-h-11 w-full items-center gap-2 rounded-[10px] px-2 text-left transition-[background-color,color] duration-200 hover:bg-well"
+              >
+                {Icon && <Icon width={15} height={15} strokeWidth={1.5} className="shrink-0 text-ink-2" />}
+                <span className="type-small min-w-0 flex-1 truncate text-ink-1">{inputName(node)}</span>
+                <span className="type-small shrink-0 text-ink-3">{role.name}</span>
+                <NavArrowDown width={14} height={14} strokeWidth={1.5} className="-rotate-90 shrink-0 text-ink-3" />
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="type-small px-1.5 pb-1 text-ink-3">Add an input to give this part a direction.</p>
+      )}
     </div>
   )
 }
 
-function Plugged({ node, role, roleId }: { node: AnySongNode; role: string; roleId: string }) {
-  const Icon = node.type in KIND_ICONS ? KIND_ICONS[node.type as Kind] : null
-  return (
-    <li className="flex h-8 items-center gap-2.5 rounded-[9px] px-2">
-      {Icon && <Icon width={15} height={15} strokeWidth={1.5} className="shrink-0 text-ink-2" />}
-      <span className="type-caption min-w-0 flex-1 truncate text-ink-1">
-        {nameOf(node.data as Record<string, unknown>) || role}
-      </span>
-      <span className="type-small shrink-0" style={{ color: `var(--soft-role-${roleId})` }}>
-        {role}
-      </span>
-    </li>
+function connectedInputs(section: SongNode<'section'>, nodes: AnySongNode[]) {
+  return ROLES.flatMap((role) =>
+    (section.data.sources[role.id] ?? []).flatMap((source) => {
+      const node = nodes.find((candidate) => candidate.id === source)
+      return node ? [{ node, role }] : []
+    }),
   )
+}
+
+function InputSettings({ input, onBack }: { input: { node: AnySongNode; role: (typeof ROLES)[number] }; onBack: () => void }) {
+  const Icon = input.node.type in KIND_ICONS ? KIND_ICONS[input.node.type as Kind] : null
+
+  return (
+    <>
+      <div className="flex items-start gap-2.5 px-5 pt-[18px] pb-3">
+        <button
+          type="button"
+          aria-label="Back to section settings"
+          onClick={onBack}
+          className="-ml-2 flex size-7 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-well hover:text-ink-1"
+        >
+          <NavArrowDown width={17} height={17} strokeWidth={1.5} className="rotate-90" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            {Icon && <Icon width={16} height={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />}
+            <p className="truncate text-[15px] leading-[1.3] font-medium text-ink-1">{inputName(input.node)}</p>
+          </div>
+          <p className="type-small text-ink-3">{input.role.name} input</p>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pt-1 pb-5 [&>*]:shrink-0">
+        <div className="rounded-[12px] bg-well p-3">
+          <p className="type-small text-ink-2">What this adds</p>
+          <p className="type-body mt-1 text-ink-1">{purposeOf(input.node, input.role.id)}</p>
+        </div>
+        <Field label="Edit this input">
+          <InputEditor node={input.node} />
+        </Field>
+        <p className="type-small text-ink-3">Changes here update this input wherever it shapes the song.</p>
+      </div>
+    </>
+  )
+}
+
+function inputName(node: AnySongNode) {
+  return nameOf(node.data as Record<string, unknown>).trim() || DRAWER_LABELS[node.type as Kind]
+}
+
+const DRAWER_LABELS: Record<Kind, string> = {
+  words: 'Prompt',
+  lyrics: 'Lyrics',
+  voice: 'Voice',
+  photo: 'Image',
+  feeling: 'Feeling',
+  sound: 'Sound',
+  color: 'Colour',
+  instrument: 'Instrument',
+  chords: 'Chords',
+}
+
+function InputEditor({ node }: { node: AnySongNode }) {
+  const updateData = useSong((s) => s.updateData)
+  const data = node.data as Record<string, unknown>
+  const set = (patch: Record<string, unknown>) => updateData(node.id, patch)
+  const fieldClass = 'type-small min-h-8 w-full rounded-[8px] border border-rule bg-card px-2.5 py-1.5 text-ink-1 outline-none placeholder:text-ink-3 focus:border-rule-strong'
+
+  if (node.type === 'words') {
+    return <textarea value={String(data.text ?? '')} onChange={(e) => set({ text: e.target.value })} rows={2} className={`${fieldClass} resize-none`} aria-label="Prompt text" />
+  }
+  if (node.type === 'photo') {
+    return <input value={String(data.caption ?? '')} onChange={(e) => set({ caption: e.target.value })} className={fieldClass} aria-label="Image caption" />
+  }
+  if (node.type === 'feeling') {
+    const amount = Number(data.amount ?? 0.5)
+    return (
+      <div>
+        <input type="range" min={0} max={1} step={0.01} value={amount} onChange={(e) => set({ amount: Number(e.target.value) })} className="humn-range" style={{ '--v': `${amount * 100}%` } as CSSProperties} aria-label="Feeling intensity" />
+        <div className="type-small mt-1 flex justify-between text-ink-3"><span>Subtle</span><span>Strong</span></div>
+      </div>
+    )
+  }
+  if (node.type === 'voice' || node.type === 'sound') {
+    return <input value={String(data.label ?? '')} onChange={(e) => set({ label: e.target.value })} className={fieldClass} aria-label={`${node.type} label`} />
+  }
+  if (node.type === 'color') {
+    return <input value={String(data.label ?? '')} onChange={(e) => set({ label: e.target.value })} className={fieldClass} aria-label="Colour label" />
+  }
+  if (node.type === 'instrument') {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <input value={String(data.name ?? '')} onChange={(e) => set({ name: e.target.value })} className={fieldClass} aria-label="Instrument name" />
+        <input value={String(data.detail ?? '')} onChange={(e) => set({ detail: e.target.value })} className={fieldClass} aria-label="Instrument detail" />
+      </div>
+    )
+  }
+  if (node.type === 'chords') {
+    return <input value={Array.isArray(data.chords) ? data.chords.join(', ') : ''} onChange={(e) => set({ chords: e.target.value.split(',').map((chord) => chord.trim()).filter(Boolean) })} className={fieldClass} aria-label="Chords" />
+  }
+  return null
 }

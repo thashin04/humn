@@ -28,7 +28,7 @@ export function EmptyState() {
         onClick={openTemplatePicker}
         className="pointer-events-auto text-[32px] leading-[1.15] font-medium tracking-[-0.035em] text-ink transition-opacity hover:opacity-70"
       >
-        Start with a template
+        Start with a story
       </button>
       <div className="flex w-[640px] items-center gap-4">
         <span className="h-px flex-1 bg-rule" />

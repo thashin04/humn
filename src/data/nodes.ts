@@ -55,8 +55,16 @@ export type SectionData = {
 /**
  * Two versions of what a section made. Making until the mock "listening" ends.
  * `version` is the one last picked or played; `kept` is the one put in the song.
+ * A branch (`branchOf`) grows off another take instead of its section.
  */
-export type TakeData = { sectionId: string; state: 'making' | 'done'; version: 'A' | 'B'; length: number; kept?: 'A' | 'B' }
+export type TakeData = {
+  sectionId: string
+  state: 'making' | 'done'
+  version: 'A' | 'B'
+  length: number
+  kept?: 'A' | 'B'
+  branchOf?: string
+}
 
 type DataOf = {
   words: WordsData

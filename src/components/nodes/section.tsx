@@ -25,6 +25,8 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
   const snapRole = useSong((s) => (s.snap?.section === id ? s.snap.role : null))
   const { makeTakes, updateData } = useSong()
   const nodes = useSong((s) => s.nodes)
+  const focusedInputId = useSong((s) => s.focusedInputId)
+  const setFocusedInput = useSong((s) => s.setFocusedInput)
   const set = (patch: Partial<SongNode<'section'>['data']>) => updateData(id, patch)
 
   const filled = ROLES.flatMap((r) => {
@@ -83,12 +85,14 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
         <div className="flex flex-col gap-1 px-1.5 pb-1.5">
           <p className="line-clamp-2 text-[19px] leading-[1.2] font-semibold tracking-[-0.015em] text-ink">What shapes your {data.name.toLowerCase()}</p>
           <p className="type-caption text-ink-3">
-            {count ? `${count} ${count === 1 ? 'thing' : 'things'} plugged in` : 'Plug in photos, sounds, words or colours.'}
+            {count
+              ? `${count} ${count === 1 ? 'thing' : 'things'} plugged in. Hear two ideas when you’re ready.`
+              : `Add an input to shape your ${data.name.toLowerCase()}.`}
           </p>
         </div>
 
         {filled.map(({ role, cards }) => (
-          <Slot key={role} section={id} role={role} cards={cards} />
+          <Slot key={role} section={id} role={role} cards={cards} focusedInputId={focusedInputId} onFocusInput={setFocusedInput} />
         ))}
 
         <AddInfluence section={id} empty={empty} hot={snapRole && empty.includes(snapRole) ? snapRole : null} />
@@ -117,7 +121,7 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
  */
 function HearButton({ section, disabled, onClick }: { section: string; disabled: boolean; onClick: () => void }) {
   const state = useSong((s) => {
-    const take = s.nodes.find((n) => n.type === 'take' && n.data.sectionId === section)
+    const take = s.nodes.find((n) => n.type === 'take' && n.data.sectionId === section && !n.data.branchOf)
     return take?.type === 'take' ? take.data.state : null
   })
   const [turns, setTurns] = useState(0)
@@ -166,18 +170,34 @@ function HearButton({ section, disabled, onClick }: { section: string; disabled:
 }
 
 /** Everything plugged into one slot, as one line about the verse. Its wires plug in at the row's left edge. */
-function Slot({ section, role, cards }: { section: string; role: Role; cards: AnySongNode[] }) {
+function Slot({ section, role, cards, focusedInputId, onFocusInput }: { section: string; role: Role; cards: AnySongNode[]; focusedInputId: string | null; onFocusInput: (id: string) => void }) {
   const hot = useSong((s) => s.snap?.section === section && s.snap.role === role)
   const landed = useSong((s) => s.fresh?.section === section && s.fresh.role === role)
   const title = slotSentence(cards, role)
+  const focused = cards.some((card) => card.id === focusedInputId)
+  const roleLabel = ROLES.find((item) => item.id === role)?.name ?? role
 
   return (
     <div
       className={cn(
-        'animate-row-in relative flex min-h-[64px] items-center gap-3 rounded-[14px] border bg-card p-2 pr-2.5 transition-[border-color,box-shadow] duration-200',
-        hot ? 'border-[var(--c)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--c)_12%,transparent)]' : 'border-rule',
+        'animate-row-in relative flex min-h-[64px] items-center gap-3 rounded-[14px] border bg-card p-2 pr-2.5 transition-[background-color,border-color,box-shadow] duration-200',
+        hot
+          ? 'border-[var(--c)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--c)_12%,transparent)]'
+          : focused
+            ? 'border-select bg-level shadow-[0_0_0_3px_color-mix(in_srgb,var(--soft-accent)_12%,transparent)]'
+            : 'border-rule hover:bg-well',
       )}
       style={{ '--c': `var(--soft-role-${role})` } as CSSProperties}
+      onClick={() => onFocusInput(cards.find((card) => card.id === focusedInputId)?.id ?? cards[0].id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onFocusInput(cards.find((card) => card.id === focusedInputId)?.id ?? cards[0].id)
+        }
+      }}
+      aria-label={`Inspect ${roleLabel.toLowerCase()} input`}
     >
       <Handle type="target" id={role} position={Position.Left} isConnectableStart={false} className="wire-socket" />
       <span aria-hidden data-hump="" className={cn('wire-hump', landed && 'wire-pop-in')} />
@@ -277,7 +297,7 @@ function AddInfluence({ section, empty, hot }: { section: string; empty: Role[];
         ) : (
           <>
             <Plus width={16} height={16} strokeWidth={1.5} className="text-ink-2" />
-            Add an influence
+            Add an input
           </>
         )}
       </button>

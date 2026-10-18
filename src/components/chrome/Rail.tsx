@@ -60,9 +60,9 @@ export function Rail() {
     <div
       ref={ref}
       className={cn(
-        'flex overflow-hidden rounded-[26px] bg-card shadow-lift transition-[width,height] motion-reduce:transition-none',
+        'pointer-events-auto flex overflow-hidden rounded-[26px] bg-card shadow-lift transition-[width,height] motion-reduce:transition-none',
         drawer
-          ? 'h-[min(632px,calc(100dvh-180px))] w-[369px] duration-[380ms] ease-spring'
+          ? 'h-[min(632px,100%)] w-[369px] duration-[380ms] ease-spring'
           : 'h-[306px] w-[52px] delay-[60ms] duration-[280ms] ease-soft',
       )}
     >

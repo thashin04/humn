@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { Check } from 'iconoir-react'
+import { Check, Plus } from 'iconoir-react'
 import { type CSSProperties } from 'react'
 import iconTake from '@/assets/figma/node-icon-take.svg'
 import pause from '@/assets/figma/node-pause.svg'
@@ -20,10 +20,11 @@ type Version = 'A' | 'B'
 /**
  * Two versions of what a section made, one row each. While they're being
  * made the rows listen; then each can be played, and one kept for the song.
- * While a take plays, the pipes into its section flow.
+ * While a take plays, the pipes into its section flow. A take can branch:
+ * a new one grows off it, wired from its right side.
  */
 export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
-  const { updateData, setPlaying, makeTakes } = useSong()
+  const { updateData, setPlaying, makeTakes, branchTake } = useSong()
   const playing = useSong((s) => s.playing === id)
   const sectionName = useSong((s) => {
     const n = s.nodes.find((n) => n.id === data.sectionId)
@@ -62,6 +63,8 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
           {/* The pipe from the section comes in here. */}
           <Handle type="target" id="in" position={Position.Left} isConnectable={false} className="wire-socket" />
           <span aria-hidden data-hump="" className="wire-hump" style={{ '--c': 'var(--soft-ink)' } as CSSProperties} />
+          {/* Where a branch's pipe leaves. */}
+          <Handle type="source" id="out" position={Position.Right} isConnectable={false} className="wire-out" style={{ top: '50%', right: -12 }} />
           {kept ? (
             <>
               {rowFor(kept)}
@@ -104,6 +107,16 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
               className="nodrag type-action h-11 rounded-[14px] border border-rule px-4 text-ink-2 transition-[background-color,color,transform] duration-150 enabled:hover:bg-well enabled:hover:text-ink-1 enabled:active:scale-[0.98] disabled:text-ink-3"
             >
               Make 2 more
+            </button>
+            <button
+              type="button"
+              disabled={making}
+              aria-label="Branch this take"
+              title="Branch this take"
+              onClick={() => branchTake(id)}
+              className="nodrag flex size-11 shrink-0 items-center justify-center rounded-[14px] border border-rule text-ink-2 transition-[background-color,color,transform] duration-150 enabled:hover:bg-well enabled:hover:text-ink-1 enabled:active:scale-[0.98] disabled:text-ink-3"
+            >
+              <Plus width={16} height={16} strokeWidth={1.75} />
             </button>
           </div>
         )}

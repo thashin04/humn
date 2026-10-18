@@ -2,20 +2,51 @@ import { applyNodeChanges, type Edge, type NodeChange, type XYPosition } from '@
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { CLIP_DEFAULTS, newClip, type Clip } from '@/data/clips'
 import { STARTING_DATA, type AnySongNode, type Kind, type NodeKind, type Role, type SectionData } from '@/data/nodes'
 import { SEED_CANVASES } from '@/data/seedCanvases'
 import { templateNodes, type TemplateId } from '@/data/templates'
 
-export type Tool = 'select' | 'hand'
+export type Tool = 'select' | 'hand' | 'comment'
+
+/** A note someone left on the song: at a spot on the canvas, or at a moment in the timeline. */
+export type SongComment = {
+  id: string
+  author: string
+  text: string
+  /** When it was written. */
+  at: number
+  where: { x: number; y: number } | { t: number }
+}
+
+/** What undo puts back: the canvas and the song's clips. */
+type Snapshot = { nodes: AnySongNode[]; clips: Clip[] | undefined }
 
 type SongState = {
   songId: string | null
+  /** Changes to the open song, to step back and forward through. Not kept between visits. */
+  past: Snapshot[]
+  future: Snapshot[]
   /** Every song's canvas, kept between visits. */
   saved: Record<string, AnySongNode[]>
   nodes: AnySongNode[]
   edges: Edge[]
   tool: Tool
+  /** The timeline docked under the canvas, and how tall it's been pulled. */
   timelineOpen: boolean
+  dockHeight: number
+  /** The clip selected in the timeline. Picking one lets go of any cards, and the other way round. */
+  clip: string | null
+  /**
+   * Each song's clips in the order they play. A section can come back (a
+   * chorus twice), each time as its own clip. Songs that haven't been arranged
+   * play each section once, left to right.
+   */
+  arrangements: Record<string, Clip[]>
+  /** Each song's comments, oldest first. */
+  comments: Record<string, SongComment[]>
+  /** A node to bring into view once the canvas is showing again. */
+  focus: string | null
   templatePicker: { open: boolean; selected: TemplateId }
   /** Which kind's drawer is open beside the rail. */
   drawer: Kind | null
@@ -31,6 +62,8 @@ type SongState = {
   made: string | null
   /** The take that's playing; the wires into its section flow while it does. */
   playing: string | null
+  /** The input currently being inspected in the selected section. */
+  focusedInputId: string | null
   /** Swaps the canvas to another song, keeping the one being left. */
   open: (songId: string) => void
   onNodesChange: (changes: NodeChange<AnySongNode>[]) => void
@@ -46,15 +79,31 @@ type SongState = {
   disconnect: (source: string, section: string) => void
   /** Makes (or remakes) a section's two takes, beside it and wired from it. */
   makeTakes: (sectionId: string) => void
+  /** Creates an independent playable take from an existing take. */
+  branchTake: (takeId: string) => void
   /** The prompt someone is typing into, so nothing is suggested from it until they're done. */
   drafting: string | null
   setDrafting: (id: string | null) => void
   /** Turns the suggested first part into a real section at `at`, with `source` plugged in when there is one. */
   startFirstPart: (source: string | null, at: XYPosition, role: Role, energy: number) => void
   setPlaying: (takeId: string | null) => void
+  setFocusedInput: (inputId: string | null) => void
   updateData: (id: string, patch: Record<string, unknown>) => void
   setTool: (tool: Tool) => void
+  undo: () => void
+  redo: () => void
   toggleTimeline: () => void
+  setDockHeight: (height: number) => void
+  pickClip: (id: string | null) => void
+  /** Sets the current song's clips. */
+  arrange: (clips: Clip[]) => void
+  addComment: (where: SongComment['where'], text: string, author: string) => void
+  moveComment: (id: string, where: SongComment['where']) => void
+  /** Resolving a comment clears it away. */
+  resolveComment: (id: string) => void
+  /** Selects this node on the canvas and brings it into view. */
+  showOnCanvas: (id: string) => void
+  clearFocus: () => void
   openTemplatePicker: () => void
   closeTemplatePicker: () => void
   selectTemplate: (id: TemplateId) => void
@@ -76,12 +125,19 @@ export const useSong = create<SongState>()(
   persist(
     (set, get) => ({
   songId: null,
+  past: [],
+  future: [],
   saved: {},
   nodes: [],
   edges: [],
   tool: 'select',
   timelineOpen: false,
-  templatePicker: { open: false, selected: 'photo' },
+  dockHeight: 320,
+  clip: null,
+  arrangements: {},
+  comments: {},
+  focus: null,
+  templatePicker: { open: false, selected: 'roadtrip' },
   drawer: null,
   fitRequest: 0,
   dragKind: null,
@@ -90,6 +146,7 @@ export const useSong = create<SongState>()(
   fresh: null,
   made: null,
   playing: null,
+  focusedInputId: null,
   open: (songId) =>
     set((s) => {
       if (s.songId === songId) return s
@@ -98,7 +155,12 @@ export const useSong = create<SongState>()(
       return {
         songId,
         saved,
+        past: [],
+        future: [],
         playing: null,
+        focus: null,
+        clip: null,
+        focusedInputId: null,
         nodes: nodes.map((n) => ({ ...n, selected: false })),
         // Frame whatever's there once it's measured.
         fitRequest: nodes.length ? s.fitRequest + 1 : s.fitRequest,
@@ -107,9 +169,35 @@ export const useSong = create<SongState>()(
   onNodesChange: (changes) =>
     set((s) => {
       const gone = changes.flatMap((c) => (c.type === 'remove' ? [c.id] : []))
-      const nodes = unplug(applyNodeChanges(changes, s.nodes), (id) => gone.includes(id))
+      // A drag is one step, remembered as it starts; picking things or measuring them isn't one.
+      const starts = changes.some(
+        (c) => c.type === 'position' && c.dragging && !s.nodes.find((n) => n.id === c.id)?.dragging,
+      )
+      const next = unplug(applyNodeChanges(changes, s.nodes), (id) => gone.includes(id))
+      // Takes go with their section, and branches with the take they came from.
+      const removed = new Set(gone)
+      let changed = true
+      while (changed) {
+        changed = false
+        for (const node of next) {
+          if (node.type !== 'take') continue
+          const orphaned = removed.has(node.data.sectionId) || (!!node.data.branchOf && removed.has(node.data.branchOf))
+          if (orphaned && !removed.has(node.id)) {
+            removed.add(node.id)
+            changed = true
+          }
+        }
+      }
+      const nodes = next.filter((node) => !removed.has(node.id))
+      const picking = changes.some((c) => c.type === 'select' && c.selected)
       const left = changes.some((c) => (c.type === 'select' && !c.selected) || c.type === 'remove' ? c.id === s.made : false)
-      return { nodes, saved: s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved, ...(left && { made: null }) }
+      return {
+        ...(picking ? { clip: null } : {}),
+        ...(gone.length || starts ? remember(s) : {}),
+        nodes,
+        saved: s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved,
+        ...(left && { made: null }),
+      }
     }),
   addNode: (kind, at, data) => {
     const id = nanoid(8)
@@ -121,13 +209,15 @@ export const useSong = create<SongState>()(
       selected: true,
       data: { ...structuredClone(STARTING_DATA[kind]), ...data },
     } as AnySongNode
-    set((s) => keep(s, [...s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), node]))
+    set((s) => ({ ...remember(s), ...keep(s, [...s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), node]) }))
     return id
   },
   applyTemplate: (id) =>
     set((s) => ({
-      ...keep(s, [...s.nodes.map((n) => ({ ...n, selected: false })), ...templateNodes(id, nanoid(6))]),
+      ...remember(s),
+      ...keep(s, templateNodes(id, nanoid(6))),
       templatePicker: { ...s.templatePicker, open: false },
+      focusedInputId: null,
       fitRequest: s.fitRequest + 1,
     })),
   setDrawer: (drawer) => set({ drawer }),
@@ -143,16 +233,17 @@ export const useSong = create<SongState>()(
           ? { ...m, data: { ...m.data, sources: { ...m.data.sources, [role]: [...(m.data.sources[role] ?? []), source] } } }
           : m
       })
-      return { ...keep(s, nodes), fresh: pulse(set, { id: `${source}|${section}`, source, section, role }) }
+      return { ...remember(s), ...keep(s, nodes), fresh: pulse(set, { id: `${source}|${section}`, source, section, role }) }
     }),
   disconnect: (source, section) =>
-    set((s) => keep(s, unplug(s.nodes, (id) => id === source, section))),
+    set((s) => ({ ...remember(s), ...keep(s, unplug(s.nodes, (id) => id === source, section)) })),
   makeTakes: (sectionId) => {
     const s = get()
     const section = s.nodes.find((n) => n.id === sectionId)
     if (!section) return
     const length = section.type === 'section' ? section.data.length : 30
-    let take = s.nodes.find((n) => n.type === 'take' && n.data.sectionId === sectionId)
+    // The section's own take, not a branch grown off it.
+    let take = s.nodes.find((n) => n.type === 'take' && n.data.sectionId === sectionId && !n.data.branchOf)
     if (take) {
       s.updateData(take.id, { state: 'making', version: 'A', kept: undefined, length })
       if (s.playing === take.id) set({ playing: null })
@@ -165,12 +256,32 @@ export const useSong = create<SongState>()(
         origin: [0.5, 0.5],
         data: { sectionId, state: 'making', version: 'A', length },
       } as AnySongNode
-      set((s) => keep(s, [...s.nodes, take!]))
+      set((s) => ({ ...remember(s), ...keep(s, [...s.nodes, take!]) }))
     }
     const takeId = take.id
-    window.setTimeout(() => get().updateData(takeId, { state: 'done' }), MAKING_MS)
+    // The takes finishing isn't something someone did, so it isn't a step to undo.
+    window.setTimeout(
+      () =>
+        set((s) =>
+          keep(s, s.nodes.map((n) => (n.id === takeId && n.type === 'take' ? { ...n, data: { ...n.data, state: 'done' } } : n))),
+        ),
+      MAKING_MS,
+    )
+  },
+  branchTake: (takeId) => {
+    const source = get().nodes.find((n) => n.id === takeId)
+    if (!source || source.type !== 'take' || source.data.state === 'making') return
+    const branch = {
+      id: nanoid(8),
+      type: 'take',
+      position: { x: source.position.x + 360, y: source.position.y + 140 },
+      origin: [0.5, 0.5],
+      data: { sectionId: source.data.sectionId, state: 'done', version: 'A', length: source.data.length, branchOf: source.id },
+    } as AnySongNode
+    set((s) => ({ ...remember(s), ...keep(s, [...s.nodes.map((n) => ({ ...n, selected: false })), branch]) }))
   },
   setPlaying: (playing) => set({ playing }),
+  setFocusedInput: (focusedInputId) => set({ focusedInputId }),
   setDrafting: (drafting) => set({ drafting }),
   startFirstPart: (source, at, role, energy) => {
     const id = nanoid(8)
@@ -186,25 +297,78 @@ export const useSong = create<SongState>()(
     } as AnySongNode
     set((s) => keep(s, [...s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), section]))
     if (source) get().connect(source, id, role)
-    // The new section ends up selected, with its settings open. Pull back so the cards and it are all in view.
+    // The new section ends up selected, with its settings open and its first input in focus. Pull back so the cards and it are all in view.
     set((s) => ({
       ...keep(s, s.nodes.map((n) => (!!n.selected === (n.id === id) ? n : ({ ...n, selected: n.id === id } as AnySongNode)))),
       made: id,
+      focusedInputId: source,
       fitRequest: s.fitRequest + 1,
     }))
   },
   updateData: (id, patch) =>
-    set((s) => keep(s, s.nodes.map((n) => (n.id === id ? ({ ...n, data: { ...n.data, ...patch } } as AnySongNode) : n)))),
+    set((s) => ({
+      // Typing into a card, or a slider on it, is one step until it rests.
+      ...remember(s, `data:${id}:${Object.keys(patch).join()}`),
+      ...keep(s, s.nodes.map((n) => (n.id === id ? ({ ...n, data: { ...n.data, ...patch } } as AnySongNode) : n))),
+    })),
   setTool: (tool) => set({ tool }),
-  toggleTimeline: () => set((s) => ({ timelineOpen: !s.timelineOpen })),
+  undo: () =>
+    set((s) => {
+      const back = s.past.at(-1)
+      if (!back || !s.songId) return s
+      lastKey = ''
+      return { ...restore(s, back), past: s.past.slice(0, -1), future: [snapshot(s), ...s.future] }
+    }),
+  redo: () =>
+    set((s) => {
+      const ahead = s.future[0]
+      if (!ahead || !s.songId) return s
+      lastKey = ''
+      return { ...restore(s, ahead), past: [...s.past, snapshot(s)], future: s.future.slice(1) }
+    }),
+  toggleTimeline: () => set((s) => ({ timelineOpen: !s.timelineOpen, clip: null })),
+  setDockHeight: (dockHeight) => set({ dockHeight }),
+  pickClip: (clip) =>
+    set((s) =>
+      clip && s.nodes.some((n) => n.selected)
+        ? { clip, ...keep(s, s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n))) }
+        : { clip },
+    ),
+  // Dragging a clip's edge or a slider in its panel is one step until it rests.
+  arrange: (order) =>
+    set((s) => (s.songId ? { ...remember(s, 'arrange'), arrangements: { ...s.arrangements, [s.songId]: order } } : s)),
+  addComment: (where, text, author) =>
+    set((s) =>
+      s.songId
+        ? {
+            comments: {
+              ...s.comments,
+              [s.songId]: [...(s.comments[s.songId] ?? []), { id: nanoid(8), author, text, at: Date.now(), where }],
+            },
+          }
+        : s,
+    ),
+  moveComment: (id, where) =>
+    set((s) =>
+      s.songId
+        ? { comments: { ...s.comments, [s.songId]: (s.comments[s.songId] ?? []).map((c) => (c.id === id ? { ...c, where } : c)) } }
+        : s,
+    ),
+  resolveComment: (id) =>
+    set((s) =>
+      s.songId ? { comments: { ...s.comments, [s.songId]: (s.comments[s.songId] ?? []).filter((c) => c.id !== id) } } : s,
+    ),
+  showOnCanvas: (id) =>
+    set((s) => ({ ...keep(s, s.nodes.map((n) => ({ ...n, selected: n.id === id }))), clip: null, focus: id })),
+  clearFocus: () => set({ focus: null }),
   openTemplatePicker: () => set((s) => ({ templatePicker: { ...s.templatePicker, open: true } })),
   closeTemplatePicker: () => set((s) => ({ templatePicker: { ...s.templatePicker, open: false } })),
   selectTemplate: (selected) => set((s) => ({ templatePicker: { ...s.templatePicker, selected } })),
     }),
     {
       name: 'humn-songs',
-      version: 2,
-      partialize: (s) => ({ saved: s.saved }),
+      version: 3,
+      partialize: (s) => ({ saved: s.saved, arrangements: s.arrangements, comments: s.comments, dockHeight: s.dockHeight }),
       // v1 kept each song as { nodes, edges }; plug those edges back into their sections.
       migrate: (old) => {
         const state = old as { saved?: Record<string, unknown> }
@@ -220,7 +384,15 @@ export const useSong = create<SongState>()(
             return { ...n, data: { ...n.data, sources } }
           })
         }
-        return state as Pick<SongState, 'saved'>
+        // v2 kept each song's order as section ids; each becomes a clip as made.
+        const arrangements = (state as { arrangements?: Record<string, unknown[]> }).arrangements ?? {}
+        for (const [id, list] of Object.entries(arrangements))
+          arrangements[id] = list.map((x) => {
+            if (typeof x !== 'string') return x
+            const n = (state.saved?.[id] as AnySongNode[] | undefined)?.find((n) => n.id === x)
+            return { id: nanoid(8), sectionId: x, from: 0, length: n?.type === 'section' ? n.data.length : 30, ...CLIP_DEFAULTS }
+          })
+        return { ...state, arrangements } as Pick<SongState, 'saved' | 'arrangements' | 'comments' | 'dockHeight'>
       },
     },
   ),
@@ -241,8 +413,42 @@ function unplug(nodes: AnySongNode[], match: (id: string) => boolean, section?: 
   })
 }
 
+const snapshot = (s: SongState): Snapshot => ({
+  nodes: s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)),
+  clips: s.songId ? s.arrangements[s.songId] : undefined,
+})
+
+function restore(s: SongState, to: Snapshot) {
+  const arrangements = { ...s.arrangements }
+  if (to.clips) arrangements[s.songId!] = to.clips
+  else delete arrangements[s.songId!]
+  return { nodes: to.nodes, saved: { ...s.saved, [s.songId!]: to.nodes }, arrangements }
+}
+
+// Changes with the same key in quick succession (a slider being dragged, words being typed) undo together.
+let lastKey = ''
+let lastAt = 0
+const SETTLE_MS = 800
+const LIMIT = 100
+
+/** Notes the song as it is, before a change, so the change can be undone. */
+function remember(s: SongState, key = '') {
+  const now = Date.now()
+  const same = key && key === lastKey && now - lastAt < SETTLE_MS
+  lastKey = key
+  lastAt = now
+  if (same) return { future: [] }
+  return { past: [...s.past, snapshot(s)].slice(-LIMIT), future: [] }
+}
+
 function keep(s: SongState, nodes: AnySongNode[]) {
-  return { nodes, saved: s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved }
+  const saved = s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved
+  // A section made after the song was arranged joins at the end.
+  const clips = s.songId ? s.arrangements[s.songId] : undefined
+  const had = new Set(s.nodes.map((n) => n.id))
+  const added = nodes.flatMap((n) => (n.type === 'section' && !had.has(n.id) ? [newClip(n)] : []))
+  if (!clips || !added.length) return { nodes, saved }
+  return { nodes, saved, arrangements: { ...s.arrangements, [s.songId!]: [...clips, ...added] } }
 }
 
 /** True while a take is playing whose section this card is plugged into. */
