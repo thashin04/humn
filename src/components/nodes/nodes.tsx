@@ -37,14 +37,14 @@ export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) 
   }, [])
 
   return (
-    <NodeShell width={empty ? 290 : 250} icon={iconWords} label="Prompt" selected={selected} port="intent">
+      <NodeShell width={empty ? 290 : 250} icon={iconWords} label="Prompt" selected={selected} port="intent">
       <div className="flex flex-col gap-[14px] pt-[18px] pr-[22px] pb-5 pl-5">
         {editing ? (
-          <textarea
+            <textarea
             ref={field}
             rows={1}
             value={data.text}
-            placeholder="What's this song for?"
+              placeholder="What should this part be about?"
             onChange={(e) => updateData(id, { text: e.target.value })}
             onFocus={() => setDrafting(id)}
             onBlur={() => {
@@ -102,7 +102,7 @@ export function VoiceNode({ id, data, selected }: NodeProps<SongNode<'voice'>>) 
   const progress = fed ? fedProgress : own.progress
   const toggle = own.toggle
   return (
-    <NodeShell width={262} icon={iconVoice} label="Record" meta={clock(data.duration)} selected={selected} port="melody">
+    <NodeShell width={262} icon={iconVoice} label="Voice" meta={clock(data.duration)} selected={selected} port="melody">
       <div className="flex h-[60px] items-center gap-3 pr-5 pl-3">
         <PlayButton playing={playing} onClick={toggle} label={data.label} />
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 overflow-hidden">
@@ -173,7 +173,7 @@ export function FeelingNode({ id, data, selected }: NodeProps<SongNode<'feeling'
 /** Texture capsule. */
 export function SoundNode({ data, selected }: NodeProps<SongNode<'sound'>>) {
   return (
-    <NodeShell width={262} icon={iconSound} label="Audio" meta={clock(data.duration)} selected={selected} port="texture">
+    <NodeShell width={262} icon={iconSound} label="Sound" meta={clock(data.duration)} selected={selected} port="texture">
       <div className="flex h-[60px] items-center gap-3 pr-5 pl-3">
         <img src={data.place ?? place} alt="" className="size-9 shrink-0 rounded-full object-cover" draggable={false} />
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 overflow-hidden">
@@ -188,7 +188,7 @@ export function SoundNode({ data, selected }: NodeProps<SongNode<'sound'>>) {
 /** Mood. A swatch. */
 export function ColorNode({ data, selected }: NodeProps<SongNode<'color'>>) {
   return (
-    <NodeShell width={140} icon={iconColour} label="Mood" selected={selected} port="mood">
+    <NodeShell width={140} icon={iconColour} label="Colour" selected={selected} port="mood">
       <div className="size-[140px] p-1.5">
         <div className="relative size-full overflow-hidden rounded-[11px]" style={{ backgroundImage: data.gradient }}>
           <p className="type-small absolute top-[104px] left-2.5 whitespace-nowrap text-on-ink">{data.label}</p>

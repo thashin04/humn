@@ -44,13 +44,13 @@ function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
   const ids = new Set(nodes.map((n) => n.id))
   return nodes.flatMap((sec): PipeEdge[] =>
     sec.type === 'take'
-      ? ids.has(sec.data.sectionId)
+      ? ids.has(sec.data.branchOf ?? sec.data.sectionId)
         ? [
             {
-              id: `${sec.data.sectionId}|${sec.id}`,
+              id: `${sec.data.branchOf ?? sec.data.sectionId}|${sec.id}`,
               type: 'pipe',
-              source: sec.data.sectionId,
-              sourceHandle: 'take',
+              source: sec.data.branchOf ?? sec.data.sectionId,
+              sourceHandle: sec.data.branchOf ? 'out' : 'take',
               target: sec.id,
               targetHandle: 'in',
               selectable: false,
@@ -225,7 +225,7 @@ export function SongCanvas() {
           <People ids={song.collaboratorIds} songId={song.id} title={song.title} />
         </div>
         <div className="pointer-events-none absolute top-[78px] right-5 bottom-[84px] flex items-start">
-          <SectionPanel songTitle={song.title} />
+          <SectionPanel />
         </div>
         <div className="absolute top-1/2 left-5 -translate-y-1/2">
           <Rail />

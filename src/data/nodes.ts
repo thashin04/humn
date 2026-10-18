@@ -49,7 +49,7 @@ export type SectionData = {
   vocals?: Vocals
 }
 /** Two versions of what a section made. Making until the mock "listening" ends. */
-export type TakeData = { sectionId: string; state: 'making' | 'done'; version: 'A' | 'B'; length: number }
+export type TakeData = { sectionId: string; state: 'making' | 'done'; version: 'A' | 'B'; length: number; branchOf?: string }
 
 type DataOf = {
   words: WordsData
