@@ -33,7 +33,7 @@ export const SEED_CANVASES: Record<string, AnySongNode[]> = {
         },
       },
     }),
-    at({ id: 'nh-take', type: 'take', position: { x: 1300, y: 290 }, data: { sectionId: 'nh-verse', state: 'done', version: 'B', length: 30 } }),
+    at({ id: 'nh-take', type: 'take', position: { x: 1420, y: 290 }, data: { sectionId: 'nh-verse', state: 'done', version: 'B', length: 30 } }),
   ],
   // Still gathering: four things brought in, nothing plugged in yet.
   's-road-trip': [
@@ -52,6 +52,6 @@ export const SEED_CANVASES: Record<string, AnySongNode[]> = {
       position: { x: 470, y: -40 },
       data: { name: 'Verse', length: 30, sources: { intent: ['lj-words'], texture: ['lj-sound'], mood: ['lj-feeling'] } },
     }),
-    at({ id: 'lj-take', type: 'take', position: { x: 800, y: -80 }, data: { sectionId: 'lj-verse', state: 'done', version: 'A', length: 30 } }),
+    at({ id: 'lj-take', type: 'take', position: { x: 880, y: -80 }, data: { sectionId: 'lj-verse', state: 'done', version: 'A', length: 30 } }),
   ],
 }

@@ -52,8 +52,11 @@ export type SectionData = {
   energy?: number
   vocals?: Vocals
 }
-/** Two versions of what a section made. Making until the mock "listening" ends. */
-export type TakeData = { sectionId: string; state: 'making' | 'done'; version: 'A' | 'B'; length: number }
+/**
+ * Two versions of what a section made. Making until the mock "listening" ends.
+ * `version` is the one last picked or played; `kept` is the one put in the song.
+ */
+export type TakeData = { sectionId: string; state: 'making' | 'done'; version: 'A' | 'B'; length: number; kept?: 'A' | 'B' }
 
 type DataOf = {
   words: WordsData

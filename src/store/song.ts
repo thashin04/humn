@@ -70,7 +70,7 @@ function pulse(set: (fn: (s: SongState) => Partial<SongState> | SongState) => vo
   return fresh
 }
 // How long the pretend "listening" takes before the two takes are ready.
-const MAKING_MS = 2600
+const MAKING_MS = 3400
 
 export const useSong = create<SongState>()(
   persist(
@@ -151,18 +151,19 @@ export const useSong = create<SongState>()(
     const s = get()
     const section = s.nodes.find((n) => n.id === sectionId)
     if (!section) return
+    const length = section.type === 'section' ? section.data.length : 30
     let take = s.nodes.find((n) => n.type === 'take' && n.data.sectionId === sectionId)
     if (take) {
-      s.updateData(take.id, { state: 'making', version: 'A' })
+      s.updateData(take.id, { state: 'making', version: 'A', kept: undefined, length })
       if (s.playing === take.id) set({ playing: null })
     } else {
       take = {
         id: nanoid(8),
         type: 'take',
-        // The section is 270 wide; the take is 240 wide.
-        position: { x: section.position.x + 135 + 80 + 120, y: section.position.y - 40 },
+        // The section is 320 wide; the take is 300 wide.
+        position: { x: section.position.x + 160 + 90 + 150, y: section.position.y - 60 },
         origin: [0.5, 0.5],
-        data: { sectionId, state: 'making', version: 'A', length: 30 },
+        data: { sectionId, state: 'making', version: 'A', length },
       } as AnySongNode
       set((s) => keep(s, [...s.nodes, take!]))
     }
