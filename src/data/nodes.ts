@@ -1,4 +1,4 @@
-import type { Node } from '@xyflow/react'
+import type { Edge, Node } from '@xyflow/react'
 
 /** What a node does to the music. A section has one socket per role. */
 export type Role = 'intent' | 'melody' | 'harmony' | 'mood' | 'texture' | 'instruments'
@@ -34,7 +34,10 @@ export type SoundData = { label: string; duration: number; place?: string }
 export type ColorData = { label: string; gradient: string }
 export type InstrumentData = { tab: string; name: string; detail: string; thumb?: string }
 export type ChordsData = { chords: string[] }
-export type SectionData = { name: string; length: number; sources: Partial<Record<Role, string[]>> }
+/** What's plugged into each role comes from the pipes (edges), not the section. */
+export type SectionData = { name: string; length: number }
+/** Two versions of what a section made. Making until the mock "listening" ends. */
+export type TakeData = { sectionId: string; state: 'making' | 'done'; version: 'A' | 'B'; length: number }
 
 type DataOf = {
   words: WordsData
@@ -46,6 +49,7 @@ type DataOf = {
   instrument: InstrumentData
   chords: ChordsData
   section: SectionData
+  take: TakeData
 }
 
 export type NodeKind = keyof DataOf
@@ -65,8 +69,13 @@ export const STARTING_DATA: { [K in NodeKind]: DataOf[K] } = {
   color: { label: 'Open road', gradient: 'linear-gradient(135deg, #d5ac7e 14.29%, #87ceeb 85.71%)' },
   instrument: { tab: 'Keyboard', name: 'Upright piano', detail: 'a bit out of tune' },
   chords: { chords: ['F', 'Dm', 'B♭', 'C'] },
-  section: { name: 'Verse', length: 30, sources: {} },
+  section: { name: 'Verse', length: 30 },
+  take: { sectionId: '', state: 'making', version: 'A', length: 30 },
 }
+
+/** A pipe: from a node's connector into one of a section's role plugs, or from a section to its take. */
+export type PipeData = { role?: Role }
+export type Pipe = Edge<PipeData, 'pipe'>
 
 /** m:ss, as in the node meta ("0:47"). */
 export function clock(seconds: number) {

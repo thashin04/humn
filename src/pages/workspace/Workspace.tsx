@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { templates, type TemplateId } from '@/data/templates'
+import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/store/workspace'
 import { LayoutToggle, SearchField } from './Controls'
 import { Sidebar } from './Sidebar'
@@ -10,7 +11,7 @@ import { StarterCard, StartersPanel } from './Starters'
 import { songsIn, useView, viewTitle } from './views'
 
 export function Workspace() {
-  const { songs, folders, layout, createSong } = useWorkspace()
+  const { songs, folders, layout, createSong, sidebarCollapsed } = useWorkspace()
   const [view] = useView()
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
@@ -68,7 +69,7 @@ export function Workspace() {
         ) : view.kind === 'saved' ? (
           <Empty>Sounds you save from your takes will live here.</Empty>
         ) : layout === 'grid' ? (
-          <div className="flex flex-wrap content-start gap-4">
+          <div className={cn('grid content-start gap-4', sidebarCollapsed ? 'grid-cols-4' : 'grid-cols-3')}>
             {canCreate && !query && <NewSongCard onClick={newSong} />}
             {shown.map((song) => (
               <SongCard key={song.id} song={song} />

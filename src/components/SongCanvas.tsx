@@ -1,4 +1,4 @@
-import { ReactFlow, useNodesInitialized, useReactFlow } from '@xyflow/react'
+import { ReactFlow, useNodesInitialized, useReactFlow, type Connection, type EdgeTypes, type IsValidConnection } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useRef } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
@@ -8,17 +8,37 @@ import { Rail } from '@/components/chrome/Rail'
 import { Timeline } from '@/components/chrome/Timeline'
 import { TitlePill } from '@/components/chrome/TitlePill'
 import { Toolkit } from '@/components/chrome/Toolkit'
+import { Hint } from '@/components/chrome/Hint'
 import { EmptyState } from '@/components/empty/EmptyState'
+import { PipeConnectionLine, PipeEdge } from '@/components/pipes/PipeEdge'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
-import { DRAWERS, NODE_DRAG_TYPE } from '@/data/library'
-import { DEFAULT_ROLE, ROLES, type Kind } from '@/data/nodes'
+import { NODE_DRAG_TYPE } from '@/data/library'
+import type { Kind, Pipe } from '@/data/nodes'
 import type { TemplateId } from '@/data/templates'
 import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 
+const edgeTypes: EdgeTypes = { pipe: PipeEdge }
+
+/** Only a thing's connector into one of a section's role plugs. */
+const canPlug: IsValidConnection<Pipe> = (c) => {
+  const { nodes } = useSong.getState()
+  const from = nodes.find((n) => n.id === c.source)
+  const to = nodes.find((n) => n.id === c.target)
+  return (
+    c.sourceHandle === 'out' &&
+    !!from &&
+    from.type !== 'section' &&
+    from.type !== 'take' &&
+    to?.type === 'section' &&
+    !!(c as Connection).targetHandle &&
+    c.targetHandle !== 'in'
+  )
+}
+
 export function SongCanvas() {
-  const { nodes, edges, tool, timelineOpen, templatePicker, open, onNodesChange } = useSong()
-  const { openTemplatePicker, closeTemplatePicker, selectTemplate, addNode, fitRequest, dragKind } = useSong()
+  const { nodes, edges, tool, timelineOpen, templatePicker, open, onNodesChange, onEdgesChange, connect } = useSong()
+  const { openTemplatePicker, closeTemplatePicker, selectTemplate, addNode, fitRequest } = useSong()
   const { screenToFlowPosition, fitView } = useReactFlow()
   const { songId } = useParams()
   const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
@@ -67,6 +87,12 @@ export function SongCanvas() {
           edges={edges}
           nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
+          edgeTypes={edgeTypes}
+          onEdgesChange={onEdgesChange}
+          onConnect={connect}
+          isValidConnection={canPlug}
+          connectionLineComponent={PipeConnectionLine}
+          connectionRadius={44}
           fitView
           fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
           panOnDrag={tool === 'hand'}
@@ -82,12 +108,9 @@ export function SongCanvas() {
           </div>
         )}
 
-        {dragKind && (
-          <div className="type-body pointer-events-none absolute top-5 left-1/2 -translate-x-1/2 rounded-full bg-ink px-3.5 py-2 text-on-ink shadow-lift">
-            Let go to add it as {/^[aeiou]/i.test(DRAWERS[dragKind].label) ? 'an' : 'a'} {DRAWERS[dragKind].label}. Plug it
-            into {ROLES.find((r) => r.id === DEFAULT_ROLE[dragKind])!.name}.
-          </div>
-        )}
+        <div className="absolute top-5 left-1/2 -translate-x-1/2">
+          <Hint />
+        </div>
 
         <div className="absolute top-5 left-5">
           <TitlePill title={song.title} />

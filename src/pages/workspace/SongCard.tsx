@@ -28,13 +28,13 @@ export function SongCard({ song }: { song: Song }) {
         e.dataTransfer.setData(SONG_DRAG_TYPE, song.id)
         e.dataTransfer.effectAllowed = 'move'
       }}
-      className="group flex w-[300px] flex-col gap-2.5 rounded-[12px] bg-card shadow-lift"
+      className="group flex w-full min-w-0 flex-col gap-2.5 rounded-[12px] bg-card shadow-lift"
     >
       <button
         onClick={open}
         aria-label={`Open ${song.title}`}
         className={cn(
-          'relative h-[148px] w-full overflow-hidden rounded-t-[12px] border-[1.5px] border-transparent bg-ground',
+          'relative aspect-[300/148] w-full overflow-hidden rounded-t-[12px] border-[1.5px] border-transparent bg-ground',
           !song.trashed && 'group-hover:border-rule-strong',
           song.trashed && 'cursor-default opacity-60',
         )}
@@ -109,7 +109,7 @@ export function NewSongCard({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex h-[221px] w-[300px] flex-col items-center justify-center gap-2 rounded-[12px] border border-dashed border-rule-strong bg-white/25 hover:bg-white/60"
+      className="flex min-h-[221px] w-full flex-col items-center justify-center gap-2 rounded-[12px] border border-dashed border-rule-strong bg-white/25 hover:bg-white/60"
     >
       <span className="flex size-7 items-center justify-center rounded-[8px] bg-well">
         <img src={add} alt="" />

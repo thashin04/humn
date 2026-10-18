@@ -253,3 +253,9 @@
   .animate-node-enter { animation: none; }
   .selected > * > .node-shine { animation: none; }
 }
+
+/* Pipes: an 8px strip of card material with a role-coloured core. While a take plays, the core flows. */
+@keyframes pipe-flow { to { stroke-dashoffset: -18; } }
+.pipe-flow { stroke-dasharray: 5 4; animation: pipe-flow .6s linear infinite; }
+.react-flow__edge.selected .pipe-core { stroke-width: 2.4; }
+@media (prefers-reduced-motion: reduce) { .pipe-flow { animation: none; } }
