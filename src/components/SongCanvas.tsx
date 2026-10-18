@@ -168,7 +168,13 @@ export function SongCanvas() {
   if (!song || song.trashed) return <Navigate to="/" replace />
 
   return (
-    <div className="flex h-dvh w-screen flex-col overflow-hidden bg-ground">
+    <motion.div
+      key={songId}
+      initial={still ? false : { opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={still ? { duration: 0 } : { duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+      className="flex h-dvh w-screen flex-col overflow-hidden bg-ground"
+    >
       <div className="relative min-h-0 flex-1">
         <Canvas />
 
@@ -205,7 +211,7 @@ export function SongCanvas() {
         )}
       </AnimatePresence>
       {templatePicker.open && <TemplatePicker />}
-    </div>
+    </motion.div>
   )
 }
 

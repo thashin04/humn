@@ -286,6 +286,13 @@
   animation: button-shine 900ms cubic-bezier(.22, .61, .36, 1) both;
 }
 
+.new-song-pattern {
+  background-image: radial-gradient(circle, rgb(20 22 26 / .18) .7px, transparent .8px);
+  background-size: 6px 6px;
+  mask-image: linear-gradient(135deg, transparent 4%, rgb(0 0 0 / .9) 28%, rgb(0 0 0 / .9) 72%, transparent 96%);
+  mix-blend-mode: multiply;
+}
+
 @keyframes title-pill-expand {
   from { opacity: .82; transform: scaleX(.9); transform-origin: left center; }
   to { opacity: 1; transform: scaleX(1); transform-origin: left center; }

@@ -37,7 +37,7 @@ export function LayoutToggle() {
           aria-label={`${label} view`}
           aria-pressed={layout === id}
           className={cn(
-            'flex h-6 w-7 items-center justify-center rounded-[6px]',
+            'flex h-6 w-7 items-center justify-center rounded-[6px] transition-[background-color,color,box-shadow,transform] duration-400 ease-out',
             layout === id ? 'bg-nav-active text-nav-ink' : 'text-nav-ink-2',
           )}
         >

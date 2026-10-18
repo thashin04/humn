@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react'
+import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { templates, type TemplateId } from '@/data/templates'
@@ -51,11 +52,6 @@ export function Workspace() {
         <div className="flex items-center justify-between gap-4 pt-1">
           <div className="flex items-baseline gap-3">
             <h2 className="type-title text-ink">{viewTitle(view, folders)}</h2>
-            {view.kind !== 'starters' && view.kind !== 'saved' && (
-              <span className="font-mono text-[12px] leading-none text-ink-3">
-                {all.length} {all.length === 1 ? 'song' : 'songs'}
-              </span>
-            )}
           </div>
           {view.kind !== 'starters' && view.kind !== 'saved' && (
             <div className="flex items-center gap-2">
@@ -73,24 +69,54 @@ export function Workspace() {
           </div>
         ) : view.kind === 'saved' ? (
           <Empty>Sounds you save from your takes will live here.</Empty>
-        ) : layout === 'grid' ? (
-          <div className={cn('grid content-start gap-4', sidebarCollapsed ? 'grid-cols-4' : 'grid-cols-3')}>
-            {canCreate && !query && <NewSongCard onClick={newSong} />}
-            {shown.map((song) => (
-              <SongCard key={song.id} song={song} />
-            ))}
-          </div>
         ) : (
-          <div className="flex flex-col rounded-[12px] border border-rule bg-card shadow-lift">
-            {shown.map((song) => (
-              <SongRow key={song.id} song={song} />
-            ))}
-            {canCreate && !query && (
-              <button onClick={newSong} className="type-caption flex h-12 items-center gap-2 px-3 text-ink-2 hover:bg-well/60">
-                <Plus className="size-3.5" strokeWidth={1.75} /> New song
-              </button>
-            )}
-          </div>
+          <MotionConfig reducedMotion="user">
+            <AnimatePresence mode="wait" initial={false}>
+              {layout === 'grid' ? (
+                <motion.div
+                  key="grid"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                  className={cn('grid content-start gap-4', sidebarCollapsed ? 'grid-cols-4' : 'grid-cols-3')}
+                >
+                  {canCreate && !query && <NewSongCard onClick={newSong} />}
+                  {shown.map((song) => (
+                    <SongCard key={song.id} song={song} />
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="list"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex flex-col overflow-hidden rounded-[14px] border border-rule bg-card shadow-lift"
+                >
+                  {shown.map((song) => (
+                    <SongRow key={song.id} song={song} />
+                  ))}
+                  {canCreate && !query && (
+                    <button
+                      type="button"
+                      onClick={newSong}
+                      className="group type-caption flex h-14 items-center gap-3 border-t border-rule px-4 text-left text-ink-2 transition-[background-color,color] duration-400 hover:bg-well/60 hover:text-ink-1"
+                    >
+                      <span className="flex size-7 items-center justify-center rounded-[8px] bg-well text-ink-2 transition-colors duration-400 group-hover:bg-ink group-hover:text-on-ink">
+                        <Plus className="size-3.5" strokeWidth={1.75} />
+                      </span>
+                      <span className="flex flex-col">
+                        <span className="type-caption text-ink-1">New song</span>
+                        <span className="type-small text-ink-3">Start from a blank canvas</span>
+                      </span>
+                    </button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </MotionConfig>
         )}
 
         {query && shown.length === 0 && <Empty>No songs match “{query}”.</Empty>}
