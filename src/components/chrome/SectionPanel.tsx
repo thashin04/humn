@@ -72,7 +72,6 @@ function Settings({ section, onOpenInput }: { section: SongNode<'section'>; onOp
   const { id, data } = section
   const set = (patch: Partial<SongNode<'section'>['data']>) => updateData(id, patch)
   const part = PARTS.find((p) => p.name === data.name)
-  const energy = data.energy ?? 0.4
 
   return (
     <>
@@ -93,6 +92,22 @@ function Settings({ section, onOpenInput }: { section: SongNode<'section'>; onOp
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pt-1 pb-5 [&>*]:shrink-0">
+        <Field label="Creative direction" aside="Optional" note="Only changes this part.">
+          <textarea
+            value={data.direction ?? ''}
+            onChange={(e) => set({ direction: e.target.value })}
+            placeholder="Let the house set the mood, and the piano come in slowly."
+            rows={3}
+            className="type-body field-sizing-content min-h-[76px] w-full resize-none rounded-[12px] border border-rule bg-well px-3 py-2.5 text-ink-1 outline-none transition-colors placeholder:text-ink-3 focus:border-rule-strong focus:bg-card"
+          />
+        </Field>
+
+        <Field label="Voice">
+          <Pills options={VOCALS} value={data.vocals ?? 'none'} onChange={(vocals) => set({ vocals: vocals as Vocals })} />
+        </Field>
+
+        <span className="h-px shrink-0 bg-rule" />
+
         <Field label="Part" note={part?.hint}>
           <Pills
             options={PARTS.map((p) => ({ id: p.name, label: p.name }))}
@@ -111,42 +126,6 @@ function Settings({ section, onOpenInput }: { section: SongNode<'section'>; onOp
         </Field>
 
         <Connected section={section} onOpenInput={onOpenInput} />
-
-        <Field label="Creative direction" aside="Optional" note="Only changes this part.">
-          <textarea
-            value={data.direction ?? ''}
-            onChange={(e) => set({ direction: e.target.value })}
-            placeholder="Let the house set the mood, and the piano come in slowly."
-            rows={3}
-            className="type-body field-sizing-content min-h-[76px] w-full resize-none rounded-[12px] border border-rule bg-well px-3 py-2.5 text-ink-1 outline-none transition-colors placeholder:text-ink-3 focus:border-rule-strong focus:bg-card"
-          />
-        </Field>
-
-        <span className="h-px shrink-0 bg-rule" />
-
-        <div className="flex flex-col gap-4">
-          <p className="text-[14px] leading-[1.3] font-medium text-ink-1">Shape the sound</p>
-          <Field label="Energy" note="How much motion this part should have.">
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={energy}
-              aria-label="Energy"
-              onChange={(e) => set({ energy: Number(e.target.value) })}
-              className="humn-range"
-              style={{ '--v': `${energy * 100}%` } as CSSProperties}
-            />
-            <div className="type-small mt-1.5 flex justify-between text-ink-3">
-              <span>Gentle</span>
-              <span>Lively</span>
-            </div>
-          </Field>
-          <Field label="Voice">
-            <Pills options={VOCALS} value={data.vocals ?? 'none'} onChange={(vocals) => set({ vocals: vocals as Vocals })} />
-          </Field>
-        </div>
 
         <p className="type-small flex items-center gap-1.5 text-ink-3">
           <InfoCircle width={14} height={14} strokeWidth={1.5} className="shrink-0" />

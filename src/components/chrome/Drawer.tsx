@@ -10,6 +10,7 @@ import { useAddNode } from './useAddNode'
 
 const ROLE_TEXT: Record<Role, string> = {
   intent: 'text-role-intent',
+  follows: 'text-role-follows',
   lyrics: 'text-role-lyrics',
   melody: 'text-role-melody',
   harmony: 'text-role-harmony',

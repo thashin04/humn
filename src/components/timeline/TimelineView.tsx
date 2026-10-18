@@ -92,10 +92,12 @@ export function TimelineView() {
   const times = clips.map(playTime)
   const starts = startsOf(times)
   const total = times.reduce((t, l) => t + l, 0)
+  // Takes added to the song that someone has since taken off the timeline, ready to put back.
   const loose = saved
-    ? nodes.filter((n): n is SongNode<'section'> => n.type === 'section' && !clips.some((c) => c.sectionId === n.id))
+    ? nodes.filter((n): n is SongNode<'take'> => n.type === 'take' && !!n.data.added && !clips.some((c) => c.takeId === n.id))
     : []
-  const takeOf = (id: string) => nodes.find((n): n is SongNode<'take'> => n.type === 'take' && n.data.sectionId === id)
+  const sectionOf = (take: SongNode<'take'>) =>
+    nodes.find((n): n is SongNode<'section'> => n.type === 'section' && n.id === take.data.sectionId)
 
   const update = (id: string, patch: Partial<Clip>) => arrange(clips.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   const picked = useSong((s) => s.clip)
@@ -178,12 +180,8 @@ export function TimelineView() {
     const last = nodes
       .filter((n) => n.type === 'section' || n.type === 'take')
       .reduce<AnySongNode | null>((a, n) => (!a || n.position.x > a.position.x ? n : a), null)
-    const id = addNode('section', last ? { x: last.position.x + 360, y: last.position.y } : { x: 0, y: 0 }, { name })
-    // An arranged song picks up new sections by itself; one that isn't yet gets arranged now.
-    if (!saved) {
-      const section = useSong.getState().nodes.find((n) => n.id === id)
-      if (section?.type === 'section') arrange([...clips, newClip(section)])
-    }
+    // It joins the song once one of its takes is added to the timeline.
+    addNode('section', last ? { x: last.position.x + 360, y: last.position.y } : { x: 0, y: 0 }, { name })
   }
 
   // With a card selected, the arrow keys are the canvas's.
@@ -394,7 +392,7 @@ export function TimelineView() {
                 </p>
               </div>
               <div className="relative flex-1" onPointerDown={scrub}>
-                {items.map(({ clip, section }, i) => (
+                {items.map(({ clip, section, take }, i) => (
                   <div
                     key={clip.id}
                     className="absolute top-2 left-0"
@@ -409,7 +407,7 @@ export function TimelineView() {
                     <ClipBlock
                       clip={clip}
                       section={section}
-                      take={takeOf(section.id)}
+                      take={take}
                       width={times[i] * pps}
                       picked={sel === i}
                       lifted={drag?.from === i}
@@ -455,15 +453,18 @@ export function TimelineView() {
         {loose.length > 0 && (
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-rule px-4 py-2.5">
             <p className="type-caption mr-1 text-ink-3">On the canvas, not in the song</p>
-            {loose.map((s) => (
+            {loose.map((t) => (
               <button
-                key={s.id}
+                key={t.id}
                 type="button"
-                onClick={() => arrange([...clips, newClip(s)])}
+                onClick={() => {
+                  const s = sectionOf(t)
+                  if (s) arrange([...clips, newClip(s, t)])
+                }}
                 className="type-caption flex h-[28px] items-center gap-1.5 rounded-[8px] bg-well px-2.5 text-ink-2 transition-colors hover:bg-level hover:text-ink-1"
               >
                 <Plus width={13} height={13} strokeWidth={1.5} />
-                {s.data.name}
+                {sectionOf(t)?.data.name ?? 'Take'} {t.data.version}
               </button>
             ))}
           </div>
@@ -487,7 +488,7 @@ export function TimelineView() {
                 key={chosen.clip.id}
                 clip={chosen.clip}
                 section={chosen.section}
-                take={takeOf(chosen.section.id)}
+                take={chosen.take}
                 canSplit={time > starts[sel] && time < starts[sel] + times[sel]}
                 onChange={(patch) => update(chosen.clip.id, patch)}
                 onSplit={split}
@@ -801,8 +802,7 @@ function Properties({
   onRemove: () => void
   onClose: () => void
 }) {
-  const { updateData, showOnCanvas } = useSong()
-  const made = take?.data.state === 'done'
+  const { showOnCanvas } = useSong()
   const span = playTime(clip)
   const changed = (Object.keys(CLIP_DEFAULTS) as (keyof typeof CLIP_DEFAULTS)[]).some((k) => clip[k] !== CLIP_DEFAULTS[k])
 
@@ -811,7 +811,10 @@ function Properties({
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-rule pr-2 pl-4">
         <img src={iconSection} alt="" className="size-[14px]" />
         <div className="min-w-0 flex-1">
-          <p className="type-caption truncate text-ink-1">{section.data.name}</p>
+          <p className="type-caption truncate text-ink-1">
+            {section.data.name}
+            {take && ` · Take ${take.data.version}`}
+          </p>
           <p className="font-mono text-[10.5px] leading-[1.4] text-ink-3">
             plays for {secs(span)}
           </p>
@@ -825,16 +828,6 @@ function Properties({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        {take && made && (
-          <Group title="Take">
-            <Segmented
-              options={(['A', 'B'] as const).map((v) => ({ id: v, label: `Take ${v}` }))}
-              value={take.data.version}
-              onChange={(version) => updateData(take.id, { version })}
-            />
-          </Group>
-        )}
-
         <Group title="Volume" value={clip.muted ? 'Muted' : `${Math.round(clip.volume * 100)}%`}>
           <div className="flex items-center gap-2">
             <button

@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import type { AnySongNode, SongNode } from './nodes'
+import type { AnySongNode, SongNode, TakeEdit } from './nodes'
 
 /** What a clip can sound like, besides itself. Named for what people hear. */
 export type Effect = 'none' | 'echo' | 'dreamy' | 'radio' | 'underwater' | 'lofi'
@@ -23,6 +23,8 @@ export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2]
 export type Clip = {
   id: string
   sectionId: string
+  /** The take that plays. Clips from before takes were kept one at a time play their section's take in the song. */
+  takeId?: string
   from: number
   length: number
   /** 0–2, where 1 is as made. */
@@ -51,29 +53,48 @@ export const CLIP_DEFAULTS = {
   reversed: false,
 }
 
-export function newClip(section: SongNode<'section'>): Clip {
-  return { id: nanoid(8), sectionId: section.id, from: 0, length: section.data.length, ...CLIP_DEFAULTS }
+export function newClip(section: SongNode<'section'>, take?: SongNode<'take'>): Clip {
+  const e: Partial<TakeEdit> = take?.data.edit ?? {}
+  const length = take?.data.length ?? section.data.length
+  const from = e.from ?? 0
+  return {
+    id: nanoid(8),
+    sectionId: section.id,
+    takeId: take?.id,
+    ...CLIP_DEFAULTS,
+    from,
+    length: Math.max(1, (e.to ?? length) - from),
+    volume: e.volume ?? 1,
+    fadeIn: e.fadeIn ?? 0,
+    fadeOut: e.fadeOut ?? 0,
+  }
 }
 
 /** How long a clip takes to play. */
 export const playTime = (c: Clip) => c.length / c.speed
 
 /**
- * The song's clips with their sections, in order. Clips whose section is gone
- * drop out, and a section that got shorter cuts its clips down to fit. Until
- * someone arranges the song, it's each section once, left to right as on the canvas.
+ * The song's clips with their sections and takes, in order. Only takes that
+ * have been added to the timeline play; clips whose take or section is gone
+ * drop out, and a take that got shorter cuts its clips down to fit. Until
+ * someone arranges the song, it's each added take once, left to right as on the canvas.
  */
 export function clipsOf(nodes: AnySongNode[], clips: Clip[] | undefined) {
   const sections = new Map(nodes.flatMap((n) => (n.type === 'section' ? [[n.id, n] as const] : [])))
+  const added = nodes.filter((n): n is SongNode<'take'> => n.type === 'take' && !!n.data.added && n.data.state === 'done')
   const list =
     clips ??
-    [...sections.values()]
-      .sort((a, b) => a.position.x - b.position.x)
-      .map((s) => ({ ...newClip(s), id: `auto-${s.id}` }))
+    [...added]
+      .sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y)
+      .flatMap((t) => {
+        const section = sections.get(t.data.sectionId)
+        return section ? [{ ...newClip(section, t), id: `auto-${t.id}` }] : []
+      })
   return list.flatMap((c) => {
-    const section = sections.get(c.sectionId)
-    if (!section) return []
-    const from = Math.min(c.from, Math.max(0, section.data.length - 1))
-    return [{ clip: { ...c, from, length: Math.min(c.length, section.data.length - from) }, section }]
+    const take = c.takeId ? added.find((t) => t.id === c.takeId) : added.find((t) => t.data.sectionId === c.sectionId)
+    const section = take && sections.get(take.data.sectionId)
+    if (!take || !section) return []
+    const from = Math.min(c.from, Math.max(0, take.data.length - 1))
+    return [{ clip: { ...c, takeId: take.id, from, length: Math.min(c.length, take.data.length - from) }, section, take }]
   })
 }

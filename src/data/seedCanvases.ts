@@ -33,7 +33,9 @@ export const SEED_CANVASES: Record<string, AnySongNode[]> = {
         },
       },
     }),
-    at({ id: 'nh-take', type: 'take', position: { x: 1300, y: 290 }, data: { sectionId: 'nh-verse', state: 'done', version: 'B', length: 30 } }),
+    // B is in the song; A is still only proposed.
+    at({ id: 'nh-take-a', type: 'take', position: { x: 1420, y: 220 }, data: { sectionId: 'nh-verse', state: 'done', version: 'A', length: 30 } }),
+    at({ id: 'nh-take', type: 'take', position: { x: 1420, y: 430 }, data: { sectionId: 'nh-verse', state: 'done', version: 'B', length: 30, added: true } }),
   ],
   // Still gathering: four things brought in, nothing plugged in yet.
   's-road-trip': [
@@ -52,6 +54,7 @@ export const SEED_CANVASES: Record<string, AnySongNode[]> = {
       position: { x: 470, y: -40 },
       data: { name: 'Verse', length: 30, sources: { intent: ['lj-words'], texture: ['lj-sound'], mood: ['lj-feeling'] } },
     }),
-    at({ id: 'lj-take', type: 'take', position: { x: 800, y: -80 }, data: { sectionId: 'lj-verse', state: 'done', version: 'A', length: 30 } }),
+    at({ id: 'lj-take', type: 'take', position: { x: 880, y: -140 }, data: { sectionId: 'lj-verse', state: 'done', version: 'A', length: 30, added: true } }),
+    at({ id: 'lj-take-b', type: 'take', position: { x: 880, y: 70 }, data: { sectionId: 'lj-verse', state: 'done', version: 'B', length: 30 } }),
   ],
 }

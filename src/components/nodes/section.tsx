@@ -1,5 +1,6 @@
 import { Handle, Position, useReactFlow, useUpdateNodeInternals, type NodeProps } from '@xyflow/react'
-import { Check, NavArrowDown, Plus } from 'iconoir-react'
+import { Check, NavArrowDown, Plus, Refresh } from 'iconoir-react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import iconSection from '@/assets/figma/node-icon-section.svg'
 import { KIND_ICONS } from '@/components/chrome/kindIcons'
@@ -96,19 +97,75 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
 
         <AddInfluence section={id} empty={empty} hot={snapRole && empty.includes(snapRole) ? snapRole : null} />
 
-        <button
-          type="button"
-          disabled={!filled.length}
-          onClick={() => makeTakes(id)}
-          className="nodrag type-action mt-1.5 flex h-11 items-center justify-center gap-2 rounded-[14px] bg-ink text-on-ink transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.99] disabled:opacity-30"
-        >
-          <KindIcon kind="sound" className="size-4" />
-          Hear 2 ideas
-        </button>
+        <div className="relative">
+          <HearButton section={id} disabled={!filled.length} onClick={() => makeTakes(id)} />
+          {/* Where the wire out to this section's take starts: beside the button that makes it. */}
+          <Handle
+            type="source"
+            id="take"
+            position={Position.Right}
+            isConnectable={false}
+            className="wire-out"
+            style={{ top: 'calc(50% + 3px)', right: -12 }}
+          />
+        </div>
       </div>
-      {/* Where the wire out to this section's take starts. */}
-      <Handle type="source" id="take" position={Position.Right} isConnectable={false} className="wire-out" />
     </NodeShell>
+  )
+}
+
+/**
+ * The verse's one thing to do. Hear 2 ideas the first time; while they're
+ * being made it holds a quiet "Making…" with a spinner; after that it offers
+ * to regenerate. The label slides between states, and the icon turns on press.
+ */
+function HearButton({ section, disabled, onClick }: { section: string; disabled: boolean; onClick: () => void }) {
+  const state = useSong((s) => {
+    const takes = s.nodes.filter((n) => n.type === 'take' && n.data.sectionId === section && !n.data.branchOf)
+    return takes.some((t) => t.type === 'take' && t.data.state === 'making') ? 'making' : takes.length ? 'done' : null
+  })
+  const [turns, setTurns] = useState(0)
+  const making = state === 'making'
+  const label = making ? 'Making 2 ideas…' : state ? 'Regenerate' : 'Hear 2 ideas'
+
+  return (
+    <button
+      type="button"
+      disabled={disabled || making}
+      aria-busy={making}
+      onClick={() => {
+        setTurns((t) => t + 1)
+        onClick()
+      }}
+      className={cn(
+        'nodrag type-action relative mt-1.5 flex h-11 w-full items-center justify-center overflow-hidden rounded-[14px] transition-[opacity,transform,background-color,color] duration-200 active:scale-[0.98]',
+        making ? 'bg-well text-ink-2' : 'bg-ink text-on-ink hover:opacity-90 disabled:opacity-30',
+      )}
+    >
+      {/* While making, a soft sheen sweeps across, so the wait reads as work. */}
+      {making && <span aria-hidden className="hear-sheen pointer-events-none absolute inset-0" />}
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={label}
+          initial={{ y: 14, opacity: 0, filter: 'blur(2px)' }}
+          animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
+          exit={{ y: -14, opacity: 0, filter: 'blur(2px)' }}
+          transition={{ type: 'spring', visualDuration: 0.3, bounce: 0.2 }}
+          className="relative flex items-center gap-2"
+        >
+          {making ? (
+            <span aria-hidden className="size-3.5 animate-spin rounded-full border-[1.5px] border-current border-t-transparent" />
+          ) : state ? (
+            <motion.span animate={{ rotate: turns * 360 }} transition={{ type: 'spring', visualDuration: 0.6, bounce: 0.15 }}>
+              <Refresh width={15} height={15} strokeWidth={1.75} />
+            </motion.span>
+          ) : (
+            <KindIcon kind="sound" className="size-4" />
+          )}
+          {label}
+        </motion.span>
+      </AnimatePresence>
+    </button>
   )
 }
 
@@ -192,7 +249,8 @@ function Thumb({ cards, role }: { cards: AnySongNode[]; role: Role }) {
 }
 
 function KindIcon({ kind, className }: { kind: Kind; className?: string }) {
-  const Icon = KIND_ICONS[kind]
+  // A take carried on from the last part shows as sound.
+  const Icon = KIND_ICONS[kind] ?? KIND_ICONS.sound
   return Icon ? <Icon strokeWidth={1.5} className={className} /> : null
 }
 
