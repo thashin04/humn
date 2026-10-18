@@ -5,7 +5,6 @@ import {
   FeelingNode,
   InstrumentNode,
   PhotoNode,
-  SectionNode,
   SoundNode,
   VoiceNode,
   WordsNode,
@@ -13,6 +12,7 @@ import {
 import { TakeNode } from './take'
 
 import { GhostNode } from './ghost'
+import { SectionNode } from './section'
 
 export const nodeTypes: NodeTypes = {
   ghost: GhostNode,

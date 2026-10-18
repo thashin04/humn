@@ -45,8 +45,9 @@ export function findSnap(lookup: Map<string, InternalNode>, kind: Kind, p: XYPos
     if (dist > PULL || (best && dist >= best.dist)) continue
 
     const sockets = n.internals.handleBounds?.target ?? []
-    const over = dist === 0 ? sockets.find((s) => p.y >= y + s.y - 2 && p.y <= y + s.y + s.height + 2) : undefined
-    const role = (over?.id as Role | undefined) ?? DEFAULT_ROLE[kind]
+    // Empty slots share one landing row, so over it the card keeps its own slot if that's one of them.
+    const over = dist === 0 ? sockets.filter((s) => p.y >= y + s.y - 2 && p.y <= y + s.y + s.height + 2) : []
+    const role = (over.length === 1 ? (over[0].id as Role) : DEFAULT_ROLE[kind]) as Role
     const socket = sockets.find((s) => s.id === role)
     if (!socket) continue
     best = { dist, section: n.id, role, at: { x: x + socket.x, y: y + socket.y + socket.height / 2 } }

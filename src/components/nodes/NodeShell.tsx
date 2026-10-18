@@ -147,8 +147,9 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
       <div
         ref={tabRef}
         className={cn(
-          'absolute top-0 left-0 flex items-center overflow-hidden',
-          tall ? 'h-9 gap-2 px-3.5' : 'h-[26px] gap-1.5 pr-3 pl-2.5',
+          'absolute top-0 left-0 flex items-center',
+          // A section's tab holds a menu (the part of the song), so it can't clip and sits above the body.
+          tall ? 'z-10 h-9 gap-2 px-3.5' : 'h-[26px] gap-1.5 overflow-hidden pr-3 pl-2.5',
         )}
       >
         {tab ?? (
@@ -173,7 +174,9 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
         // Clip only top and bottom, so a section's rings can still sit out past its edge.
         style={{ height: contentSize.h || undefined, clipPath: 'inset(0 -40px)' }}
       >
-        <div ref={content}>{children}</div>
+        <div ref={content}>
+          {children}
+        </div>
       </div>
 
       <div className="node-shine pointer-events-none absolute inset-0" style={{ clipPath: d ? `path('${d}')` : undefined }} />

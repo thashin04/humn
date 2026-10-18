@@ -40,6 +40,8 @@ export type SectionData = {
   name: string
   length: number
   sources: Partial<Record<Role, string[]>>
+  /** What this part is called on the card; falls back to the song's title. */
+  title?: string
   /** A note in people's own words for just this section ("start gently, then let the piano open up"). */
   direction?: string
   /** 0 gentle … 1 lively. */

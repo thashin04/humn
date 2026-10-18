@@ -372,9 +372,26 @@ svg.react-flow__connectionline.react-flow__container { z-index: 0; }
 @keyframes ghost-flow { to { stroke-dashoffset: -22; } }
 @keyframes ghost-in { from { opacity: 0; } to { opacity: .5; } }
 
+/* A slider that fills in its slot's colour (--c) instead of ink. */
+.humn-range-role::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--c) var(--v), var(--soft-well) var(--v)); }
+.humn-range-role::-moz-range-progress { background: var(--c); }
+/* A wire's Connection card, and its menus, open with a small lift. */
+.animate-wire-card { animation: wire-card .22s var(--ease-spring) both; transform-origin: 50% 0; }
+@keyframes wire-card { from { opacity: 0; transform: scale(.96) translateY(-4px); } }
+
+/* A six-dot grip, as on the cards' tabs. */
+.grip-dots {
+  width: 10px;
+  height: 16px;
+  background: radial-gradient(circle, var(--soft-ink-4) 1.4px, transparent 1.6px) 0 0 / 5px 5.5px;
+}
+
 /* A prompt's starters come back once the card has grown to make room for them. */
 .animate-starters-in { animation: starters-in .3s var(--ease-soft) .12s both; }
 @keyframes starters-in { from { opacity: 0; transform: translateY(3px); } }
+/* A new row in a verse fades in where it lands; it doesn't move, so its wire's socket is measured right. */
+.animate-row-in { animation: row-in .35s var(--ease-soft) both; }
+@keyframes row-in { from { opacity: 0; } }
 /* A card landing in a socket springs into place. */
 .animate-socket-in { animation: socket-in .5s var(--ease-spring) both; }
 @keyframes socket-in { from { opacity: .3; transform: scale(.6); } }
@@ -387,8 +404,8 @@ svg.react-flow__connectionline.react-flow__container { z-index: 0; }
   .animate-node-enter { animation: none; }
   .animate-drawer-swap { animation: none; }
   .wire-flow { display: none; }
-  .ghost-flow { animation: none; }
-  .wire-pop::after, .wire-hump.wire-pop-in::after, .animate-socket-in, .animate-starters-in { animation: none; }
+  .ghost-flow, .animate-wire-card { animation: none; }
+  .wire-pop::after, .wire-hump.wire-pop-in::after, .animate-socket-in, .animate-starters-in, .animate-row-in { animation: none; }
   .selected > * > .node-shine { animation: none; }
 }
 

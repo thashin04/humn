@@ -80,15 +80,16 @@ function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
 
 /**
  * Once someone has made their first contribution and there's no section yet,
- * suggest one beside it: a ghost they can make real with one click.
+ * suggest one beside it: a ghost they can make real with one click. It goes
+ * away as soon as they add a second card, so it never trails them around.
  */
 function suggestFirstPart(nodes: AnySongNode[], drafting: string | null, measured?: { width: number; height: number }) {
   if (nodes.some((n) => n.type === 'section')) return null
-  const done = nodes.filter(
-    (n) => n.type !== 'take' && n.id !== drafting && (n.type !== 'words' || n.data.text.trim().length > 0),
-  )
-  const from = done[done.length - 1]
-  if (!from) return null
+  // Only a nudge for the very first contribution: once there's more than one card, step aside.
+  const cards = nodes.filter((n) => n.type !== 'take')
+  if (cards.length !== 1) return null
+  const from = cards[0]
+  if (from.id === drafting || (from.type === 'words' && !from.data.text.trim())) return null
   const reading = interpret(from)
   const width = from.measured?.width ?? 260
   const node: GhostNode = {
@@ -190,6 +191,7 @@ export function SongCanvas() {
           // Let go near a section and the wire plugs into whichever socket it was drawn to.
           onConnectEnd={(_, state) => {
             const snap = useSong.getState().snap
+            // Prompts say what they mean already; anything else is asked how it should shape the verse.
             if (snap && state.fromNode) connect(state.fromNode.id, snap.section, snap.role)
             setSnap(null)
           }}

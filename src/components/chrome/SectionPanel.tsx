@@ -2,20 +2,12 @@ import { AppWindow, InfoCircle, NavArrowDown, Xmark } from 'iconoir-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { nameOf } from '@/data/library'
+import { LENGTHS, PARTS } from '@/data/parts'
 import { ROLES, type AnySongNode, type Kind, type SongNode, type Vocals } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { KIND_ICONS } from './kindIcons'
 
-// What each part of a song is for, in plain words.
-const PARTS = [
-  { name: 'Intro', hint: 'Set the scene.' },
-  { name: 'Verse', hint: 'Develop the idea.' },
-  { name: 'Chorus', hint: 'The part everyone remembers.' },
-  { name: 'Bridge', hint: 'Somewhere new before coming back.' },
-  { name: 'Outro', hint: 'Let it settle.' },
-]
-const LENGTHS = [15, 30, 45, 60]
 const VOCALS: { id: Vocals; label: string }[] = [
   { id: 'none', label: 'None' },
   { id: 'hum', label: 'Humming' },
@@ -30,7 +22,15 @@ const VOCALS: { id: Vocals; label: string }[] = [
 export function SectionPanel({ songTitle }: { songTitle: string }) {
   const section = useSong((s) => {
     const picked = s.nodes.filter((n) => n.selected)
-    return picked.length === 1 && picked[0].type === 'section' ? (picked[0] as SongNode<'section'>) : null
+    if (picked.length !== 1 || picked[0].type !== 'section') return null
+    const section = picked[0] as SongNode<'section'>
+    // Only once something beyond the prompt is shaping it: until then there's little to set.
+    const shaped = ROLES.some(
+      (r) =>
+        r.id !== 'intent' &&
+        (section.data.sources[r.id] ?? []).some((src) => s.nodes.some((x) => x.id === src)),
+    )
+    return shaped ? section : null
   })
 
   return (
