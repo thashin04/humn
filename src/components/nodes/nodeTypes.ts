@@ -12,7 +12,10 @@ import {
 } from './nodes'
 import { TakeNode } from './take'
 
+import { GhostNode } from './ghost'
+
 export const nodeTypes: NodeTypes = {
+  ghost: GhostNode,
   words: WordsNode,
   voice: VoiceNode,
   photo: PhotoNode,

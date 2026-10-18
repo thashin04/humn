@@ -4,15 +4,19 @@ import {
   ReactFlow,
   useNodesInitialized,
   useReactFlow,
+  type Edge,
   type EdgeChange,
+  type Node,
+  type NodeChange,
   type EdgeTypes,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
 import { Rail } from '@/components/chrome/Rail'
+import { SectionPanel } from '@/components/chrome/SectionPanel'
 import { Timeline } from '@/components/chrome/Timeline'
 import { TitlePill } from '@/components/chrome/TitlePill'
 import { Toolkit } from '@/components/chrome/Toolkit'
@@ -21,13 +25,16 @@ import { EmptyState } from '@/components/empty/EmptyState'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
 import { PipeEdge } from '@/components/wires/PipeEdge'
 import { WireLine } from '@/components/wires/WireLine'
+import { GhostEdge } from '@/components/wires/GhostEdge'
+import { GHOST_ID, type GhostNode } from '@/components/nodes/ghost'
+import { interpret } from '@/data/interpret'
 import { NODE_DRAG_TYPE } from '@/data/library'
 import { ROLES, type AnySongNode, type Kind } from '@/data/nodes'
 import type { TemplateId } from '@/data/templates'
 import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 
-const edgeTypes: EdgeTypes = { pipe: PipeEdge }
+const edgeTypes: EdgeTypes = { pipe: PipeEdge, ghost: GhostEdge }
 
 /**
  * The wires are read off each section's sockets, so a section is the one place
@@ -71,11 +78,55 @@ function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
   )
 }
 
+/**
+ * Once someone has made their first contribution and there's no section yet,
+ * suggest one beside it: a ghost they can make real with one click.
+ */
+function suggestFirstPart(nodes: AnySongNode[], drafting: string | null, measured?: { width: number; height: number }) {
+  if (nodes.some((n) => n.type === 'section')) return null
+  const done = nodes.filter(
+    (n) => n.type !== 'take' && n.id !== drafting && (n.type !== 'words' || n.data.text.trim().length > 0),
+  )
+  const from = done[done.length - 1]
+  if (!from) return null
+  const reading = interpret(from)
+  const width = from.measured?.width ?? 260
+  const node: GhostNode = {
+    id: GHOST_ID,
+    type: 'ghost',
+    // Beside the contribution, with room for the wire: half of it, a gap, half of a section.
+    position: { x: from.position.x + width / 2 + 130 + 135, y: from.position.y },
+    origin: [0.5, 0.5],
+    draggable: false,
+    selectable: false,
+    focusable: false,
+    measured,
+    data: { source: from.id, ...reading },
+  }
+  const edge: GhostEdge = {
+    id: `${GHOST_ID}-wire`,
+    type: 'ghost',
+    source: from.id,
+    target: GHOST_ID,
+    targetHandle: 'in',
+    selectable: false,
+    focusable: false,
+    data: { role: reading.role },
+  }
+  return { node, edge }
+}
+
 export function SongCanvas() {
   const { nodes, tool, timelineOpen, templatePicker, open, onNodesChange } = useSong()
   const { openTemplatePicker, closeTemplatePicker, selectTemplate, addNode, fitRequest } = useSong()
   const { connect, disconnect, setSnap } = useSong()
   const edges = useMemo(() => wiresOf(nodes), [nodes])
+  const drafting = useSong((s) => s.drafting)
+  // The ghost isn't kept with the song, so remember its measured size here or React Flow would hide it again.
+  const [ghostSize, setGhostSize] = useState<{ width: number; height: number }>()
+  const ghost = useMemo(() => suggestFirstPart(nodes, drafting, ghostSize), [nodes, drafting, ghostSize])
+  const shownNodes = useMemo(() => (ghost ? [...nodes, ghost.node] : nodes) as Node[], [nodes, ghost])
+  const shownEdges = useMemo(() => (ghost ? [...edges, ghost.edge] : edges) as Edge[], [edges, ghost])
   const { screenToFlowPosition, fitView } = useReactFlow()
   const { songId } = useParams()
   const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
@@ -120,10 +171,15 @@ export function SongCanvas() {
         }}
       >
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
+          nodes={shownNodes}
+          edges={shownEdges}
           nodeTypes={nodeTypes}
-          onNodesChange={onNodesChange}
+          onNodesChange={(changes: NodeChange[]) => {
+            const ghostSized = changes.find((c) => c.type === 'dimensions' && c.id === GHOST_ID && c.dimensions)
+            if (ghostSized?.type === 'dimensions' && ghostSized.dimensions) setGhostSize(ghostSized.dimensions)
+            const rest = changes.filter((c) => !('id' in c) || c.id !== GHOST_ID)
+            if (rest.length) onNodesChange(rest as NodeChange<AnySongNode>[])
+          }}
           onEdgesChange={(changes: EdgeChange[]) =>
             changes.forEach((c) => c.type === 'remove' && disconnect(...(c.id.split('|') as [string, string])))
           }
@@ -163,6 +219,9 @@ export function SongCanvas() {
         </div>
         <div className="absolute top-5 right-5">
           <People ids={song.collaboratorIds} />
+        </div>
+        <div className="pointer-events-none absolute top-[78px] right-5 bottom-[84px] flex items-start">
+          <SectionPanel songTitle={song.title} />
         </div>
         <div className="absolute top-1/2 left-5 -translate-y-1/2">
           <Rail />

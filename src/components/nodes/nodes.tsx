@@ -25,6 +25,7 @@ const STARTERS = ['Someone', 'A memory', 'A feeling']
 /** Intent. The words themselves. */
 export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) {
   const updateData = useSong((s) => s.updateData)
+  const setDrafting = useSong((s) => s.setDrafting)
   const [editing, setEditing] = useState(!data.text)
   const field = useRef<HTMLTextAreaElement>(null)
   const empty = !data.text.trim()
@@ -48,8 +49,18 @@ export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) 
             value={data.text}
             placeholder="What's this song for?"
             onChange={(e) => updateData(id, { text: e.target.value })}
-            onBlur={() => !empty && setEditing(false)}
-            onKeyDown={(e) => e.key === 'Escape' && e.currentTarget.blur()}
+            onFocus={() => setDrafting(id)}
+            onBlur={() => {
+              setDrafting(null)
+              if (!empty) setEditing(false)
+            }}
+            // Enter finishes the prompt (Shift+Enter for a new line); Escape leaves it as it is.
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' || (e.key === 'Enter' && !e.shiftKey && !empty)) {
+                e.preventDefault()
+                e.currentTarget.blur()
+              }
+            }}
             className="nodrag nowheel field-sizing-content w-full resize-none bg-transparent text-[17px] leading-[1.36] tracking-[-0.01em] text-ink-1 outline-none placeholder:text-ink-3"
           />
         ) : (
@@ -61,7 +72,7 @@ export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) 
           </p>
         )}
         {empty && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="animate-starters-in flex flex-wrap gap-1.5">
             {STARTERS.map((s) => (
               <button
                 key={s}
@@ -292,6 +303,7 @@ function Socket({ section, role, name, sources = [] }: { section: string; role: 
       <Handle type="target" id={role} position={Position.Left} isConnectableStart={false} className="wire-socket" />
       <span
         aria-hidden
+        data-hump={filled || hot ? '' : undefined}
         className={cn('wire-hump', filled || hot ? 'scale-100 opacity-100' : 'scale-50 opacity-0', landed && 'wire-pop-in')}
         style={{ transformOrigin: '100% 50%' }}
       />

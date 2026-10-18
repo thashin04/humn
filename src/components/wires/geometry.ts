@@ -9,8 +9,8 @@ const PULL = 70
  * gives for the handles: the card's tab handle is centred on its edge and
  * reports its right side; a socket reports the section's edge.
  */
-export const RING_OUT = -11
-export const RING_IN = -2
+export const RING_OUT = -13
+export const RING_IN = 0
 
 /**
  * A soft S-curve that leaves the card level and arrives at the socket level.
