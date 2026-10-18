@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="instrument">
+<g id="Icon/instrument">
+<path id="Vector" d="M13.6562 13.6562H24.3438C25.3275 13.6562 26.125 14.4537 26.125 15.4375V22.5625C26.125 23.5463 25.3275 24.3438 24.3438 24.3438H13.6562C12.6725 24.3438 11.875 23.5463 11.875 22.5625V15.4375C11.875 14.4537 12.6725 13.6562 13.6562 13.6562Z" stroke-width="1.5" stroke="#7D8187"/>
+<path id="Vector_2" d="M15.4375 13.6562V20.1875M19 13.6562V20.1875M22.5625 13.6562V20.1875" stroke-width="1.5" stroke="#7D8187"/>
+</g>
+<circle id="Role dot" cx="27.5" cy="10.5" r="2.5" fill="#0E7C86"/>
+</g>
+</svg>

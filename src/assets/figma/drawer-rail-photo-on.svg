@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="photo">
+<rect width="38" height="38" rx="9" fill="#EDEDEC"/>
+<g id="Icon/photo">
+<path id="Vector" d="M14.25 13.0625H23.75C25.0617 13.0625 26.125 14.1258 26.125 15.4375V22.5625C26.125 23.8742 25.0617 24.9375 23.75 24.9375H14.25C12.9383 24.9375 11.875 23.8742 11.875 22.5625V15.4375C11.875 14.1258 12.9383 13.0625 14.25 13.0625Z" stroke-width="1.5" stroke="#24272B"/>
+<path id="Vector_2" d="M26.125 22.5625L21.9688 18.4062L14.25 24.9375" stroke-width="1.5" stroke="#24272B"/>
+</g>
+<circle id="Role dot" cx="29.5" cy="8.5" r="2.5" fill="#C2417A"/>
+</g>
+</svg>

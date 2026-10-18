@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="voice">
+<g id="Icon/voice">
+<path id="Vector" d="M19 11.875C20.3117 11.875 21.375 12.9383 21.375 14.25V19C21.375 20.3117 20.3117 21.375 19 21.375C17.6883 21.375 16.625 20.3117 16.625 19V14.25C16.625 12.9383 17.6883 11.875 19 11.875Z" stroke-width="1.5" stroke="#7D8187"/>
+<path id="Vector_2" d="M13.6562 19C13.6562 20.4173 14.2193 21.7765 15.2214 22.7786C16.2235 23.7807 17.5827 24.3438 19 24.3438M19 24.3438C20.4173 24.3438 21.7765 23.7807 22.7786 22.7786C23.7807 21.7765 24.3438 20.4173 24.3438 19M19 24.3438V26.125" stroke-width="1.5" stroke-linecap="round" stroke="#7D8187"/>
+</g>
+<circle id="Role dot" cx="27.5" cy="10.5" r="2.5" fill="#D9622B"/>
+</g>
+</svg>

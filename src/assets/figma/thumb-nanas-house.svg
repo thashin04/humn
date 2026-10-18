@@ -1,0 +1,80 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="299.7" height="148" viewBox="0 0 299.7 148" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Canvas thumbnail">
+<rect width="299.7" height="148" fill="#E3E0D9"/>
+<path id="Wire" opacity="0.8" d="M66.0426 42.8399C103.074 42.8399 103.074 68.947 140.105 68.947" stroke-width="1.2" stroke="#6758B8"/>
+<path id="Wire_2" opacity="0.8" d="M66.0426 69.7892C103.074 69.7892 103.074 68.947 140.105 68.947" stroke-width="1.2" stroke="#D2622E"/>
+<path id="Wire_3" opacity="0.8" d="M118.666 49.5772C129.385 49.5772 129.385 68.947 140.105 68.947" stroke-width="1.2" stroke="#B9476F"/>
+<path id="Wire_4" opacity="0.8" d="M66.0426 95.0541C103.074 95.0541 103.074 68.947 140.105 68.947" stroke-width="1.2" stroke="#B9476F"/>
+<path id="Wire_5" opacity="0.8" d="M118.666 81.9163C129.385 81.9163 129.385 68.947 140.105 68.947" stroke-width="1.2" stroke="#3E7F5E"/>
+<path id="Wire_6" opacity="0.8" d="M118.666 105.16C129.385 105.16 129.385 68.947 140.105 68.947" stroke-width="1.2" stroke="#2C7480"/>
+<path id="Wire_7" opacity="0.8" d="M204.422 68.947C204.969 68.947 205.482 68.9274 205.965 68.8905M221.963 63.894C221.416 63.894 220.904 63.9137 220.421 63.9505M209.002 68.357C210.087 68.0418 210.998 67.6261 211.847 67.1751M214.539 65.6659C215.388 65.2149 216.299 64.7992 217.384 64.484" stroke-width="1.2" stroke="#8D8B87"/>
+<g id="words">
+<rect x="19.2664" y="33.5761" width="46.7762" height="18.5276" rx="2" fill="#FBFAF8"/>
+<rect x="19.7664" y="34.0761" width="45.7762" height="17.5276" rx="1.5" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<ellipse id="Ellipse" cx="25.302" cy="38.792" rx="2.14071" ry="1.85" fill="#6758B8"/>
+<rect id="Rectangle" x="24.8796" y="41.9135" width="32.7433" height="1.85" rx="0.925" fill="#E3E7EA"/>
+<g id="voice">
+<rect x="19.2664" y="60.5254" width="46.7762" height="18.5276" rx="2" fill="#FBFAF8"/>
+<rect x="19.7664" y="61.0254" width="45.7762" height="17.5276" rx="1.5" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<ellipse id="Ellipse_2" cx="25.302" cy="65.7413" rx="2.14071" ry="1.85" fill="#D2622E"/>
+<rect id="Rectangle_2" x="24.8796" y="68.8628" width="32.7433" height="1.85" rx="0.925" fill="#E3E7EA"/>
+<g id="feeling">
+<rect x="19.2664" y="85.7903" width="46.7762" height="18.5276" rx="2" fill="#FBFAF8"/>
+<rect x="19.7664" y="86.2903" width="45.7762" height="17.5276" rx="1.5" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<ellipse id="Ellipse_3" cx="25.302" cy="91.0062" rx="2.14071" ry="1.85" fill="#B9476F"/>
+<rect id="Rectangle_3" x="24.8796" y="94.1277" width="32.7433" height="1.85" rx="0.925" fill="#E3E7EA"/>
+<g id="photo">
+<rect x="73.8387" y="33.5761" width="44.8272" height="32.0022" rx="2" fill="#FBFAF8"/>
+<rect x="74.3387" y="34.0761" width="43.8272" height="31.0022" rx="1.5" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<path id="Photo" d="M73.8387 35.5761C73.8387 34.4716 74.7341 33.5761 75.8387 33.5761H116.666C117.77 33.5761 118.666 34.4715 118.666 35.5761V53.4175H73.8387V35.5761Z" fill="#121214" fill-opacity="0.2"/>
+<ellipse id="Ellipse_4" cx="79.8742" cy="38.792" rx="2.14071" ry="1.85" fill="#B9476F"/>
+<g id="sound">
+<rect x="73.8387" y="72.6525" width="44.8272" height="18.5276" rx="2" fill="#FBFAF8"/>
+<rect x="74.3387" y="73.1525" width="43.8272" height="17.5276" rx="1.5" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<ellipse id="Ellipse_5" cx="79.8742" cy="77.8684" rx="2.14071" ry="1.85" fill="#3E7F5E"/>
+<rect id="Rectangle_4" x="79.2179" y="80.99" width="31.379" height="1.85" rx="0.925" fill="#E3E7EA"/>
+<g id="instrument">
+<rect x="73.8387" y="95.8963" width="44.8272" height="18.5276" rx="2" fill="#FBFAF8"/>
+<rect x="74.3387" y="96.3963" width="43.8272" height="17.5276" rx="1.5" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<ellipse id="Ellipse_6" cx="79.8742" cy="101.112" rx="2.14071" ry="1.85" fill="#2C7480"/>
+<rect id="Rectangle_5" x="79.2179" y="104.234" width="31.379" height="1.85" rx="0.925" fill="#E3E7EA"/>
+<g id="section">
+<rect x="140.105" y="47.0507" width="64.3173" height="43.7925" rx="2" fill="#FBFAF8"/>
+<rect x="140.605" y="47.5507" width="63.3173" height="42.7925" rx="1.5" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<ellipse id="Ellipse_7" cx="140.105" cy="57.9989" rx="1.71257" ry="1.48" fill="#6758B8"/>
+<ellipse id="Ellipse_8" cx="140.105" cy="62.3781" rx="1.71257" ry="1.48" fill="#D2622E"/>
+<ellipse id="Ellipse_9" cx="140.105" cy="66.7574" rx="1.71257" ry="1.48" fill="#B9476F"/>
+<ellipse id="Ellipse_10" cx="140.105" cy="71.1366" rx="1.71257" ry="1.48" fill="#3E7F5E"/>
+<ellipse id="Ellipse_11" cx="140.105" cy="75.5159" rx="1.71257" ry="1.48" fill="#2C7480"/>
+<rect id="Rectangle_6" x="146.537" y="82.0848" width="51.4538" height="3.03179" rx="1.5159" fill="#121214"/>
+<g id="take">
+<rect x="221.963" y="50.4194" width="58.4703" height="26.9493" rx="2" fill="#121214"/>
+<rect x="222.463" y="50.9194" width="57.4703" height="25.9493" rx="1.5" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<rect id="Bar" opacity="0.8" x="226.641" y="64.355" width="1.46176" height="1.773" fill="white"/>
+<rect id="Bar_2" opacity="0.8" x="229.389" y="62.713" width="1.46176" height="5.05703" fill="white"/>
+<rect id="Bar_3" opacity="0.8" x="232.137" y="60.391" width="1.46176" height="9.70089" fill="white"/>
+<rect id="Bar_4" opacity="0.8" x="234.885" y="62.6314" width="1.46176" height="5.22019" fill="white"/>
+<rect id="Bar_5" opacity="0.8" x="237.633" y="64.376" width="1.46176" height="1.73096" fill="white"/>
+<rect id="Bar_6" opacity="0.8" x="240.381" y="61.6861" width="1.46176" height="7.1108" fill="white"/>
+<rect id="Bar_7" opacity="0.8" x="243.13" y="60.6346" width="1.46176" height="9.21371" fill="white"/>
+<rect id="Bar_8" opacity="0.8" x="245.878" y="63.5955" width="1.46176" height="3.29197" fill="white"/>
+<rect id="Bar_9" opacity="0.8" x="248.626" y="63.884" width="1.46176" height="2.71503" fill="white"/>
+<rect id="Bar_10" opacity="0.8" x="251.374" y="60.8488" width="1.46176" height="8.78543" fill="white"/>
+<rect id="Bar_11" opacity="0.8" x="254.122" y="61.3424" width="1.46176" height="7.7981" fill="white"/>
+<rect id="Bar_12" opacity="0.8" x="256.87" y="64.2504" width="1.46176" height="1.98212" fill="white"/>
+<rect id="Bar_13" opacity="0.8" x="259.618" y="63.0074" width="1.46176" height="4.46817" fill="white"/>
+<rect id="Bar_14" opacity="0.8" x="262.366" y="60.4197" width="1.46176" height="9.64352" fill="white"/>
+<rect id="Bar_15" opacity="0.8" x="265.114" y="62.3296" width="1.46176" height="5.82384" fill="white"/>
+<rect id="Bar_16" opacity="0.8" x="267.862" y="64.4251" width="1.46176" height="1.63278" fill="white"/>
+<rect id="Bar_17" opacity="0.8" x="270.611" y="61.9753" width="1.46176" height="6.53245" fill="white"/>
+<rect id="Bar_18" opacity="0.8" x="273.359" y="60.511" width="1.46176" height="9.46092" fill="white"/>
+</g>
+</svg>

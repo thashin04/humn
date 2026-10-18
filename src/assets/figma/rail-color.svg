@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="color">
+<g id="Icon/color">
+<path id="Vector" d="M25.5312 19C25.5312 22.6071 22.6071 25.5312 19 25.5312C15.3929 25.5312 12.4688 22.6071 12.4688 19C12.4688 15.3929 15.3929 12.4688 19 12.4688C22.6071 12.4688 25.5312 15.3929 25.5312 19Z" stroke-width="1.5" stroke="#7D8187"/>
+<path id="Vector_2" d="M19 12.4688V25.5312C20.7322 25.5312 22.3934 24.8431 23.6183 23.6183C24.8431 22.3934 25.5312 20.7322 25.5312 19C25.5312 17.2678 24.8431 15.6066 23.6183 14.3817C22.3934 13.1569 20.7322 12.4688 19 12.4688Z" fill="#7D8187"/>
+</g>
+<circle id="Role dot" cx="27.5" cy="10.5" r="2.5" fill="#C2417A"/>
+</g>
+</svg>

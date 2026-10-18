@@ -1,0 +1,29 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="299.7" height="148" viewBox="0 0 299.7 148" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Canvas thumbnail">
+<rect width="299.7" height="148" fill="#E3E0D9"/>
+<g id="words">
+<rect x="24.4993" y="16.65" width="117.977" height="46.7296" rx="4.59259" fill="#FBFAF8"/>
+<rect x="24.9993" y="17.15" width="116.977" height="45.7296" rx="4.09259" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<ellipse id="Ellipse" cx="33.2049" cy="24.1733" rx="2.14071" ry="1.85" fill="#6758B8"/>
+<rect id="Rectangle" x="38.6565" y="37.6783" width="82.584" height="2.9737" rx="1.48685" fill="#E3E7EA"/>
+<g id="voice">
+<rect x="24.4993" y="84.6204" width="117.977" height="46.7296" rx="4.59259" fill="#FBFAF8"/>
+<rect x="24.9993" y="85.1204" width="116.977" height="45.7296" rx="4.09259" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<ellipse id="Ellipse_2" cx="33.2049" cy="92.1437" rx="2.14071" ry="1.85" fill="#D2622E"/>
+<rect id="Rectangle_2" x="38.6565" y="105.649" width="82.584" height="2.9737" rx="1.48685" fill="#E3E7EA"/>
+<g id="sound">
+<rect x="167.055" y="16.65" width="108.146" height="46.7296" rx="4.59259" fill="#FBFAF8"/>
+<rect x="167.555" y="17.15" width="107.146" height="45.7296" rx="4.09259" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<ellipse id="Ellipse_3" cx="175.761" cy="24.1733" rx="2.14071" ry="1.85" fill="#3E7F5E"/>
+<rect id="Rectangle_3" x="180.032" y="37.6783" width="75.702" height="2.9737" rx="1.48685" fill="#E3E7EA"/>
+<g id="instrument">
+<rect x="167.055" y="80.3722" width="108.146" height="46.7296" rx="4.59259" fill="#FBFAF8"/>
+<rect x="167.555" y="80.8722" width="107.146" height="45.7296" rx="4.09259" stroke="#121214" stroke-opacity="0.09"/>
+</g>
+<ellipse id="Ellipse_4" cx="175.761" cy="87.8956" rx="2.14071" ry="1.85" fill="#2C7480"/>
+<rect id="Rectangle_4" x="180.032" y="101.401" width="75.702" height="2.9737" rx="1.48685" fill="#E3E7EA"/>
+</g>
+</svg>
