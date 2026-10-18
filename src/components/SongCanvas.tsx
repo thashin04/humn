@@ -8,7 +8,7 @@ import {
   type EdgeTypes,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
@@ -73,24 +73,26 @@ function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
 
 export function SongCanvas() {
   const { nodes, tool, timelineOpen, templatePicker, open, onNodesChange } = useSong()
-  const { openTemplatePicker, closeTemplatePicker, selectTemplate, addNode, fitRequest } = useSong()
+  const { closeTemplatePicker, applyTemplate, addNode, fitRequest } = useSong()
   const { connect, disconnect, setSnap } = useSong()
   const edges = useMemo(() => wiresOf(nodes), [nodes])
   const { screenToFlowPosition, fitView } = useReactFlow()
   const { songId } = useParams()
   const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
-  const starter = (useLocation().state as { template?: TemplateId } | null)?.template
+  const updateSongTitle = useWorkspace((s) => s.updateSongTitle)
+  const location = useLocation()
+  const starter = (location.state as { template?: TemplateId } | null)?.template
 
-  // Opening a song from a workspace starter lands on the picker with it chosen.
-  useEffect(() => {
-    if (!starter) return
-    selectTemplate(starter)
-    openTemplatePicker()
-  }, [starter, selectTemplate, openTemplatePicker])
-  useEffect(() => closeTemplatePicker, [songId, closeTemplatePicker])
   useEffect(() => {
     if (songId) open(songId)
   }, [songId, open])
+
+  // Workspace starters go straight into their occasion; the picker is reserved for blank songs.
+  useEffect(() => {
+    if (!starter) return
+    applyTemplate(starter)
+  }, [starter, applyTemplate])
+  useEffect(() => closeTemplatePicker, [songId, closeTemplatePicker])
   // A template just landed: bring all of it into view once every node is measured.
   const measured = useNodesInitialized()
   const fitted = useRef(fitRequest)
@@ -159,10 +161,10 @@ export function SongCanvas() {
         </div>
 
         <div className="absolute top-5 left-5">
-          <TitlePill title={song.title} />
+          <TitlePill title={song.title} songId={song.id} />
         </div>
         <div className="absolute top-5 right-5">
-          <People ids={song.collaboratorIds} />
+          <People ids={song.collaboratorIds} songId={song.id} title={song.title} />
         </div>
         <div className="absolute top-1/2 left-5 -translate-y-1/2">
           <Rail />
@@ -174,6 +176,52 @@ export function SongCanvas() {
 
       {timelineOpen && <Timeline />}
       {templatePicker.open && <TemplatePicker />}
+      {song.title === 'Untitled song' && <NameSongDialog onSave={(title) => updateSongTitle(song.id, title)} />}
+    </div>
+  )
+}
+
+function NameSongDialog({ onSave }: { onSave: (title: string) => void }) {
+  const [title, setTitle] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => inputRef.current?.focus(), [])
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    const name = title.trim()
+    if (name) onSave(name)
+  }
+
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-ink/10 p-4 backdrop-blur-[2px]">
+      <form
+        onSubmit={submit}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="name-song-title"
+        className="flex w-105 max-w-full flex-col gap-5 rounded-[20px] bg-card p-7 shadow-lift"
+      >
+        <div className="flex flex-col gap-2">
+          <h2 id="name-song-title" className="type-display text-ink">Name your song</h2>
+          <p className="type-body text-ink-2">Give this song a name so it’s easy to find in your workspace.</p>
+        </div>
+        <input
+          ref={inputRef}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="e.g. Childhood memories"
+          aria-label="Song name"
+          className="h-11 rounded-[10px] border border-rule-strong bg-well px-3 text-ink outline-none placeholder:text-ink-3 focus:border-select focus:ring-2 focus:ring-select/20"
+        />
+        <button
+          type="submit"
+          disabled={!title.trim()}
+          className="shine-button type-action self-end rounded-full bg-ink px-4 py-2.5 text-on-ink transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Continue
+        </button>
+      </form>
     </div>
   )
 }

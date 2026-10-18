@@ -1,8 +1,9 @@
 import birthday from '@/assets/photos/template-birthday.jpg'
 import redHouse from '@/assets/photos/template-photo.jpg'
+import roadTrip from '@/assets/photos/template-roadtrip.png'
 import type { AnySongNode, Role } from './nodes'
 
-export type TemplateId = 'photo' | 'birthday'
+export type TemplateId = 'roadtrip' | 'childhood' | 'anniversary'
 
 export type Template = {
   id: TemplateId
@@ -15,17 +16,24 @@ export type Template = {
 
 export const templates: Template[] = [
   {
-    id: 'photo',
-    name: 'Song from a photo',
-    ingredients: 'photo + feeling + words',
-    description: 'Start from one picture. Say how it feels and what it was, and hear it back.',
+    id: 'roadtrip',
+    name: 'Road trip singalong',
+    ingredients: 'place + feeling + a voice',
+    description: 'Turn the road, the people, and the little moments into something you can play back together.',
+    image: roadTrip,
+  },
+  {
+    id: 'childhood',
+    name: 'Childhood memories',
+    ingredients: 'place + feeling + words',
+    description: 'Start with a place from back then and follow the feeling it still brings up now.',
     image: redHouse,
   },
   {
-    id: 'birthday',
-    name: 'Birthday song',
+    id: 'anniversary',
+    name: 'Anniversary',
     ingredients: 'words + photo + a voice',
-    description: 'For someone you love. A few words, a photo of them, and a voice they know.',
+    description: 'Make a warm, personal song about the years you have chosen each other.',
     image: birthday,
   },
 ]
@@ -37,15 +45,20 @@ type Seed = { id: string; role?: Role; node: Omit<AnySongNode, 'id' | 'origin'> 
  * plugged into a Verse on the right.
  */
 const SEEDS: Record<TemplateId, Seed[]> = {
-  photo: [
+  roadtrip: [
+    { id: 'words', role: 'intent', node: { type: 'words', position: { x: 0, y: -230 }, data: { text: 'the long way home, windows down, everyone singing' } } },
+    { id: 'photo', role: 'mood', node: { type: 'photo', position: { x: 0, y: 10 }, data: { caption: 'Somewhere between here and there', src: roadTrip } } },
+    { id: 'feeling', role: 'mood', node: { type: 'feeling', position: { x: 0, y: 205 }, data: { name: 'Open road', amount: 0.7 } } },
+  ],
+  childhood: [
     { id: 'words', role: 'intent', node: { type: 'words', position: { x: 0, y: -230 }, data: { text: 'the summers we spent at the red house' } } },
     { id: 'photo', role: 'mood', node: { type: 'photo', position: { x: 0, y: 10 }, data: { caption: 'The red house, 1997', src: redHouse } } },
     { id: 'feeling', role: 'mood', node: { type: 'feeling', position: { x: 0, y: 205 }, data: { name: 'Nostalgia', amount: 0.7 } } },
   ],
-  birthday: [
-    { id: 'words', role: 'intent', node: { type: 'words', position: { x: 0, y: -230 }, data: { text: "for Nana's 80th, warm and slow" } } },
+  anniversary: [
+    { id: 'words', role: 'intent', node: { type: 'words', position: { x: 0, y: -230 }, data: { text: 'ten years, still choosing you, warm and slow' } } },
     { id: 'photo', role: 'mood', node: { type: 'photo', position: { x: 0, y: 10 }, data: { caption: 'Rain on the lake', src: birthday } } },
-    { id: 'voice', role: 'melody', node: { type: 'voice', position: { x: 0, y: 200 }, data: { label: 'Nana humming', duration: 47 } } },
+    { id: 'voice', role: 'melody', node: { type: 'voice', position: { x: 0, y: 200 }, data: { label: 'a song for us', duration: 47 } } },
   ],
 }
 

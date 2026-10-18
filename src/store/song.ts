@@ -66,7 +66,7 @@ export const useSong = create<SongState>()(
   edges: [],
   tool: 'select',
   timelineOpen: false,
-  templatePicker: { open: false, selected: 'photo' },
+  templatePicker: { open: false, selected: 'roadtrip' },
   drawer: null,
   fitRequest: 0,
   dragKind: null,

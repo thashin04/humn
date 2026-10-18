@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import arrowRight from '@/assets/figma/arrow-right.svg'
 import close from '@/assets/figma/icon-close.svg'
 import scrim from '@/assets/figma/scrim.svg'
@@ -8,6 +8,7 @@ import { TemplateCard } from './TemplateCard'
 
 export function TemplatePicker() {
   const { templatePicker, selectTemplate, closeTemplatePicker, applyTemplate } = useSong()
+  const [hovered, setHovered] = useState<string | null>(null)
   const selected = templates.find((t) => t.id === templatePicker.selected)!
 
   useEffect(() => {
@@ -27,13 +28,12 @@ export function TemplatePicker() {
       >
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-2">
-            <p className="type-eyebrow text-ink-3">Start with a template</p>
             <h2 id="template-picker-title" className="type-display text-ink">
-              Occasions
+              Start with a story
             </h2>
             <p className="type-doc max-w-[520px] text-ink-2">
-              Start from a moment worth making a song about. Each one fills the canvas with a few nodes already
-              plugged into a section; swap any of them for your own.
+              Choose a starting point for the music you’re making. We’ll place a few useful pieces on the canvas;
+              swap any of them for your own.
             </p>
           </div>
           <button
@@ -47,22 +47,28 @@ export function TemplatePicker() {
 
         <div className="mt-6 flex gap-4">
           {templates.map((t) => (
-            <TemplateCard
+            <div
               key={t.id}
-              id={t.id}
-              selected={t.id === selected.id}
-              onClick={() => selectTemplate(t.id)}
-              className="min-w-0 flex-1"
-            />
+              className={`min-w-0 flex-1 transition-[opacity,transform] duration-300 ease-spring ${hovered && hovered !== t.id ? 'opacity-40' : ''} ${hovered === t.id ? 'scale-[1.02]' : ''}`}
+              onPointerEnter={() => setHovered(t.id)}
+              onPointerLeave={() => setHovered(null)}
+            >
+              <TemplateCard
+                id={t.id}
+                selected={t.id === selected.id}
+                onClick={() => selectTemplate(t.id)}
+                className="w-full"
+              />
+            </div>
           ))}
         </div>
 
         <div className="mt-[22px] flex justify-end border-t border-rule">
           <button
             onClick={() => applyTemplate(selected.id)}
-            className="type-action mt-px flex h-10 items-center gap-2 rounded-full border border-rule-strong bg-ink pr-3.5 pl-4 text-on-ink"
+            className="shine-button type-action mt-px flex h-10 items-center gap-2 rounded-full border border-rule-strong bg-ink pr-3.5 pl-4 text-on-ink"
           >
-            Continue with {selected.name}
+            Start with {selected.name}
             <img src={arrowRight} alt="" />
           </button>
         </div>

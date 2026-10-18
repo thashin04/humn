@@ -10,6 +10,8 @@ type WorkspaceState = {
   sidebarCollapsed: boolean
   layout: 'grid' | 'list'
   createSong: (init?: { title?: string; folderId?: string | null }) => string
+  updateSongTitle: (songId: string, title: string) => void
+  duplicateSong: (songId: string) => string | undefined
   moveSong: (songId: string, folderId: string | null) => void
   trashSong: (songId: string) => void
   restoreSong: (songId: string) => void
@@ -21,9 +23,11 @@ type WorkspaceState = {
   setLayout: (layout: 'grid' | 'list') => void
 }
 
+const KEEP_SONG_IDS = new Set(['s-nanas-house', 's-road-trip', 's-lullaby'])
+
 export const useWorkspace = create<WorkspaceState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       songs: seedSongs,
       folders: seedFolders,
       sidebarCollapsed: false,
@@ -35,6 +39,19 @@ export const useWorkspace = create<WorkspaceState>()(
             { id, title, ownerId: ME, collaboratorIds: [ME], folderId, editedAt: Date.now() },
             ...s.songs,
           ],
+        }))
+        return id
+      },
+      updateSongTitle: (songId, title) =>
+        set((s) => ({
+          songs: s.songs.map((song) => (song.id === songId ? { ...song, title, editedAt: Date.now() } : song)),
+        })),
+      duplicateSong: (songId) => {
+        const source = get().songs.find((song) => song.id === songId)
+        if (!source) return undefined
+        const id = nanoid(8)
+        set((s) => ({
+          songs: [{ ...source, id, title: `${source.title} copy`, editedAt: Date.now(), trashed: false }, ...s.songs],
         }))
         return id
       },
@@ -61,6 +78,16 @@ export const useWorkspace = create<WorkspaceState>()(
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setLayout: (layout) => set({ layout }),
     }),
-    { name: 'humn-workspace' },
+    {
+      name: 'humn-workspace',
+      version: 2,
+      migrate: (persistedState) => {
+        const state = persistedState as Partial<WorkspaceState>
+        return {
+          ...state,
+          songs: (state.songs ?? seedSongs).filter((song) => KEEP_SONG_IDS.has(song.id)),
+        }
+      },
+    },
   ),
 )

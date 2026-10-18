@@ -3,7 +3,6 @@ import { useState, type DragEvent, type ReactElement, type ReactNode } from 'rea
 import folderIcon from '@/assets/figma/ws-nav-folder.svg'
 import savedIcon from '@/assets/figma/ws-nav-saved.svg'
 import sharedIcon from '@/assets/figma/ws-nav-shared.svg'
-import startersIcon from '@/assets/figma/ws-nav-starters.svg'
 import trashIcon from '@/assets/figma/ws-nav-trash.svg'
 import { Avatar } from '@/components/Avatar'
 import { MaskIcon } from '@/components/MaskIcon'
@@ -40,7 +39,6 @@ export function Sidebar() {
   const nav: { view: View; label: string; icon: string; onDrop?: (e: DragEvent) => void }[] = [
     { view: { kind: 'mine' }, label: 'My songs', icon: folderIcon, onDrop: dropInto(null) },
     { view: { kind: 'shared' }, label: 'Shared with me', icon: sharedIcon },
-    { view: { kind: 'starters' }, label: 'Starters', icon: startersIcon },
     { view: { kind: 'saved' }, label: 'Saved sounds', icon: savedIcon },
     { view: { kind: 'trash' }, label: 'Trash', icon: trashIcon },
   ]
@@ -58,7 +56,7 @@ export function Sidebar() {
         {!collapsed && (
           <>
             <Avatar id={me.id} />
-            <p className="type-title flex-1 truncate text-ink">{me.name}'s workspace</p>
+            <p className="type-title flex-1 truncate text-ink">{me.name}</p>
           </>
         )}
         <WithTooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} show>

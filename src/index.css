@@ -118,13 +118,13 @@
     --wave-hot: #ff5a2e;
     --wave-dim: rgb(241 236 229 / 0.32);
     /* Workspace screen tokens (the Figma workspace frame uses these alongside Soft) */
-    --soft-page: #f1f1f0;
+    --soft-page: #f4f4f3;
     --soft-radius-inset: 10px;
-    --raised: #fbfaf8;
-    --nav-active: #e3e0d9;
+    --raised: #fcfcfb;
+    --nav-active: #e7e7e6;
     --nav-ink: #121214;
     --nav-ink-2: #57575a;
-    --nav-ink-3: #8d8b87;
+    --nav-ink-3: #92959a;
     --nav-rule: rgb(18 18 20 / 0.09);
 
     --background: var(--soft-ground);
@@ -251,6 +251,40 @@
 .selected > * > .node-shine {
   animation: node-shine 1.2s cubic-bezier(.22, .61, .36, 1) both;
 }
+
+@keyframes button-shine {
+  0% { transform: translateX(-135%) skewX(-16deg); opacity: 0; }
+  18% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { transform: translateX(135%) skewX(-16deg); opacity: 0; }
+}
+.shine-button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.shine-button::after {
+  position: absolute;
+  inset: -40% -28%;
+  z-index: -1;
+  content: '';
+  background: linear-gradient(105deg, transparent 39%, rgb(255 255 255 / .08) 46%, rgb(255 255 255 / .34) 50%, rgb(255 255 255 / .08) 54%, transparent 61%);
+  pointer-events: none;
+  opacity: 0;
+}
+.shine-button:hover::after,
+.shine-button:focus-visible::after {
+  animation: button-shine 900ms cubic-bezier(.22, .61, .36, 1) both;
+}
+
+@keyframes title-pill-expand {
+  from { opacity: .82; transform: scaleX(.9); transform-origin: left center; }
+  to { opacity: 1; transform: scaleX(1); transform-origin: left center; }
+}
+
+.title-pill-expand {
+  animation: title-pill-expand 560ms var(--ease-soft) both;
+}
 /* Wires. Each card has a short tab on its right edge to pull from; its role dot shows on hover. */
 .react-flow__handle.wire-port {
   width: 26px;
@@ -360,6 +394,7 @@ svg.react-flow__connectionline.react-flow__container { z-index: 0; }
   .wire-flow { display: none; }
   .wire-pop::after, .wire-hump.wire-pop-in::after, .animate-socket-in { animation: none; }
   .selected > * > .node-shine { animation: none; }
+  .shine-button:hover::after, .shine-button:focus-visible::after { animation: none; }
 }
 
 /* Pipes: an 8px strip of card material with a role-coloured core. While a take plays, the core flows. */
