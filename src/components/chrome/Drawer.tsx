@@ -1,34 +1,13 @@
-import { Plus } from 'lucide-react'
+import { MediaImagePlus, Plus, Search, SidebarCollapse } from 'iconoir-react'
 import { useRef, useState, type DragEvent, type ReactNode } from 'react'
-import collapse from '@/assets/figma/drawer-collapse.svg'
-import searchIcon from '@/assets/figma/drawer-search.svg'
-import upload from '@/assets/figma/drawer-upload.svg'
-import iconChords from '@/assets/figma/node-icon-chords.svg'
-import iconColour from '@/assets/figma/node-icon-colour.svg'
-import iconFeeling from '@/assets/figma/node-icon-feeling.svg'
-import iconInstrument from '@/assets/figma/node-icon-instrument.svg'
-import iconPhoto from '@/assets/figma/node-icon-photo.svg'
-import iconSound from '@/assets/figma/node-icon-sound.svg'
-import iconVoice from '@/assets/figma/node-icon-voice.svg'
-import iconWords from '@/assets/figma/node-icon-words.svg'
 import { RoleDot } from '@/components/nodes/parts'
 import { DRAWERS, nameOf, NODE_DRAG_TYPE, type LibraryItem, type OwnAction } from '@/data/library'
 import { DEFAULT_ROLE, ROLES, type Kind, type Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { useYours } from '@/store/yours'
+import { KIND_ICONS } from './kindIcons'
 import { useAddNode } from './useAddNode'
-
-const ICONS: Record<Kind, string> = {
-  words: iconWords,
-  voice: iconVoice,
-  photo: iconPhoto,
-  feeling: iconFeeling,
-  sound: iconSound,
-  color: iconColour,
-  instrument: iconInstrument,
-  chords: iconChords,
-}
 
 const ROLE_TEXT: Record<Role, string> = {
   intent: 'text-role-intent',
@@ -68,11 +47,11 @@ export function Drawer({ kind, onClose }: { kind: Kind; onClose: () => void }) {
             onClick={onClose}
             className="flex size-7 items-center justify-center rounded-full hover:bg-well"
           >
-            <img src={collapse} alt="" />
+            <SidebarCollapse width={16} height={16} strokeWidth={1.5} className="text-ink-3" />
           </button>
         </div>
         <label className="flex h-[34px] items-center gap-2 rounded-full border border-rule bg-well px-[11px]">
-          <img src={searchIcon} alt="" />
+          <Search width={14} height={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -181,6 +160,7 @@ function useTileHandlers(kind: Kind, data: Record<string, unknown>) {
 
 function ItemTile({ kind, item, square, inSong }: { kind: Kind; item: LibraryItem; square?: boolean; inSong: boolean }) {
   const handlers = useTileHandlers(kind, item.data)
+  const Icon = KIND_ICONS[kind]
   const tag = inSong && (
     <span className="type-small absolute top-1.5 left-1.5 rounded-full bg-card px-1.5 py-px text-ink-2">In song</span>
   )
@@ -214,7 +194,7 @@ function ItemTile({ kind, item, square, inSong }: { kind: Kind; item: LibraryIte
       {item.gradient ? (
         <span className="block h-[42px] rounded-[7px]" style={{ background: item.gradient }} />
       ) : (
-        <img src={ICONS[kind]} alt="" draggable={false} className="size-[18px]" />
+        <Icon width={18} height={18} strokeWidth={1.5} className="text-ink-2" />
       )}
       <span className="flex flex-col gap-0.5">
         <span className="text-[12px] leading-[1.3] font-medium text-ink-1">{item.name}</span>
@@ -269,9 +249,9 @@ function OwnTile({ kind, action }: { kind: Kind; action: OwnAction }) {
         )}
       >
         {kind === 'photo' ? (
-          <img src={upload} alt="" />
+          <MediaImagePlus width={20} height={20} strokeWidth={1.5} className="text-ink-2" />
         ) : (
-          <Plus className={cn('size-[18px]', ROLE_TEXT[role])} strokeWidth={1.75} />
+          <Plus width={18} height={18} strokeWidth={1.75} className={ROLE_TEXT[role]} />
         )}
         <span className={cn('text-[12px] leading-[1.3]', kind === 'photo' ? 'text-ink-2' : 'font-medium text-ink-1')}>
           {action.label}

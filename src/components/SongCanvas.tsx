@@ -1,4 +1,4 @@
-import { ReactFlow, useNodesInitialized, useReactFlow } from '@xyflow/react'
+import { Background, BackgroundVariant, ReactFlow, useNodesInitialized, useReactFlow } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useRef } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
@@ -74,7 +74,9 @@ export function SongCanvas() {
           panOnScroll
           proOptions={{ hideAttribution: true }}
           className={tool === 'hand' ? 'cursor-grab' : undefined}
-        />
+        >
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color="var(--soft-dot)" />
+        </ReactFlow>
 
         {nodes.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
