@@ -2,7 +2,7 @@ import { useStoreApi, type ConnectionLineComponentProps, type XYPosition } from 
 import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_ROLE, type Kind } from '@/data/nodes'
 import { useSong } from '@/store/song'
-import { curve, findSnap, RING_IN, RING_OUT } from './geometry'
+import { curve, findSnap, PIPE, RING_IN, RING_OUT } from './geometry'
 
 /**
  * Eases the wire's end toward `target` every frame: quickly while it follows
@@ -50,7 +50,7 @@ export function WireLine({ fromX, fromY, toX, toY, fromNode }: ConnectionLineCom
 
   return (
     <g>
-      <path d={d} fill="none" stroke="var(--soft-ground)" strokeWidth={6} strokeLinecap="round" />
+      <path d={d} fill="none" stroke="var(--soft-card)" strokeWidth={PIPE} strokeLinecap="round" className="pipe-edge" />
       <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" />
       {/* The loose end, which disappears into the socket's ring once it's drawn in. */}
       <circle

@@ -27,8 +27,7 @@ export const SEED_CANVASES: Record<string, AnySongNode[]> = {
         sources: {
           intent: ['nh-words'],
           melody: ['nh-voice'],
-          mood: ['nh-feeling'],
-          harmony: ['nh-photo'],
+          mood: ['nh-feeling', 'nh-photo'],
           texture: ['nh-sound'],
           instruments: ['nh-piano'],
         },

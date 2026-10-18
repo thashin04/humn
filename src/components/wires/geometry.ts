@@ -25,6 +25,38 @@ export function curve(S: XYPosition, T: XYPosition) {
   return { d: `M${S.x} ${S.y}C${c1.x} ${c1.y} ${c2.x} ${c2.y} ${T.x} ${T.y}`, mid }
 }
 
+/** How wide a pipe is, and the gap between the lanes pipes turn in on their way into a section. */
+export const PIPE = 10
+const LANE = 13
+
+/**
+ * A pipe like the Figma canvas draws them: out of the card level, one rounded
+ * turn into a lane just before the section, then level into the socket. Each
+ * row of a section has its own lane (`lane` 0 is nearest the section), so pipes
+ * into different rows run side by side instead of on top of each other, and
+ * pipes into the same row share theirs and merge. Falls back to a curve when
+ * there's no room to turn.
+ */
+export function pipe(S: XYPosition, T: XYPosition, lane = 0) {
+  // Clear of the section's neck (18) before turning in, and of the card's on the way out.
+  const x = T.x - 38 - lane * LANE
+  const dy = T.y - S.y
+  if (x - S.x < 40 || Math.abs(dy) < 1) return Math.abs(dy) < 1 && T.x > S.x ? straight(S, T) : curve(S, T)
+  const r = Math.min(16, Math.abs(dy) / 2, x - S.x - 8)
+  const s = Math.sign(dy)
+  const d =
+    `M${S.x} ${S.y}H${x - r}` +
+    `Q${x} ${S.y} ${x} ${S.y + s * r}` +
+    `V${T.y - s * r}` +
+    `Q${x} ${T.y} ${x + r} ${T.y}` +
+    `H${T.x}`
+  return { d, mid: { x, y: S.y + dy / 2 } }
+}
+
+function straight(S: XYPosition, T: XYPosition) {
+  return { d: `M${S.x} ${S.y}H${T.x}`, mid: { x: (S.x + T.x) / 2, y: S.y } }
+}
+
 export type Snap = { section: string; role: Role; at: XYPosition }
 
 /**

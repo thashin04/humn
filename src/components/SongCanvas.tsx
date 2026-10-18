@@ -23,7 +23,7 @@ import { Toolkit } from '@/components/chrome/Toolkit'
 import { Hint } from '@/components/chrome/Hint'
 import { EmptyState } from '@/components/empty/EmptyState'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
-import { PipeEdge } from '@/components/wires/PipeEdge'
+import { PipeBody, PipeEdge, PipeEdgeLine } from '@/components/wires/PipeEdge'
 import { WireLine } from '@/components/wires/WireLine'
 import { GhostEdge } from '@/components/wires/GhostEdge'
 import { GHOST_ID, type GhostNode } from '@/components/nodes/ghost'
@@ -34,13 +34,23 @@ import type { TemplateId } from '@/data/templates'
 import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 
-const edgeTypes: EdgeTypes = { pipe: PipeEdge, ghost: GhostEdge }
+const edgeTypes: EdgeTypes = { pipe: PipeEdge, pipeBody: PipeBody, pipeEdge: PipeEdgeLine, ghost: GhostEdge }
 
 /**
  * The wires are read off each section's sockets, so a section is the one place
  * that says what's plugged in. Each take also gets a wire in from its section.
  */
 function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
+  const lines = linesOf(nodes)
+  // Each wire three times: all the pipes' edges, then all their strips, then all their lines, so nothing covers a line.
+  return [
+    ...lines.map((e) => ({ ...e, id: `${e.id}|edge`, type: 'pipeEdge' as const })),
+    ...lines.map((e) => ({ ...e, id: `${e.id}|body`, type: 'pipeBody' as const })),
+    ...lines,
+  ]
+}
+
+function linesOf(nodes: AnySongNode[]): PipeEdge[] {
   const ids = new Set(nodes.map((n) => n.id))
   return nodes.flatMap((sec): PipeEdge[] =>
     sec.type === 'take'
@@ -61,7 +71,7 @@ function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
         : []
       : sec.type !== 'section'
         ? []
-        : ROLES.flatMap((r) =>
+        : ROLES.filter((r) => (sec.data.sources[r.id] ?? []).some((src) => ids.has(src))).flatMap((r, row, rows) =>
           (sec.data.sources[r.id] ?? [])
             .filter((src) => ids.has(src))
             .map((src) => ({
@@ -72,7 +82,8 @@ function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
               targetHandle: r.id,
               selectable: false,
               focusable: false,
-              data: { role: r.id },
+              // The top row turns furthest out, so pipes into lower rows run inside it, as in Figma.
+              data: { role: r.id, lane: rows.length - 1 - row },
             })),
         ),
   )
@@ -183,7 +194,7 @@ export function SongCanvas() {
             if (rest.length) onNodesChange(rest as NodeChange<AnySongNode>[])
           }}
           onEdgesChange={(changes: EdgeChange[]) =>
-            changes.forEach((c) => c.type === 'remove' && disconnect(...(c.id.split('|') as [string, string])))
+            changes.forEach((c) => c.type === 'remove' && c.id.split('|').length === 2 && disconnect(...(c.id.split('|') as [string, string])))
           }
           edgeTypes={edgeTypes}
           connectionLineComponent={WireLine}
@@ -224,7 +235,7 @@ export function SongCanvas() {
           <People ids={song.collaboratorIds} />
         </div>
         <div className="pointer-events-none absolute top-[78px] right-5 bottom-[84px] flex items-start">
-          <SectionPanel songTitle={song.title} />
+          <SectionPanel />
         </div>
         <div className="absolute top-1/2 left-5 -translate-y-1/2">
           <Rail />

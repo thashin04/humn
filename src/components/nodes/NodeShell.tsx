@@ -13,6 +13,32 @@ const K = Math.sqrt((R + F) ** 2 - F ** 2)
 const TX = (F * R) / (R + F)
 const TY = (K * R) / (R + F)
 
+/**
+ * Where a pipe is plugged in, the hump grows a neck as wide as the pipe, with
+ * small fillets, so the card's outline flows into the pipe's instead of the
+ * pipe ending under it. The neck runs N out from the edge; past that it's pipe.
+ */
+const PIPE_HALF = 5
+const N = 18
+const f = 4
+const CX = Math.sqrt((R + f) ** 2 - (PIPE_HALF + f) ** 2)
+const DX = (R * CX) / (R + f)
+const DY = (R * (PIPE_HALF + f)) / (R + f)
+
+/**
+ * A plugged hump on the right edge at `y` (the edge is at `w`), travelling down.
+ * `open` leaves the neck's end undrawn, for the hairline, so it runs on into the pipe.
+ */
+const neckRight = (w: number, y: number, open: boolean) =>
+  `V${y - K}A${F} ${F} 0 0 0 ${w + TX} ${y - TY}A${R} ${R} 0 0 1 ${w + DX} ${y - DY}` +
+  `A${f} ${f} 0 0 0 ${w + CX} ${y - PIPE_HALF}H${w + N}${open ? 'M' : 'L'}${w + N} ${y + PIPE_HALF}H${w + CX}` +
+  `A${f} ${f} 0 0 0 ${w + DX} ${y + DY}A${R} ${R} 0 0 1 ${w + TX} ${y + TY}A${F} ${F} 0 0 0 ${w} ${y + K}`
+/** The same on the left edge, travelling up. */
+const neckLeft = (y: number, open: boolean) =>
+  `V${y + K}A${F} ${F} 0 0 0 ${-TX} ${y + TY}A${R} ${R} 0 0 1 ${-DX} ${y + DY}` +
+  `A${f} ${f} 0 0 0 ${-CX} ${y + PIPE_HALF}H${-N}${open ? 'M' : 'L'}${-N} ${y - PIPE_HALF}H${-CX}` +
+  `A${f} ${f} 0 0 0 ${-DX} ${y - DY}A${R} ${R} 0 0 1 ${-TX} ${y - TY}A${F} ${F} 0 0 0 0 ${y - K}`
+
 /** A hump on the right edge at `y`, drawn while travelling down that edge. */
 const humpRight = (y: number) =>
   `V${y - K}a${F} ${F} 0 0 0 ${TX} ${K - TY}a${R} ${R} 0 0 1 0 ${2 * TY}a${F} ${F} 0 0 0 ${-TX} ${K - TY}`
@@ -27,15 +53,29 @@ const humpLeft = (y: number) =>
  * part of the outline, so the fill, the hairline and the selection ring all
  * run around them, the way Weave's ports read as part of the card.
  */
-function silhouette(w: number, h: number, tab: number, tabH: number, out?: number, ins: number[] = []) {
+function silhouette(
+  w: number,
+  h: number,
+  tab: number,
+  tabH: number,
+  out?: number,
+  ins: number[] = [],
+  /** Which humps have a pipe in them: the right one, and the left ones. */
+  piped: { out?: boolean; ins?: boolean } = {},
+  /** For the hairline: leave the ends of the necks open, and don't close the path back over them. */
+  open = false,
+) {
   return [
     `M10 0H${tab - 10}a10 10 0 0 1 10 10V${tabH - 9}a9 9 0 0 0 9 9`,
     `H${w - 15}a15 15 0 0 1 15 15`,
-    out === undefined ? '' : humpRight(out),
+    out === undefined ? '' : piped.out ? neckRight(w, out, open) : humpRight(out),
     `V${h - 15}a15 15 0 0 1 -15 15`,
     `H15a15 15 0 0 1 -15 -15`,
-    [...ins].sort((a, b) => b - a).map(humpLeft).join(''),
-    `V10a10 10 0 0 1 10 -10Z`,
+    [...ins]
+      .sort((a, b) => b - a)
+      .map((y) => (piped.ins ? neckLeft(y, open) : humpLeft(y)))
+      .join(''),
+    `V10a10 10 0 0 1 10 -10${open ? '' : 'Z'}`,
   ].join('')
 }
 
@@ -45,7 +85,7 @@ function silhouette(w: number, h: number, tab: number, tabH: number, out?: numbe
  * in changes them without changing the node's size.
  */
 function useHumps(box: RefObject<HTMLDivElement | null>) {
-  const [ys, setYs] = useState<number[]>([])
+  const [humps, setHumps] = useState<{ y: number; c: string }[]>([])
   // No deps on purpose: it only sets state when the heights actually change, so it settles in one pass.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
@@ -55,11 +95,14 @@ function useHumps(box: RefObject<HTMLDivElement | null>) {
     const scale = frame.height / (el.offsetHeight || 1)
     const next = [...el.querySelectorAll('[data-hump]')].map((m) => {
       const r = m.getBoundingClientRect()
-      return Math.round((r.top + r.height / 2 - frame.top) / scale)
+      // Kept to a hundredth, so the line drawn through a neck meets its pipe's exactly.
+      const y = Math.round(((r.top + r.height / 2 - frame.top) / scale) * 100) / 100
+      return { y, c: getComputedStyle(m).getPropertyValue('--c').trim() }
     })
-    if (next.join() !== ys.join()) setYs(next)
+    const key = (h: { y: number; c: string }[]) => h.map((x) => `${x.y}${x.c}`).join()
+    if (key(next) !== key(humps)) setHumps(next)
   })
-  return ys
+  return humps
 }
 
 function useSize<T extends HTMLElement>() {
@@ -102,14 +145,22 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
   const id = useNodeId()
   const updateNodeInternals = useUpdateNodeInternals()
   const plugged = useSong((s) => !!port && s.fresh?.source === id)
+  // Is this card's pipe plugged into a section? Then its hump flows into the pipe.
+  const piped = useSong(
+    (s) => !!port && s.nodes.some((n) => n.type === 'section' && Object.values(n.data.sources).some((ids) => ids?.includes(id!))),
+  )
   const [tabRef, tabSize] = useSize<HTMLDivElement>()
   const [content, contentSize] = useSize<HTMLDivElement>()
   const tabH = tall ? 36 : 26
-  const ins = useHumps(box)
+  const humps = useHumps(box)
+  const ins = humps.map((h) => h.y)
   // The hump sits mid-way down the card's body, below the tab, so on a short card it
   // stays on the straight edge instead of climbing into the top corner.
   const out = port && size.h ? tabH + (size.h - tabH) / 2 : undefined
-  const d = size.h && tabSize.w ? silhouette(size.w, size.h, tabSize.w, tabH, out, ins) : ''
+  // A section's humps only show where something's plugged in, so all of them have pipes (a ghost's wire isn't one).
+  const pipes = { out: piped, ins: !ghost }
+  const d = size.h && tabSize.w ? silhouette(size.w, size.h, tabSize.w, tabH, out, ins, pipes) : ''
+  const line = size.h && tabSize.w ? silhouette(size.w, size.h, tabSize.w, tabH, out, ins, pipes, true) : ''
   // The same outline 4px out, dashed, for a wire about to plug in.
   const halo = d && silhouette(size.w + 8, size.h + 8, tabSize.w + 4, tabH + 4)
 
@@ -130,9 +181,17 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
         {ghost ? (
           <path d={d} fill="rgb(252 252 251 / 0.55)" stroke="rgb(20 22 26 / 0.26)" strokeWidth={1} strokeDasharray="5 5" />
         ) : (
-          <path d={d} fill="var(--soft-card)" stroke="rgb(20 22 26 / 0.13)" strokeWidth={0.5} />
+          <>
+            <path d={d} fill="var(--soft-card)" />
+            <path d={line} fill="none" stroke="rgb(20 22 26 / 0.13)" strokeWidth={0.5} />
+          </>
         )}
-        {selected && <path d={d} fill="none" stroke="var(--soft-accent)" strokeWidth={1.5} />}
+        {/* A pipe's line carries on through the neck its end is tucked under, to the ring. */}
+        {!ghost && piped && out !== undefined && (
+          <path d={`M${size.w + 6} ${out}H${size.w + N + 1}`} stroke={`var(--soft-role-${port})`} strokeWidth={2} />
+        )}
+        {!ghost && humps.map((h) => <path key={h.y} d={`M-6 ${h.y}H${-N - 1}`} stroke={h.c} strokeWidth={2} />)}
+        {selected && <path d={line} fill="none" stroke="var(--soft-accent)" strokeWidth={1.5} />}
         <path
           d={halo}
           transform="translate(-4 -4)"

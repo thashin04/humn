@@ -41,11 +41,7 @@ type SongState = {
   setDrawer: (kind: Kind | null) => void
   setDragKind: (kind: Kind | null) => void
   setSnap: (snap: { section: string; role: Role } | null) => void
-  /**
-   * Plugs a card into a section's socket. A card plugs in one place, and a socket
-   * holds one card, so this moves the card if it was elsewhere and replaces
-   * whatever was in that socket (it stays on the canvas, unplugged).
-   */
+  /** Plugs a card into a section's socket. A card plugs in one place, so this moves it if it was elsewhere. */
   connect: (source: string, section: string, role: Role) => void
   disconnect: (source: string, section: string) => void
   /** Makes (or remakes) a section's two takes, beside it and wired from it. */
@@ -103,7 +99,7 @@ export const useSong = create<SongState>()(
         songId,
         saved,
         playing: null,
-        nodes: onePerSocket(nodes).map((n) => ({ ...n, selected: false })),
+        nodes: nodes.map((n) => ({ ...n, selected: false })),
         // Frame whatever's there once it's measured.
         fitRequest: nodes.length ? s.fitRequest + 1 : s.fitRequest,
       }
@@ -144,7 +140,7 @@ export const useSong = create<SongState>()(
         const sel = n.id === source
         const m = n.selected === sel ? n : ({ ...n, selected: sel } as AnySongNode)
         return m.id === section && m.type === 'section'
-          ? { ...m, data: { ...m.data, sources: { ...m.data.sources, [role]: [source] } } }
+          ? { ...m, data: { ...m.data, sources: { ...m.data.sources, [role]: [...(m.data.sources[role] ?? []), source] } } }
           : m
       })
       return { ...keep(s, nodes), fresh: pulse(set, { id: `${source}|${section}`, source, section, role }) }
@@ -240,16 +236,6 @@ function unplug(nodes: AnySongNode[], match: (id: string) => boolean, section?: 
       const left = ids.filter((id) => !match(id))
       if (left.length) sources[role] = left
     }
-    return { ...n, data: { ...n.data, sources } }
-  })
-}
-
-/** Songs saved before a socket held one card keep only the latest card in each. */
-function onePerSocket(nodes: AnySongNode[]): AnySongNode[] {
-  return nodes.map((n) => {
-    if (n.type !== 'section' || !Object.values(n.data.sources).some((ids) => ids && ids.length > 1)) return n
-    const sources: SectionData['sources'] = {}
-    for (const [role, ids] of Object.entries(n.data.sources) as [Role, string[]][]) if (ids.length) sources[role] = ids.slice(-1)
     return { ...n, data: { ...n.data, sources } }
   })
 }

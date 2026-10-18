@@ -19,7 +19,7 @@ const VOCALS: { id: Vocals; label: string }[] = [
  * rail's drawer does from the left. Opens when one section is selected;
  * clicking away or closing it deselects the section.
  */
-export function SectionPanel({ songTitle }: { songTitle: string }) {
+export function SectionPanel() {
   const section = useSong((s) => {
     const picked = s.nodes.filter((n) => n.selected)
     if (picked.length !== 1 || picked[0].type !== 'section') return null
@@ -47,7 +47,7 @@ export function SectionPanel({ songTitle }: { songTitle: string }) {
             className="pointer-events-auto flex max-h-full w-[300px] flex-col overflow-hidden rounded-[26px] bg-card shadow-lift"
             aria-label="Section settings"
           >
-            <Settings section={section} songTitle={songTitle} />
+            <Settings section={section} />
           </motion.aside>
         )}
       </AnimatePresence>
@@ -55,7 +55,7 @@ export function SectionPanel({ songTitle }: { songTitle: string }) {
   )
 }
 
-function Settings({ section, songTitle }: { section: SongNode<'section'>; songTitle: string }) {
+function Settings({ section }: { section: SongNode<'section'> }) {
   const { updateData, onNodesChange } = useSong()
   const { id, data } = section
   const set = (patch: Partial<SongNode<'section'>['data']>) => updateData(id, patch)
@@ -66,12 +66,9 @@ function Settings({ section, songTitle }: { section: SongNode<'section'>; songTi
     <>
       <div className="flex items-start gap-2.5 px-5 pt-[18px] pb-3">
         <AppWindow width={18} height={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-ink-1" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] leading-[1.3] font-medium text-ink-1">Section settings</p>
-          <p className="type-small truncate text-ink-3">{songTitle}</p>
-        </div>
+        <p className="min-w-0 flex-1 text-[15px] leading-[1.3] font-medium text-ink-1">{data.name}</p>
         <button
-          aria-label="Close section settings"
+          aria-label={`Close ${data.name.toLowerCase()} settings`}
           title="Close"
           onClick={() => onNodesChange([{ type: 'select', id, selected: false }])}
           className="-mt-1 -mr-1.5 flex size-7 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-well hover:text-ink-1"

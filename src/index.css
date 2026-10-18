@@ -412,7 +412,8 @@ svg.react-flow__connectionline.react-flow__container { z-index: 0; }
   .selected > * > .node-shine { animation: none; }
 }
 
-/* Pipes: an 8px strip of card material with a role-coloured core. While a take plays, the core flows. */
+/* Pipes: a strip of card material with a role-coloured core. While a take plays, the core flows. */
+.react-flow__connectionline .pipe-edge { filter: drop-shadow(0 0 .5px rgb(20 22 26 / .32)); }
 @keyframes pipe-flow { to { stroke-dashoffset: -18; } }
 .pipe-flow { stroke-dasharray: 5 4; animation: pipe-flow .6s linear infinite; }
 .react-flow__edge.selected .pipe-core { stroke-width: 2.4; }
