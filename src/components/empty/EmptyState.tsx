@@ -1,4 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useAddNode } from '@/components/chrome/useAddNode'
 import addPhoto from '@/assets/figma/empty-add-photo.svg'
 import addSound from '@/assets/figma/empty-add-sound.svg'
 import addVoice from '@/assets/figma/empty-add-voice.svg'
@@ -18,6 +19,7 @@ import { useSong } from '@/store/song'
 /** An empty song: a fan of examples that opens the templates, or add your own first node. */
 export function EmptyState() {
   const { openTemplatePicker, setDrawer } = useSong()
+  const add = useAddNode()
 
   return (
     <div className="flex w-[720px] flex-col items-center gap-10">
@@ -42,7 +44,7 @@ export function EmptyState() {
           {ADD.map((a) => (
             <button
               key={a.kind}
-              onClick={() => setDrawer(a.kind)}
+              onClick={() => (a.kind === 'words' ? add('words') : setDrawer(a.kind))}
               className="group pointer-events-auto flex flex-col items-center gap-[9px]"
             >
               <span className="relative size-[52px] transition-transform duration-300 ease-spring group-hover:-translate-y-0.5 group-hover:scale-[1.06] group-active:scale-95">

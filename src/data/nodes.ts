@@ -35,7 +35,19 @@ export type ColorData = { label: string; gradient: string }
 export type InstrumentData = { tab: string; name: string; detail: string; thumb?: string }
 export type ChordsData = { chords: string[] }
 /** A section says what's plugged into each of its sockets; the wires are drawn from this. */
-export type SectionData = { name: string; length: number; sources: Partial<Record<Role, string[]>> }
+export type Vocals = 'none' | 'hum' | 'words'
+export type SectionData = {
+  name: string
+  length: number
+  sources: Partial<Record<Role, string[]>>
+  /** What this part is called on the card; falls back to the song's title. */
+  title?: string
+  /** A note in people's own words for just this section ("start gently, then let the piano open up"). */
+  direction?: string
+  /** 0 gentle … 1 lively. */
+  energy?: number
+  vocals?: Vocals
+}
 /** Two versions of what a section made. Making until the mock "listening" ends. */
 export type TakeData = { sectionId: string; state: 'making' | 'done'; version: 'A' | 'B'; length: number }
 

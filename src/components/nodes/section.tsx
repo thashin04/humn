@@ -1,0 +1,309 @@
+import { Handle, Position, useReactFlow, useUpdateNodeInternals, type NodeProps } from '@xyflow/react'
+import { NavArrowDown, Plus } from 'iconoir-react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import iconSection from '@/assets/figma/node-icon-section.svg'
+import { KIND_ICONS } from '@/components/chrome/kindIcons'
+import { slotSentence } from '@/data/interpret'
+import { DRAWERS } from '@/data/library'
+import { clock, DEFAULT_ROLE, ROLES, type AnySongNode, type Kind, type Role, type SongNode } from '@/data/nodes'
+import { LENGTHS, PARTS } from '@/data/parts'
+import { cn } from '@/lib/utils'
+import { useSong } from '@/store/song'
+import { useWorkspace } from '@/store/workspace'
+import { NodeShell } from './NodeShell'
+
+const ADDABLE: Kind[] = ['voice', 'photo', 'sound', 'color', 'instrument']
+
+/**
+ * A part of the song, read as a story rather than a form: a title, how it
+ * gets shaped, then one line for each kind of thing plugged in ("Nana humming
+ * guides the tune"). Empty slots don't show; pulling a wire in, or "Add an
+ * influence", is how new ones arrive. Ends with a note and one thing to do.
+ */
+export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'>>) {
+  const targeted = useSong((s) => s.snap?.section === id)
+  const snapRole = useSong((s) => (s.snap?.section === id ? s.snap.role : null))
+  const { makeTakes, updateData } = useSong()
+  const nodes = useSong((s) => s.nodes)
+  const set = (patch: Partial<SongNode<'section'>['data']>) => updateData(id, patch)
+
+  const filled = ROLES.flatMap((r) => {
+    const cards = (data.sources[r.id] ?? [])
+      .flatMap((src) => nodes.find((n) => n.id === src) ?? [])
+      // Pictures lead, so a slot's thumbnail and sentence start with something you can see.
+      .sort((a, b) => Number(isVisual(b)) - Number(isVisual(a)))
+    return cards.length ? [{ role: r.id, cards }] : []
+  })
+  const empty = ROLES.filter((r) => !filled.some((f) => f.role === r.id)).map((r) => r.id)
+  // A slot's socket moves between its own row and the landing row as cards come and go, sometimes
+  // without the card changing size, so tell React Flow to measure where the sockets are again.
+  const updateNodeInternals = useUpdateNodeInternals()
+  const layout = filled.map((f) => f.role).join()
+  useEffect(() => updateNodeInternals(id), [layout, id, updateNodeInternals])
+  // Named after the song, so it doesn't repeat the prompt line just below it.
+  const songId = useSong((s) => s.songId)
+  const songTitle = useWorkspace((w) => w.songs.find((song) => song.id === songId)?.title)
+  const title = data.title?.trim() || songTitle || `Your ${data.name.toLowerCase()}`
+
+  return (
+    <NodeShell
+      width={320}
+      tall
+      icon={iconSection}
+      label={data.name}
+      selected={selected}
+      targeted={targeted}
+      tab={
+        <Menu
+          label={data.name}
+          options={PARTS.map((p) => p.name)}
+          onPick={(name) => set({ name })}
+          trigger={
+            <>
+              <img src={iconSection} alt="" className="size-[15px]" />
+              <span className="type-title whitespace-nowrap text-ink-1">{data.name}</span>
+            </>
+          }
+        />
+      }
+    >
+      <div className="flex flex-col gap-2 px-3 pt-2 pb-3">
+        <div className="flex justify-end">
+          <Menu
+            label="Length"
+            options={LENGTHS.map(String)}
+            show={(l) => clock(Number(l))}
+            onPick={(l) => set({ length: Number(l) })}
+            pill
+            trigger={<span className="font-mono text-[12px] text-ink-1">{clock(data.length)}</span>}
+          />
+        </div>
+        <div className="flex flex-col gap-1 px-1.5 pb-1.5">
+          <p className="line-clamp-2 text-[19px] leading-[1.2] font-semibold tracking-[-0.015em] text-ink">{title}</p>
+          <p className="type-caption text-ink-3">
+            {filled.length ? 'Everything plugged in below' : 'Plug in photos, sounds, words or colours and they'}{' '}
+            shape{filled.length ? 's' : ''} your {data.name.toLowerCase()}.
+          </p>
+        </div>
+
+        {filled.map(({ role, cards }) => (
+          <Slot key={role} section={id} role={role} cards={cards} />
+        ))}
+
+        <AddInfluence section={id} empty={empty} hot={snapRole && empty.includes(snapRole) ? snapRole : null} />
+
+        <button
+          type="button"
+          disabled={!filled.length}
+          onClick={() => makeTakes(id)}
+          className="nodrag type-action mt-1.5 flex h-11 items-center justify-center gap-2 rounded-[14px] bg-ink text-on-ink transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.99] disabled:opacity-30"
+        >
+          <KindIcon kind="sound" className="size-4" />
+          Hear 2 ideas
+        </button>
+      </div>
+      {/* Where the wire out to this section's take starts. */}
+      <Handle type="source" id="take" position={Position.Right} isConnectable={false} className="wire-out" />
+    </NodeShell>
+  )
+}
+
+/** Everything plugged into one slot, as one line about the verse. Its wires plug in at the row's left edge. */
+function Slot({ section, role, cards }: { section: string; role: Role; cards: AnySongNode[] }) {
+  const hot = useSong((s) => s.snap?.section === section && s.snap.role === role)
+  const landed = useSong((s) => s.fresh?.section === section && s.fresh.role === role)
+  const { title, sub } = slotSentence(cards, role)
+
+  return (
+    <div
+      className={cn(
+        'animate-row-in relative flex min-h-[64px] items-center gap-3 rounded-[14px] border bg-card p-2 pr-2.5 transition-[border-color,box-shadow] duration-200',
+        hot ? 'border-[var(--c)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--c)_12%,transparent)]' : 'border-rule',
+      )}
+      style={{ '--c': `var(--soft-role-${role})` } as CSSProperties}
+    >
+      <Handle type="target" id={role} position={Position.Left} isConnectableStart={false} className="wire-socket" />
+      <span aria-hidden data-hump="" className={cn('wire-hump', landed && 'wire-pop-in')} />
+      <Thumb cards={cards} role={role} />
+      <div className="min-w-0 flex-1">
+        <p className="type-caption line-clamp-2 text-ink-1">{title}</p>
+        {sub && <p className="type-small mt-0.5 truncate text-ink-3">{sub}</p>}
+      </div>
+      <span aria-hidden className="grip-dots shrink-0" />
+    </div>
+  )
+}
+
+/** A look at what's in a slot: the photo or colour itself, or the kind's mark in the slot's colour. */
+function Thumb({ cards, role }: { cards: AnySongNode[]; role: Role }) {
+  const first = cards[0]
+  const base = 'relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-[11px]'
+  const tint = { background: `color-mix(in srgb, var(--soft-role-${role}) 10%, var(--soft-card))` }
+  const more = cards.length > 1 && (
+    <span className="absolute right-1 bottom-1 rounded-full bg-card/90 px-1 font-mono text-[10px] leading-[14px] text-ink-2">
+      +{cards.length - 1}
+    </span>
+  )
+  if (first.type === 'photo' && first.data.src)
+    return (
+      <span className={base}>
+        <img src={first.data.src} alt="" draggable={false} className="size-full object-cover" />
+        {more}
+      </span>
+    )
+  if (first.type === 'instrument' && first.data.thumb)
+    return (
+      <span className={base}>
+        <img src={first.data.thumb} alt="" draggable={false} className="size-full object-cover" />
+        {more}
+      </span>
+    )
+  if (first.type === 'color')
+    return (
+      <span className={base} style={{ backgroundImage: first.data.gradient }}>
+        {more}
+      </span>
+    )
+  return (
+    <span className={base} style={tint}>
+      <KindIcon kind={first.type as Kind} className="size-5 text-[var(--c)]" />
+      {more}
+    </span>
+  )
+}
+
+function KindIcon({ kind, className }: { kind: Kind; className?: string }) {
+  const Icon = KIND_ICONS[kind]
+  return Icon ? <Icon strokeWidth={1.5} className={className} /> : null
+}
+
+/**
+ * Below the slots: add a card that plugs straight in. While a wire is pulled
+ * toward a slot that's still empty, this is where it lands, so it says so.
+ */
+function AddInfluence({ section, empty, hot }: { section: string; empty: Role[]; hot: Role | null }) {
+  const [open, setOpen] = useState(false)
+  const { addNode, connect } = useSong()
+  const { getNode } = useReactFlow()
+  const hotName = hot && ROLES.find((r) => r.id === hot)!.name
+
+  const add = (kind: Kind) => {
+    setOpen(false)
+    const sec = getNode(section)
+    if (!sec) return
+    const plugged = useSong.getState().nodes.filter((n) => n.type !== 'section' && n.type !== 'take').length
+    const id = addNode(kind, { x: sec.position.x - 380, y: sec.position.y - 120 + (plugged % 4) * 90 })
+    connect(id, section, DEFAULT_ROLE[kind])
+  }
+
+  return (
+    <div className="relative" style={{ '--c': `var(--soft-role-${hot ?? 'intent'})` } as CSSProperties}>
+      {/* Empty slots' sockets live here, so a wire pulled toward one has somewhere to land. */}
+      {empty.map((r) => (
+        <Handle key={r} type="target" id={r} position={Position.Left} isConnectableStart={false} className="wire-socket" />
+      ))}
+      {hot && <span aria-hidden data-hump="" className="wire-hump" />}
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={cn(
+          'nodrag type-caption flex h-10 items-center gap-2 rounded-[12px] border px-3 transition-[border-color,background-color,box-shadow] duration-200',
+          hot
+            ? 'w-full border-[var(--c)] bg-[color-mix(in_srgb,var(--c)_6%,var(--soft-card))] text-ink-1 shadow-[0_0_0_4px_color-mix(in_srgb,var(--c)_12%,transparent)]'
+            : 'border-rule text-ink-1 hover:border-rule-strong hover:bg-well',
+        )}
+      >
+        {hot ? (
+          <>
+            <span className="size-1.5 rounded-full bg-[var(--c)]" />
+            Plug in as {hotName}
+          </>
+        ) : (
+          <>
+            <Plus width={16} height={16} strokeWidth={1.5} className="text-ink-2" />
+            Add an influence
+          </>
+        )}
+      </button>
+      {open && !hot && (
+        <div className="animate-wire-card absolute top-11 left-0 z-10 flex gap-1 rounded-[14px] bg-card p-1.5 shadow-[0_0_0_.5px_rgb(20_22_26/0.12),0_8px_24px_rgb(20_22_26/0.12)]">
+          {ADDABLE.map((k) => (
+            <button
+              key={k}
+              type="button"
+              title={DRAWERS[k].label}
+              aria-label={`Add ${DRAWERS[k].label}`}
+              onClick={() => add(k)}
+              className="nodrag flex size-9 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-well hover:text-ink-1"
+            >
+              <KindIcon kind={k} className="size-[18px]" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** A small menu off a label: the part of the song in the tab, the length in its pill. */
+function Menu({
+  label,
+  options,
+  show = (o) => o,
+  onPick,
+  trigger,
+  pill,
+}: {
+  label: string
+  options: string[]
+  show?: (o: string) => string
+  onPick: (o: string) => void
+  trigger: ReactNode
+  pill?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className={cn(
+          'nodrag flex items-center gap-1.5 transition-colors',
+          pill ? 'h-7 rounded-full border border-rule bg-card px-2.5 hover:border-rule-strong' : 'h-7 rounded-[8px] hover:opacity-80',
+        )}
+      >
+        {trigger}
+        <NavArrowDown width={14} height={14} strokeWidth={1.5} className={cn('text-ink-3 transition-transform duration-200', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <ul
+          className={cn(
+            'animate-wire-card absolute top-8 z-20 min-w-[110px] rounded-[12px] bg-card p-1 shadow-[0_0_0_.5px_rgb(20_22_26/0.12),0_8px_24px_rgb(20_22_26/0.12)]',
+            pill ? 'right-0' : 'left-0',
+          )}
+        >
+          {options.map((o) => (
+            <li key={o}>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  onPick(o)
+                }}
+                className="nodrag type-caption flex h-8 w-full items-center rounded-[8px] px-2.5 text-left text-ink-1 hover:bg-well"
+              >
+                {show(o)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function isVisual(n: AnySongNode) {
+  return (n.type === 'photo' && !!n.data.src) || n.type === 'color' || (n.type === 'instrument' && !!n.data.thumb)
+}

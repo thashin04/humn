@@ -1,23 +1,20 @@
-import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import type { NodeProps } from '@xyflow/react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import iconChords from '@/assets/figma/node-icon-chords.svg'
 import iconColour from '@/assets/figma/node-icon-colour.svg'
 import iconFeeling from '@/assets/figma/node-icon-feeling.svg'
 import iconInstrument from '@/assets/figma/node-icon-instrument.svg'
 import iconPhoto from '@/assets/figma/node-icon-photo.svg'
-import iconSection from '@/assets/figma/node-icon-section.svg'
 import iconSound from '@/assets/figma/node-icon-sound.svg'
-import iconTakeOn from '@/assets/figma/node-icon-take-on.svg'
-import iconTake from '@/assets/figma/node-icon-take.svg'
 import iconVoice from '@/assets/figma/node-icon-voice.svg'
 import iconWords from '@/assets/figma/node-icon-words.svg'
 import tryPlay from '@/assets/figma/node-instrument-play.svg'
 import place from '@/assets/figma/node-place.svg'
-import { clock, ROLES, type Role, type SongNode } from '@/data/nodes'
+import { clock, type SongNode } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useFeedsPlaying, useSong } from '@/store/song'
 import { NodeShell } from './NodeShell'
-import { PlayButton, RoleDot, Waveform } from './parts'
+import { PlayButton, Waveform } from './parts'
 import { usePlayback, useProgress } from './usePlayback'
 
 const STARTERS = ['Someone', 'A memory', 'A feeling']
@@ -25,6 +22,7 @@ const STARTERS = ['Someone', 'A memory', 'A feeling']
 /** Intent. The words themselves. */
 export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) {
   const updateData = useSong((s) => s.updateData)
+  const setDrafting = useSong((s) => s.setDrafting)
   const [editing, setEditing] = useState(!data.text)
   const field = useRef<HTMLTextAreaElement>(null)
   const empty = !data.text.trim()
@@ -48,8 +46,18 @@ export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) 
             value={data.text}
             placeholder="What's this song for?"
             onChange={(e) => updateData(id, { text: e.target.value })}
-            onBlur={() => !empty && setEditing(false)}
-            onKeyDown={(e) => e.key === 'Escape' && e.currentTarget.blur()}
+            onFocus={() => setDrafting(id)}
+            onBlur={() => {
+              setDrafting(null)
+              if (!empty) setEditing(false)
+            }}
+            // Enter finishes the prompt (Shift+Enter for a new line); Escape leaves it as it is.
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' || (e.key === 'Enter' && !e.shiftKey && !empty)) {
+                e.preventDefault()
+                e.currentTarget.blur()
+              }
+            }}
             className="nodrag nowheel field-sizing-content w-full resize-none bg-transparent text-[17px] leading-[1.36] tracking-[-0.01em] text-ink-1 outline-none placeholder:text-ink-3"
           />
         ) : (
@@ -61,7 +69,7 @@ export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) 
           </p>
         )}
         {empty && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="animate-starters-in flex flex-wrap gap-1.5">
             {STARTERS.map((s) => (
               <button
                 key={s}
@@ -247,109 +255,6 @@ export function ChordsNode({ data, selected }: NodeProps<SongNode<'chords'>>) {
           ))}
         </div>
       </div>
-    </NodeShell>
-  )
-}
-
-/** A tiny look at a plugged-in card: its photo, colour, words or sound. */
-function Preview({ id }: { id: string }) {
-  const node = useSong((s) => s.nodes.find((n) => n.id === id))
-  const base = 'animate-socket-in flex size-[22px] shrink-0 items-center justify-center overflow-hidden rounded-[6px] border-2 border-well'
-  if (node?.type === 'photo' && node.data.src)
-    return <img src={node.data.src} alt="" draggable={false} className={cn(base, 'object-cover')} />
-  if (node?.type === 'instrument' && node.data.thumb)
-    return <img src={node.data.thumb} alt="" draggable={false} className={cn(base, 'object-cover')} />
-  if (node?.type === 'color') return <span className={base} style={{ backgroundImage: node.data.gradient }} />
-  if (node?.type === 'words') return <span className={cn(base, 'bg-[#eaeae9] text-[13px] leading-none text-ink-2')}>“</span>
-  if (node?.type === 'voice' || node?.type === 'sound' || node?.type === 'chords')
-    return (
-      <span className={cn(base, 'gap-px bg-[#eaeae9]')}>
-        {[5, 9, 6, 10, 4].map((h, i) => (
-          <i key={i} className="w-0.5 rounded-full bg-ink-3" style={{ height: h }} />
-        ))}
-      </span>
-    )
-  return <span className={cn(base, 'bg-photo')} />
-}
-
-/** One row per role. Wires plug in at its left edge; what's plugged in stacks on the right. */
-function Socket({ section, role, name, sources = [] }: { section: string; role: Role; name: string; sources?: string[] }) {
-  const hot = useSong((s) => s.snap?.section === section && s.snap.role === role)
-  const landed = useSong((s) => s.fresh?.section === section && s.fresh.role === role)
-  const filled = sources.length > 0
-  return (
-    <div
-      className={cn(
-        'relative flex h-[34px] w-[246px] items-center gap-[9px] rounded-[9px] border pr-1.5 pl-[11px] transition-[background-color,border-color,box-shadow] duration-200',
-        hot
-          ? 'border-[var(--c)] bg-[color-mix(in_srgb,var(--c)_6%,var(--soft-card))] shadow-[0_0_0_4px_color-mix(in_srgb,var(--c)_12%,transparent)]'
-          : filled
-            ? 'border-rule bg-well'
-            : 'border-rule-strong',
-      )}
-      style={{ '--c': `var(--soft-role-${role})` } as CSSProperties}
-    >
-      <Handle type="target" id={role} position={Position.Left} isConnectableStart={false} className="wire-socket" />
-      <span
-        aria-hidden
-        className={cn('wire-hump', filled || hot ? 'scale-100 opacity-100' : 'scale-50 opacity-0', landed && 'wire-pop-in')}
-        style={{ transformOrigin: '100% 50%' }}
-      />
-      <RoleDot role={role} />
-      <p className={cn('type-caption min-w-0 flex-1', filled || hot ? 'text-ink-1' : 'text-ink-3')}>{name}</p>
-      {filled && (
-        <div className="flex">
-          {sources.map((s, i) => (
-            <span key={s} className={cn('flex', i < sources.length - 1 && '-mr-[5px]')}>
-              <Preview id={s} />
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** A socket board with a label tab. Empty, filling, full. */
-export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'>>) {
-  const targeted = useSong((s) => s.snap?.section === id)
-  const makeTakes = useSong((s) => s.makeTakes)
-  const ready = Object.values(data.sources).some((s) => s && s.length > 0)
-  return (
-    <NodeShell
-      width={270}
-      tall
-      icon={iconSection}
-      label={data.name}
-      selected={selected}
-      targeted={targeted}
-      tab={
-        <>
-          <img src={iconSection} alt="" className="size-[15px]" />
-          <p className="type-title whitespace-nowrap text-ink-1">{data.name}</p>
-          <p className="font-mono text-[12px] leading-none whitespace-nowrap text-ink-3">{clock(data.length)}</p>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-1 px-3 pt-2.5 pb-3">
-        {ROLES.map((r) => (
-          <Socket key={r.id} section={id} role={r.id} name={r.name} sources={data.sources[r.id]} />
-        ))}
-        <button
-          type="button"
-          disabled={!ready}
-          onClick={() => makeTakes(id)}
-          className={cn(
-            'nodrag type-action flex h-[38px] w-[246px] items-center justify-center gap-2 rounded-[10px] transition-colors duration-200',
-            ready ? 'border border-rule bg-button text-ink-1 hover:bg-level' : 'text-ink-3',
-          )}
-        >
-          <img src={ready ? iconTakeOn : iconTake} alt="" className="size-[15px]" />
-          Make 2 takes
-        </button>
-      </div>
-      {/* Where the wire out to this section's take starts. */}
-      <Handle type="source" id="take" position={Position.Right} isConnectable={false} className="wire-out" />
     </NodeShell>
   )
 }

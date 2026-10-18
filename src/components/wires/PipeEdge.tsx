@@ -1,7 +1,8 @@
 import { EdgeLabelRenderer, type Edge, type EdgeProps } from '@xyflow/react'
 import { Xmark } from 'iconoir-react'
 import { useEffect, useRef, useState } from 'react'
-import type { Role } from '@/data/nodes'
+import { readingFor } from '@/data/interpret'
+import { ROLES, type Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { curve, RING_IN, RING_OUT } from './geometry'
@@ -20,6 +21,11 @@ export function PipeEdge({ id, source, target, sourceX, sourceY, targetX, target
   const fresh = useSong((s) => s.fresh?.id === id)
   const flowing = useFlowing(source, target)
   const toTake = !data?.role
+  const reading = useSong((s) => {
+    const card = data?.role && s.nodes.find((n) => n.id === source)
+    return card ? readingFor(card, data.role!) : ''
+  })
+  const roleName = ROLES.find((r) => r.id === data?.role)?.name
   const [hover, setHover] = useState(false)
   const leave = useRef(0)
   useEffect(() => () => clearTimeout(leave.current), [])
@@ -52,23 +58,43 @@ export function PipeEdge({ id, source, target, sourceX, sourceY, targetX, target
       {fresh && <path d={d} pathLength={1} fill="none" stroke={color} strokeWidth={7} strokeLinecap="round" className="wire-flow" />}
       {!toTake && (
         <>
-          <path d={d} fill="none" stroke="transparent" strokeWidth={20} onMouseEnter={enter} onMouseLeave={exit} />
+          <path
+            d={d}
+            fill="none"
+            stroke="transparent"
+            strokeWidth={20}
+            onMouseEnter={enter}
+            onMouseLeave={exit}
+          />
           <EdgeLabelRenderer>
-            <button
-              type="button"
-              aria-label="Unplug"
-              title="Unplug"
+            {/* Hovering a wire says what it carries, beside a way to unplug it. */}
+            <div
               onMouseEnter={enter}
               onMouseLeave={exit}
-              onClick={() => disconnect(source, target)}
               className={cn(
-                'nodrag nopan absolute flex size-[22px] items-center justify-center rounded-full bg-card text-ink-2 shadow-lift transition-[opacity,scale] duration-200 ease-spring hover:text-ink-1',
-                hover ? 'pointer-events-auto scale-100 opacity-100' : 'pointer-events-none scale-75 opacity-0',
+                'nodrag nopan absolute flex h-7 max-w-[260px] items-center gap-1.5 rounded-full bg-card pr-0.5 pl-2.5 shadow-lift transition-[opacity,scale] duration-200 ease-spring',
+                hover ? 'pointer-events-auto scale-100 opacity-100' : 'pointer-events-none scale-90 opacity-0',
               )}
               style={{ transform: `translate(-50%, -50%) translate(${mid.x}px, ${mid.y}px)` }}
             >
-              <Xmark width={12} height={12} strokeWidth={2} />
-            </button>
+              {reading && (
+                <span className="type-small min-w-0 truncate text-ink-2">
+                  <span className="font-medium" style={{ color }}>
+                    {roleName}
+                  </span>{' '}
+                  · {reading}
+                </span>
+              )}
+              <button
+                type="button"
+                aria-label="Unplug"
+                title="Unplug"
+                onClick={() => disconnect(source, target)}
+                className="flex size-6 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-well hover:text-ink-1"
+              >
+                <Xmark width={12} height={12} strokeWidth={2} />
+              </button>
+            </div>
           </EdgeLabelRenderer>
         </>
       )}

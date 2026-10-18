@@ -296,16 +296,6 @@
   background: transparent;
   cursor: crosshair;
 }
-.wire-port::before {
-  /* The hump: a half-disc in the card's own colour, bulging out of its edge. */
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: var(--soft-card);
-  box-shadow: 0 0 0 .5px rgb(20 22 26 / .13);
-  clip-path: inset(-2px -2px -2px calc(50% - .5px));
-}
 .wire-port::after,
 .wire-hump::after {
   /* The role's colour sits in it as a ring around a dot. */
@@ -320,10 +310,10 @@
   transform: scale(.82);
   transition: transform .25s var(--ease-spring);
 }
-.wire-port::after { left: 8px; }
+.wire-port::after { left: 6px; }
 .react-flow__node:hover .wire-port::after,
 .wire-port.connectingfrom::after { transform: scale(1); }
-/* The same hump on a section's edge, wherever something is plugged in. */
+/* The ring on a section's edge, wherever something is plugged in. Its hump is drawn into the section's outline. */
 .wire-hump {
   position: absolute;
   top: 50%;
@@ -334,16 +324,7 @@
   pointer-events: none;
   transition: opacity .2s, scale .3s var(--ease-spring);
 }
-.wire-hump::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: var(--soft-card);
-  box-shadow: 0 0 0 .5px rgb(20 22 26 / .13);
-  clip-path: inset(-2px calc(50% - .5px) -2px -2px);
-}
-.wire-hump::after { left: 4px; transform: none; }
+.wire-hump::after { left: 6px; transform: none; }
 .react-flow__handle.wire-socket {
   top: 0;
   left: -12px;
@@ -380,6 +361,71 @@ svg.react-flow__connectionline.react-flow__container { z-index: 0; }
   100% { transform: scale(1); }
 }
 .wire-hump.wire-pop-in::after { animation: wire-pop .55s var(--ease-spring) .5s both; }
+/* A soft slider: a well-coloured track that fills in ink up to the thumb (--v). */
+.humn-range {
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+.humn-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--soft-role-intent) var(--v), var(--soft-well) var(--v));
+  box-shadow: inset 0 0 0 .5px rgb(20 22 26 / .08);
+}
+.humn-range::-moz-range-track { height: 6px; border-radius: 999px; background: var(--soft-well); }
+.humn-range::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--soft-role-intent); }
+.humn-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: var(--soft-card);
+  box-shadow: 0 0 0 .5px rgb(20 22 26 / .18), 0 2px 6px rgb(20 22 26 / .12);
+  transition: transform .2s var(--ease-spring);
+}
+.humn-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--soft-card);
+  box-shadow: 0 0 0 .5px rgb(20 22 26 / .18), 0 2px 6px rgb(20 22 26 / .12);
+}
+.humn-range:active::-webkit-slider-thumb { transform: scale(1.12); }
+.humn-range:focus-visible { outline: none; }
+.humn-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--soft-accent), 0 2px 6px rgb(20 22 26 / .12); }
+
+/* The ghost can't be dragged or selected, which React Flow takes to mean inert; its button still needs clicks. */
+.react-flow__node.react-flow__node-ghost { pointer-events: all !important; }
+/* A suggested wire drifts toward the ghost it would plug into, faint until it's real. */
+.ghost-flow { opacity: .5; animation: ghost-flow 1.4s linear infinite, ghost-in .5s var(--ease-soft) both; }
+@keyframes ghost-flow { to { stroke-dashoffset: -22; } }
+@keyframes ghost-in { from { opacity: 0; } to { opacity: .5; } }
+
+/* A slider that fills in its slot's colour (--c) instead of ink. */
+.humn-range-role::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--c) var(--v), var(--soft-well) var(--v)); }
+.humn-range-role::-moz-range-progress { background: var(--c); }
+/* A wire's Connection card, and its menus, open with a small lift. */
+.animate-wire-card { animation: wire-card .22s var(--ease-spring) both; transform-origin: 50% 0; }
+@keyframes wire-card { from { opacity: 0; transform: scale(.96) translateY(-4px); } }
+
+/* A six-dot grip, as on the cards' tabs. */
+.grip-dots {
+  width: 10px;
+  height: 16px;
+  background: radial-gradient(circle, var(--soft-ink-4) 1.4px, transparent 1.6px) 0 0 / 5px 5.5px;
+}
+
+/* A prompt's starters come back once the card has grown to make room for them. */
+.animate-starters-in { animation: starters-in .3s var(--ease-soft) .12s both; }
+@keyframes starters-in { from { opacity: 0; transform: translateY(3px); } }
+/* A new row in a verse fades in where it lands; it doesn't move, so its wire's socket is measured right. */
+.animate-row-in { animation: row-in .35s var(--ease-soft) both; }
+@keyframes row-in { from { opacity: 0; } }
 /* A card landing in a socket springs into place. */
 .animate-socket-in { animation: socket-in .5s var(--ease-spring) both; }
 @keyframes socket-in { from { opacity: .3; transform: scale(.6); } }
@@ -392,7 +438,8 @@ svg.react-flow__connectionline.react-flow__container { z-index: 0; }
   .animate-node-enter { animation: none; }
   .animate-drawer-swap { animation: none; }
   .wire-flow { display: none; }
-  .wire-pop::after, .wire-hump.wire-pop-in::after, .animate-socket-in { animation: none; }
+  .ghost-flow, .animate-wire-card { animation: none; }
+  .wire-pop::after, .wire-hump.wire-pop-in::after, .animate-socket-in, .animate-starters-in, .animate-row-in { animation: none; }
   .selected > * > .node-shine { animation: none; }
   .shine-button:hover::after, .shine-button:focus-visible::after { animation: none; }
 }

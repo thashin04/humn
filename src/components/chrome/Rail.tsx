@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { AppWindow } from 'iconoir-react'
 import { motion, MotionConfig } from 'motion/react'
 import { DRAWERS } from '@/data/library'
 import type { Kind } from '@/data/nodes'
@@ -9,7 +8,7 @@ import { Drawer } from './Drawer'
 import { KIND_ICONS } from './kindIcons'
 import { useAddNode } from './useAddNode'
 
-// One button per kind of thing. Section last.
+// One button per kind of thing. Sections are added from the toolbar.
 const KINDS: Kind[] = ['words', 'voice', 'photo', 'sound', 'color', 'instrument']
 
 /**
@@ -20,6 +19,11 @@ const KINDS: Kind[] = ['words', 'voice', 'photo', 'sound', 'color', 'instrument'
 export function Rail() {
   const { drawer, setDrawer } = useSong()
   const add = useAddNode()
+  // A prompt is written, not picked: it goes straight onto the canvas, ready to type into.
+  const write = () => {
+    setDrawer(null)
+    add('words')
+  }
   const ref = useRef<HTMLDivElement>(null)
   // Keep showing the last drawer while it fades out, and note when one drawer
   // replaces another so the new contents can settle in instead of popping.
@@ -58,7 +62,7 @@ export function Rail() {
         'flex overflow-hidden rounded-[26px] bg-card shadow-lift transition-[width,height] motion-reduce:transition-none',
         drawer
           ? 'h-[min(632px,calc(100dvh-180px))] w-[369px] duration-[380ms] ease-spring'
-          : 'h-[311px] w-[52px] delay-[60ms] duration-[280ms] ease-soft',
+          : 'h-[264px] w-[52px] delay-[60ms] duration-[280ms] ease-soft',
       )}
     >
       <MotionConfig reducedMotion="user">
@@ -70,8 +74,8 @@ export function Rail() {
               key={k}
               title={DRAWERS[k].label}
               aria-label={DRAWERS[k].label}
-              aria-expanded={drawer === k}
-              onClick={() => setDrawer(drawer === k ? null : k)}
+              aria-expanded={k === 'words' ? undefined : drawer === k}
+              onClick={() => (k === 'words' ? write() : setDrawer(drawer === k ? null : k))}
               className={cn(
                 'relative flex size-[38px] shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform] ease-soft active:scale-95',
                 // The icon whitens as the pill arrives, rather than before it gets there.
@@ -92,15 +96,6 @@ export function Rail() {
             </button>
           )
         })}
-        <span className="h-px w-[22px] shrink-0 bg-rule" />
-        <button
-          title="Section"
-          aria-label="Section"
-          onClick={() => add('section')}
-          className="flex size-[38px] shrink-0 items-center justify-center rounded-full text-ink-2 transition-[background-color,transform] duration-150 hover:bg-well active:scale-95"
-        >
-          <AppWindow width={18} height={18} strokeWidth={1.5} />
-        </button>
       </div>
       </MotionConfig>
 
