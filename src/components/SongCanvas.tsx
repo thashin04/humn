@@ -4,10 +4,14 @@ import {
   ReactFlow,
   useNodesInitialized,
   useReactFlow,
+  useViewport,
+  ViewportPortal,
   type EdgeChange,
   type EdgeTypes,
+  type XYPosition,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
@@ -16,11 +20,13 @@ import { Rail } from '@/components/chrome/Rail'
 import { TitlePill } from '@/components/chrome/TitlePill'
 import { Toolkit } from '@/components/chrome/Toolkit'
 import { Hint } from '@/components/chrome/Hint'
+import { DraftPin, PinWithCard } from '@/components/comments/Comments'
 import { EmptyState } from '@/components/empty/EmptyState'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
 import { TimelineView } from '@/components/timeline/TimelineView'
 import { PipeEdge } from '@/components/wires/PipeEdge'
 import { WireLine } from '@/components/wires/WireLine'
+import { ME } from '@/data/collaborators'
 import { NODE_DRAG_TYPE } from '@/data/library'
 import { ROLES, type AnySongNode, type Kind } from '@/data/nodes'
 import type { TemplateId } from '@/data/templates'
@@ -74,7 +80,8 @@ function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
 }
 
 export function SongCanvas() {
-  const view = useSong((s) => s.view)
+  const timelineOpen = useSong((s) => s.timelineOpen)
+  const still = useReducedMotion()
   const templatePicker = useSong((s) => s.templatePicker)
   const { songId } = useParams()
   const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
@@ -91,13 +98,14 @@ export function SongCanvas() {
   useEffect(() => {
     if (songId) open(songId)
   }, [songId, open])
+  useShortcuts()
 
   if (!song || song.trashed) return <Navigate to="/" replace />
 
   return (
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-ground">
       <div className="relative min-h-0 flex-1">
-        {view === 'canvas' ? <Canvas /> : <TimelineView />}
+        <Canvas />
 
         <div className="absolute top-5 left-5">
           <TitlePill title={song.title} />
@@ -110,8 +118,81 @@ export function SongCanvas() {
         </div>
       </div>
 
+      {/* The dock grows up from the bottom edge, and the canvas gives way as it does. */}
+      <AnimatePresence initial={false}>
+        {timelineOpen && (
+          <motion.div
+            key="timeline"
+            className="shrink-0 overflow-hidden"
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0 }}
+            transition={still ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0 }}
+          >
+            <TimelineView />
+          </motion.div>
+        )}
+      </AnimatePresence>
       {templatePicker.open && <TemplatePicker />}
     </div>
+  )
+}
+
+/** Undo and redo, and V / C for the select and comment tools, anywhere but while typing. */
+function useShortcuts() {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof Element && e.target.closest('input, textarea, [contenteditable]')) return
+      const { undo, redo, setTool, tool } = useSong.getState()
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+      } else if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        redo()
+      } else if (!mod && !e.altKey && e.key === 'v') setTool('select')
+      else if (!mod && !e.altKey && e.key === 'c') setTool('comment')
+      else if (e.key === 'Escape' && tool === 'comment') setTool('select')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+}
+
+/** Comments left on the canvas. They stay the same size however far in or out it's zoomed. */
+function CanvasComments({
+  draft,
+  onPost,
+  onCancel,
+  open,
+  setOpen,
+}: {
+  draft: XYPosition | null
+  onPost: (text: string) => void
+  onCancel: () => void
+  open: string | null
+  setOpen: (id: string | null) => void
+}) {
+  const comments = useSong((s) => (s.songId ? s.comments[s.songId] : undefined))
+  const { zoom } = useViewport()
+  const place = (x: number, y: number) => ({ transform: `translate(${x}px, ${y}px) scale(${1 / zoom})`, transformOrigin: '0 0' })
+  return (
+    <ViewportPortal>
+      {comments?.map((c) =>
+        'x' in c.where ? (
+          <div key={c.id} className="pointer-events-auto absolute top-0 left-0 z-[1000]" style={place(c.where.x, c.where.y)}>
+            <PinWithCard comment={c} open={open === c.id} onToggle={() => setOpen(open === c.id ? null : c.id)} />
+          </div>
+        ) : null,
+      )}
+      {draft && (
+        <div className="pointer-events-auto absolute top-0 left-0 z-[1001]" style={place(draft.x, draft.y)}>
+          <DraftPin onPost={onPost} onCancel={onCancel} />
+        </div>
+      )}
+    </ViewportPortal>
   )
 }
 
@@ -119,20 +200,22 @@ export function SongCanvas() {
 function Canvas() {
   const { nodes, tool, onNodesChange } = useSong()
   const { addNode, fitRequest, focus, clearFocus } = useSong()
-  const { connect, disconnect, setSnap } = useSong()
+  const { connect, disconnect, setSnap, addComment } = useSong()
+  const commenting = tool === 'comment'
+  const [draft, setDraft] = useState<XYPosition | null>(null)
+  const [openComment, setOpenComment] = useState<string | null>(null)
+  if (!commenting && draft) setDraft(null)
   const edges = useMemo(() => wiresOf(nodes), [nodes])
   const { screenToFlowPosition, fitView } = useReactFlow()
   // A template just landed: bring all of it into view once every node is measured.
   const measured = useNodesInitialized()
-  // Coming back to a particular node, skip framing everything first.
-  const [arriving] = useState(focus)
   const fitted = useRef(fitRequest)
   useEffect(() => {
     if (!measured || fitted.current === fitRequest) return
     fitted.current = fitRequest
     fitView({ padding: 0.25, maxZoom: 1, duration: 500 })
   }, [measured, fitRequest, fitView])
-  // Back from the timeline to a particular card or section: bring it into view.
+  // Asked from the timeline to show a card or section: bring it into view.
   useEffect(() => {
     if (!measured || !focus) return
     fitView({ nodes: [{ id: focus }], padding: 0.3, maxZoom: 1, duration: 500 })
@@ -174,14 +257,37 @@ function Canvas() {
             if (snap && state.fromNode) connect(state.fromNode.id, snap.section, snap.role)
             setSnap(null)
           }}
-          fitView={!arriving}
+          fitView
           fitViewOptions={FIT}
           panOnDrag={tool === 'hand'}
           selectionOnDrag={tool === 'select'}
+          // Commenting: a press anywhere, on a card or not, starts a comment there.
+          nodesDraggable={!commenting}
+          nodesConnectable={!commenting}
+          elementsSelectable={!commenting}
+          onPaneClick={(e) => {
+            setOpenComment(null)
+            if (commenting) setDraft(screenToFlowPosition({ x: e.clientX, y: e.clientY }))
+          }}
+          onNodeClick={(e) => {
+            if (!commenting) return
+            setOpenComment(null)
+            setDraft(screenToFlowPosition({ x: e.clientX, y: e.clientY }))
+          }}
           panOnScroll
           proOptions={{ hideAttribution: true }}
-          className={tool === 'hand' ? 'cursor-grab' : undefined}
+          className={tool === 'hand' ? 'cursor-grab' : commenting ? 'commenting' : undefined}
         >
+          <CanvasComments
+            draft={draft}
+            open={openComment}
+            setOpen={setOpenComment}
+            onCancel={() => setDraft(null)}
+            onPost={(text) => {
+              if (draft) addComment(draft, text, ME)
+              setDraft(null)
+            }}
+          />
           <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color="var(--soft-dot)" />
         </ReactFlow>
 
@@ -195,8 +301,11 @@ function Canvas() {
       <div className="absolute top-5 left-1/2 -translate-x-1/2">
         <Hint />
       </div>
-      <div className="absolute top-1/2 left-5 -translate-y-1/2">
-        <Rail />
+      {/* Centred in the room between the title and the toolbar, so a docked timeline can't push it under either. */}
+      <div className="pointer-events-none absolute top-[76px] bottom-[76px] left-5 flex items-center">
+        <div className="pointer-events-auto">
+          <Rail />
+        </div>
       </div>
     </>
   )

@@ -16,8 +16,10 @@ import {
 import { nanoid } from 'nanoid'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
 import iconSection from '@/assets/figma/node-icon-section.svg'
+import { DraftPin, PinWithCard } from '@/components/comments/Comments'
 import { TAKE_A, TAKE_B } from '@/components/nodes/waves'
 import { CLIP_DEFAULTS, EFFECTS, SPEEDS, clipsOf, newClip, playTime, type Clip } from '@/data/clips'
+import { ME } from '@/data/collaborators'
 import { clock, type AnySongNode, type SongNode } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
@@ -27,6 +29,8 @@ const HEAD = 112
 const PAD = 16
 const TRACK_H = 112
 const STEP = 4
+const DOCK_MIN = 200
+const CANVAS_MIN = 470
 const NAMES = ['Verse', 'Chorus', 'Bridge', 'Outro']
 const MOVE = 'transform .35s var(--ease-spring), width .35s var(--ease-spring)'
 
@@ -39,6 +43,16 @@ const moved = <T,>(list: T[], from: number, to: number) => {
 }
 const startsOf = (lengths: number[]) => lengths.map((_, i) => lengths.slice(0, i).reduce((t, l) => t + l, 0))
 const secs = (n: number) => `${n.toFixed(1)}s`
+
+function useWindowHeight() {
+  const [height, setHeight] = useState(window.innerHeight)
+  useEffect(() => {
+    const onResize = () => setHeight(window.innerHeight)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return height
+}
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null)
@@ -63,6 +77,10 @@ function useWidth() {
  */
 export function TimelineView() {
   const nodes = useSong((s) => s.nodes)
+  // The canvas keeps room for its rail and toolbar, however tall the dock was pulled.
+  const windowHeight = useWindowHeight()
+  const dockHeight = clamp(useSong((s) => s.dockHeight), DOCK_MIN, Math.max(DOCK_MIN, windowHeight - CANVAS_MIN))
+  const setDockHeight = useSong((s) => s.setDockHeight)
   const saved = useSong((s) => (s.songId ? s.arrangements[s.songId] : undefined))
   const { arrange, addNode, makeTakes } = useSong()
   const items = useMemo(() => clipsOf(nodes, saved), [nodes, saved])
@@ -76,7 +94,8 @@ export function TimelineView() {
   const takeOf = (id: string) => nodes.find((n): n is SongNode<'take'> => n.type === 'take' && n.data.sectionId === id)
 
   const update = (id: string, patch: Partial<Clip>) => arrange(clips.map((c) => (c.id === id ? { ...c, ...patch } : c)))
-  const [picked, setPicked] = useState<string | null>(null)
+  const picked = useSong((s) => s.clip)
+  const setPicked = useSong((s) => s.pickClip)
   const sel = clips.findIndex((c) => c.id === picked)
 
   // Fit the song across, then zoom in from there. Hold the scale still while an edge is pulled.
@@ -163,14 +182,16 @@ export function TimelineView() {
     }
   }
 
+  // With a card selected, the arrow keys are the canvas's.
+  const cardPicked = useSong((s) => s.nodes.some((n) => n.selected))
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest('input, textarea, button, [contenteditable]')) return
+      if (e.target instanceof Element && e.target.closest('input, textarea, button, [contenteditable]')) return
       if (e.key === ' ') {
         e.preventDefault()
         toggle()
-      } else if (e.key === 'ArrowLeft') seek(Math.max(0, time - 5))
-      else if (e.key === 'ArrowRight') seek(Math.min(total, time + 5))
+      } else if (e.key === 'ArrowLeft' && !cardPicked) seek(Math.max(0, time - 5))
+      else if (e.key === 'ArrowRight' && !cardPicked) seek(Math.min(total, time + 5))
       else if (e.key === 's' && !e.metaKey && !e.ctrlKey) split()
       else if (e.key === 'd' && (e.metaKey || e.ctrlKey) && sel >= 0) {
         e.preventDefault()
@@ -189,8 +210,29 @@ export function TimelineView() {
   const previewStarts = startsOf(preview.map((i) => times[i]))
   const xOf = (i: number) => (drag?.from === i ? starts[i] * pps + drag.dx : previewStarts[preview.indexOf(i)] * pps)
 
+  // Commenting: a press on the timeline leaves a comment at that moment instead.
+  const tool = useSong((s) => s.tool)
+  const commenting = tool === 'comment'
+  const notes = useSong((s) => (s.songId ? s.comments[s.songId] : undefined))?.flatMap((c) =>
+    't' in c.where ? [{ ...c, t: c.where.t }] : [],
+  )
+  const addComment = useSong((s) => s.addComment)
+  const [draft, setDraft] = useState<number | null>(null)
+  const [openNote, setOpenNote] = useState<string | null>(null)
+  if (!commenting && draft !== null) setDraft(null)
+  const content = useRef<HTMLDivElement>(null)
+  const noteAt = (clientX: number) => {
+    const left = content.current?.getBoundingClientRect().left ?? 0
+    setOpenNote(null)
+    setDraft(clamp((clientX - left - HEAD - PAD) / pps, 0, total))
+  }
+
   const startDrag = (e: PointerEvent, i: number) => {
     if (e.button !== 0) return
+    if (commenting) {
+      e.preventDefault()
+      return noteAt(e.clientX)
+    }
     const x0 = e.clientX
     let going = false
     const move = (ev: globalThis.PointerEvent) => {
@@ -243,6 +285,11 @@ export function TimelineView() {
   // Press or drag along the ruler or an empty bit of the track to move the playhead.
   const scrub = (e: PointerEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return
+    if (commenting) {
+      e.preventDefault()
+      return noteAt(e.clientX)
+    }
+    setOpenNote(null)
     const el = e.currentTarget
     const at = (x: number) => seek(clamp((x - el.getBoundingClientRect().left - PAD) / pps, 0, total))
     at(e.clientX)
@@ -255,8 +302,9 @@ export function TimelineView() {
   const chosen = sel >= 0 ? items[sel] : null
 
   return (
-    <div className="absolute inset-0 flex gap-3 px-5 pt-[82px] pb-[82px]">
-      <div className="flex min-w-0 flex-1 animate-node-enter flex-col overflow-hidden rounded-[18px] bg-card shadow-lift">
+    <div className="relative flex border-t border-rule bg-card" style={{ height: dockHeight }}>
+      <ResizeEdge height={dockHeight} onResize={setDockHeight} />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex h-14 shrink-0 items-center gap-2 border-b border-rule px-4">
           <ToolIcon label="Back to the start" onClick={() => seek(0)} disabled={!total}>
             <SkipPrev width={17} height={17} strokeWidth={1.5} />
@@ -287,13 +335,43 @@ export function TimelineView() {
         </div>
 
         <div ref={scroller} className="relative min-h-0 flex-1 overflow-auto">
-          <div className="relative min-w-full" style={{ width: HEAD + PAD * 2 + total * pps + 140 }}>
+          <div
+            ref={content}
+            className={cn('relative min-w-full', commenting && '[&_*]:cursor-crosshair')}
+            style={{ width: HEAD + PAD * 2 + total * pps + 140 }}
+          >
             <div className="flex h-8 border-b border-rule">
               <div className="sticky left-0 z-10 w-[112px] shrink-0 border-r border-rule bg-card" />
               <div className="relative flex-1 cursor-text" onPointerDown={scrub}>
                 <Ruler total={total} pps={pps} />
               </div>
             </div>
+
+            {(commenting || draft !== null || !!notes?.length) && (
+              <div className="flex h-11 border-b border-rule">
+                <div className="sticky left-0 z-10 flex w-[112px] shrink-0 items-center border-r border-rule bg-card px-4">
+                  <p className="type-caption text-ink-2">Comments</p>
+                </div>
+                <div className="relative z-[6] flex-1" onPointerDown={scrub}>
+                  {notes?.map((c) => (
+                    <div key={c.id} className="absolute top-[38px] left-0" style={{ transform: `translateX(${PAD + c.t * pps}px)` }}>
+                      <PinWithCard comment={c} open={openNote === c.id} onToggle={() => setOpenNote(openNote === c.id ? null : c.id)} />
+                    </div>
+                  ))}
+                  {draft !== null && (
+                    <div className="absolute top-[38px] left-0 z-10" style={{ transform: `translateX(${PAD + draft * pps}px)` }}>
+                      <DraftPin
+                        onCancel={() => setDraft(null)}
+                        onPost={(text) => {
+                          addComment({ t: draft }, text, ME)
+                          setDraft(null)
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="flex border-b border-rule" style={{ height: TRACK_H + 16 }}>
               <div className="sticky left-0 z-10 flex w-[112px] shrink-0 flex-col justify-center gap-0.5 border-r border-rule bg-card px-4">
@@ -343,7 +421,9 @@ export function TimelineView() {
 
             {sel < 0 && total > 0 && (
               <p className="type-caption sticky left-0 px-6 pt-5 text-ink-3" style={{ width: width || undefined }}>
-                Select a clip to change how it sounds. Pull its edges to trim it, or its top corners to fade it.
+                {commenting
+                  ? 'Press anywhere on the timeline to leave a comment at that moment.'
+                  : 'Select a clip to change how it sounds. Pull its edges to trim it, or its top corners to fade it.'}
               </p>
             )}
 
@@ -391,6 +471,29 @@ export function TimelineView() {
           onClose={() => setPicked(null)}
         />
       )}
+    </div>
+  )
+}
+
+/** The dock's top edge: pull it up or down to give the timeline more or less room. */
+function ResizeEdge({ height, onResize }: { height: number; onResize: (h: number) => void }) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label="Resize timeline"
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        e.preventDefault()
+        const y0 = e.clientY
+        const move = (ev: globalThis.PointerEvent) =>
+          onResize(Math.round(clamp(height - (ev.clientY - y0), DOCK_MIN, window.innerHeight - CANVAS_MIN)))
+        window.addEventListener('pointermove', move)
+        window.addEventListener('pointerup', () => window.removeEventListener('pointermove', move), { once: true })
+      }}
+      className="group absolute top-0 right-0 left-0 z-20 flex h-2.5 cursor-ns-resize justify-center"
+    >
+      <span className="mt-1 h-[3px] w-10 rounded-full bg-rule-strong transition-colors group-hover:bg-ink-3" />
     </div>
   )
 }
@@ -675,7 +778,7 @@ function Properties({
   const changed = (Object.keys(CLIP_DEFAULTS) as (keyof typeof CLIP_DEFAULTS)[]).some((k) => clip[k] !== CLIP_DEFAULTS[k])
 
   return (
-    <aside className="flex w-[300px] shrink-0 animate-node-enter flex-col overflow-hidden rounded-[18px] bg-card shadow-lift">
+    <aside className="flex w-[300px] shrink-0 animate-drawer-swap flex-col overflow-hidden border-l border-rule bg-card">
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-rule pr-2 pl-4">
         <img src={iconSection} alt="" className="size-[14px]" />
         <div className="min-w-0 flex-1">

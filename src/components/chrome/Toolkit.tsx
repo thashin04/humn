@@ -1,64 +1,54 @@
-import { ChatBubbleEmpty, CursorPointer, Redo, Undo } from 'iconoir-react'
+import { AlignBottomBox, ChatBubbleEmpty, CursorPointer, Redo, Undo } from 'iconoir-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { useSong, type View } from '@/store/song'
+import { useSong } from '@/store/song'
 
 const ICON = { width: 18, height: 18, strokeWidth: 1.5 }
 
 export function Toolkit() {
-  const { tool, setTool } = useSong()
+  const { tool, setTool, undo, redo } = useSong()
+  const canUndo = useSong((s) => s.past.length > 0)
+  const canRedo = useSong((s) => s.future.length > 0)
 
   return (
     <div className="flex h-[42px] items-center gap-2 rounded-full bg-card px-1.5 shadow-lift">
-      <ToolButton label="Select" active={tool === 'select'} onClick={() => setTool('select')}>
+      <ToolButton label="Select (V)" active={tool === 'select'} onClick={() => setTool('select')}>
         <CursorPointer {...ICON} />
       </ToolButton>
-      <ToolButton label="Comment">
+      <ToolButton label="Comment (C)" active={tool === 'comment'} onClick={() => setTool(tool === 'comment' ? 'select' : 'comment')}>
         <ChatBubbleEmpty {...ICON} />
       </ToolButton>
       <Sep />
-      <ToolButton label="Undo">
+      <ToolButton label="Undo (⌘Z)" onClick={undo} disabled={!canUndo}>
         <Undo {...ICON} />
       </ToolButton>
-      <ToolButton label="Redo">
+      <ToolButton label="Redo (⇧⌘Z)" onClick={redo} disabled={!canRedo}>
         <Redo {...ICON} />
       </ToolButton>
       <Sep />
-      <ViewSwitch />
+      <TimelineToggle />
     </div>
   )
 }
 
-const VIEWS: { id: View; label: string }[] = [
-  { id: 'canvas', label: 'Canvas' },
-  { id: 'timeline', label: 'Timeline' },
-]
-
-/** The same song two ways: what feeds what, or when it plays. The thumb slides between them. */
-function ViewSwitch() {
-  const { view, setView } = useSong()
+/** Opens the timeline under the canvas, or puts it away. Labelled, since it's the way into the song in time. */
+function TimelineToggle() {
+  const open = useSong((s) => s.timelineOpen)
+  const toggle = useSong((s) => s.toggleTimeline)
   return (
-    <div role="radiogroup" aria-label="View" className="relative grid h-[30px] grid-cols-2 rounded-full bg-well p-[3px]">
-      <span
-        aria-hidden
-        className="absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-3px)] rounded-full bg-card shadow-lift transition-transform duration-300 ease-spring"
-        style={{ transform: view === 'timeline' ? 'translateX(100%)' : undefined }}
-      />
-      {VIEWS.map((v) => (
-        <button
-          key={v.id}
-          role="radio"
-          aria-checked={view === v.id}
-          onClick={() => setView(v.id)}
-          className={cn(
-            'type-caption relative w-[72px] rounded-full transition-colors duration-200',
-            view === v.id ? 'text-ink-1' : 'text-ink-3 hover:text-ink-2',
-          )}
-        >
-          {v.label}
-        </button>
-      ))}
-    </div>
+    <button
+      type="button"
+      aria-pressed={open}
+      aria-label={open ? 'Hide timeline' : 'Show timeline'}
+      onClick={toggle}
+      className={cn(
+        'type-caption flex h-[30px] items-center gap-1.5 rounded-full pr-3 pl-2.5 transition-[background-color,color,transform] duration-200 ease-soft active:scale-95',
+        open ? 'bg-ink text-on-ink' : 'text-ink-2 hover:bg-well hover:text-ink-1',
+      )}
+    >
+      <AlignBottomBox width={16} height={16} strokeWidth={1.5} />
+      Timeline
+    </button>
   )
 }
 
@@ -66,11 +56,13 @@ function ToolButton({
   label,
   active,
   onClick,
+  disabled,
   children,
 }: {
   label: string
   active?: boolean
   onClick?: () => void
+  disabled?: boolean
   children: ReactNode
 }) {
   return (
@@ -79,9 +71,10 @@ function ToolButton({
       aria-label={label}
       aria-pressed={active}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         'flex size-[30px] items-center justify-center rounded-full transition-[background-color,color,transform] duration-200 ease-soft active:scale-95',
-        active ? 'bg-ink text-on-ink' : 'text-ink-2 hover:bg-well hover:text-ink-1',
+        active ? 'bg-ink text-on-ink' : 'text-ink-2 enabled:hover:bg-well enabled:hover:text-ink-1 disabled:text-ink-4',
       )}
     >
       {children}
