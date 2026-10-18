@@ -53,23 +53,6 @@ export const seedSongs: Song[] = [
     editedAt: new Date(2026, 9, 9).getTime(),
     thumbnail: lullaby,
   },
-  {
-    id: 's-sunday',
-    title: 'Sunday mornings',
-    ownerId: 'kofi',
-    collaboratorIds: ['kofi', 'ines'],
-    folderId: null,
-    editedAt: now - 3 * DAY,
-  },
-  {
-    id: 's-old-demo',
-    title: 'First try',
-    ownerId: 'ines',
-    collaboratorIds: ['ines'],
-    folderId: null,
-    editedAt: now - 20 * DAY,
-    trashed: true,
-  },
 ]
 
 export function editedLabel(editedAt: number): string {

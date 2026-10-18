@@ -15,7 +15,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
@@ -63,13 +63,13 @@ function linesOf(nodes: AnySongNode[]): PipeEdge[] {
   const ids = new Set(nodes.map((n) => n.id))
   return nodes.flatMap((sec): PipeEdge[] =>
     sec.type === 'take'
-      ? ids.has(sec.data.sectionId)
+      ? ids.has(sec.data.branchOf ?? sec.data.sectionId)
         ? [
             {
-              id: `${sec.data.sectionId}|${sec.id}`,
+              id: `${sec.data.branchOf ?? sec.data.sectionId}|${sec.id}`,
               type: 'pipe',
-              source: sec.data.sectionId,
-              sourceHandle: 'take',
+              source: sec.data.branchOf ?? sec.data.sectionId,
+              sourceHandle: sec.data.branchOf ? 'out' : 'take',
               target: sec.id,
               targetHandle: 'in',
               selectable: false,
@@ -144,19 +144,20 @@ export function SongCanvas() {
   const templatePicker = useSong((s) => s.templatePicker)
   const { songId } = useParams()
   const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
-  const { open, openTemplatePicker, closeTemplatePicker, selectTemplate } = useSong()
+  const updateSongTitle = useWorkspace((s) => s.updateSongTitle)
+  const { open, closeTemplatePicker, applyTemplate } = useSong()
   const starter = (useLocation().state as { template?: TemplateId } | null)?.template
 
-  // Opening a song from a workspace starter lands on the picker with it chosen.
-  useEffect(() => {
-    if (!starter) return
-    selectTemplate(starter)
-    openTemplatePicker()
-  }, [starter, selectTemplate, openTemplatePicker])
-  useEffect(() => closeTemplatePicker, [songId, closeTemplatePicker])
   useEffect(() => {
     if (songId) open(songId)
   }, [songId, open])
+
+  // Workspace starters go straight into their occasion; the picker is reserved for blank songs.
+  useEffect(() => {
+    if (!starter) return
+    applyTemplate(starter)
+  }, [starter, applyTemplate])
+  useEffect(() => closeTemplatePicker, [songId, closeTemplatePicker])
   useShortcuts()
 
   if (!song || song.trashed) return <Navigate to="/" replace />
@@ -175,7 +176,7 @@ export function SongCanvas() {
         </div>
         <div id={CLIP_PANEL} className="pointer-events-none absolute top-[76px] right-5 bottom-5 z-10 flex items-start" />
         <div className="absolute top-5 right-5">
-          <People ids={song.collaboratorIds} />
+          <People ids={song.collaboratorIds} songId={song.id} title={song.title} />
         </div>
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
           <Toolkit />
@@ -198,6 +199,7 @@ export function SongCanvas() {
         )}
       </AnimatePresence>
       {templatePicker.open && <TemplatePicker />}
+      {song.title === 'Untitled song' && <NameSongDialog onSave={(title) => updateSongTitle(song.id, title)} />}
     </div>
   )
 }
@@ -400,5 +402,50 @@ function Canvas() {
         </div>
       </div>
     </>
+  )
+}
+
+function NameSongDialog({ onSave }: { onSave: (title: string) => void }) {
+  const [title, setTitle] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => inputRef.current?.focus(), [])
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    const name = title.trim()
+    if (name) onSave(name)
+  }
+
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-ink/10 p-4 backdrop-blur-[2px]">
+      <form
+        onSubmit={submit}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="name-song-title"
+        className="flex w-105 max-w-full flex-col gap-5 rounded-[20px] bg-card p-7 shadow-lift"
+      >
+        <div className="flex flex-col gap-2">
+          <h2 id="name-song-title" className="type-display text-ink">Name your song</h2>
+          <p className="type-body text-ink-2">Give this song a name so it’s easy to find in your workspace.</p>
+        </div>
+        <input
+          ref={inputRef}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="e.g. Childhood memories"
+          aria-label="Song name"
+          className="h-11 rounded-[10px] border border-rule-strong bg-well px-3 text-ink outline-none placeholder:text-ink-3 focus:border-select focus:ring-2 focus:ring-select/20"
+        />
+        <button
+          type="submit"
+          disabled={!title.trim()}
+          className="shine-button type-action self-end rounded-full bg-ink px-4 py-2.5 text-on-ink transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Continue
+        </button>
+      </form>
+    </div>
   )
 }

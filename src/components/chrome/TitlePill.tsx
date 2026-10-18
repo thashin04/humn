@@ -6,30 +6,17 @@ import { useWorkspace } from '@/store/workspace'
 
 /** Back to the workspace, then the song's name, which renames in place when pressed. */
 export function TitlePill({ songId, title }: { songId: string; title: string }) {
-  const renameSong = useWorkspace((s) => s.renameSong)
+  const updateSongTitle = useWorkspace((s) => s.updateSongTitle)
   const [draft, setDraft] = useState<string | null>(null)
   const save = () => {
     const next = draft?.trim()
-    if (next && next !== title) renameSong(songId, next)
+    if (next && next !== title) updateSongTitle(songId, next)
     setDraft(null)
   }
 
   return (
     <div className="flex h-[42px] items-center gap-1 rounded-[12px] bg-card pr-1.5 pl-1.5 shadow-lift">
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Link
-              to="/"
-              aria-label="Back to workspace"
-              className="flex size-[30px] items-center justify-center rounded-[8px] text-ink-2 transition-colors hover:bg-well hover:text-ink-1"
-            />
-          }
-        >
-          <NavArrowLeft width={18} height={18} strokeWidth={1.6} />
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Back to workspace</TooltipContent>
-      </Tooltip>
+      <BackToWorkspace />
       <span className="mx-0.5 h-[18px] w-px bg-rule" />
       {draft === null ? (
         <Tooltip>
@@ -59,9 +46,25 @@ export function TitlePill({ songId, title }: { songId: string; title: string }) 
             if (e.key === 'Enter') e.currentTarget.blur()
             if (e.key === 'Escape') setDraft(null)
           }}
-          className="type-body field-sizing-content h-[30px] min-w-[80px] rounded-[8px] bg-well px-2.5 text-ink-1 outline-none ring-1 ring-select/50"
+          className="type-body field-sizing-content h-[30px] max-w-[45vw] min-w-[80px] rounded-[8px] bg-well px-2.5 text-ink-1 ring-1 ring-select/50 outline-none"
         />
       )}
     </div>
+  )
+}
+
+/** The way back, which says where it goes when hovered. */
+function BackToWorkspace() {
+  return (
+    <Link
+      to="/"
+      aria-label="Back to workspace"
+      className="group/back flex h-[30px] items-center rounded-[8px] px-1.5 text-ink-2 transition-colors duration-200 hover:bg-well hover:text-ink-1"
+    >
+      <NavArrowLeft width={18} height={18} strokeWidth={1.6} className="shrink-0" />
+      <span className="type-caption max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,padding] duration-200 group-hover/back:max-w-24 group-hover/back:pr-1 group-hover/back:pl-1 group-hover/back:opacity-100">
+        Workspace
+      </span>
+    </Link>
   )
 }

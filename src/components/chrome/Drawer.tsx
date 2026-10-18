@@ -317,7 +317,7 @@ function Generate({ kind }: { kind: Kind }) {
         <button
           type="submit"
           disabled={!text.trim() || state === 'making'}
-          className="type-action self-end rounded-full bg-ink px-3.5 py-2 text-on-ink transition-opacity disabled:opacity-40"
+          className="shine-button type-action self-end rounded-full bg-ink px-3.5 py-2 text-on-ink transition-opacity disabled:opacity-40"
         >
           {state === 'making' ? 'Making…' : 'Generate'}
         </button>

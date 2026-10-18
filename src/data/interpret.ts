@@ -43,3 +43,32 @@ export function slotSentence(cards: AnySongNode[], role: Role): string {
     instruments: `${join(names)} play${one ? 's' : ''} it`,
   }[role]
 }
+
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1)
+
+/**
+ * A plain-language reading of what a plugged-in card does to the music, so a
+ * photo in Harmony or a gradient in Melody says what it means. Shown when
+ * someone opens an input from a section's settings.
+ */
+export function purposeOf(node: AnySongNode, role: Role): string {
+  const d = node.data as Record<string, unknown>
+  const said = nameOf(d).trim()
+  const name = said.length > 26 ? `${said.slice(0, 24).trimEnd()}…` : said
+  const feel = FEELS.find((f) => f.words.test(said))?.feel
+  switch (role) {
+    case 'melody':
+      return node.type === 'voice' ? 'The verse follows the shape of your hum' : `A tune drawn from ${name ? `“${name}”` : 'this'}`
+    case 'harmony':
+      return node.type === 'chords' ? 'These chords sit underneath' : `Chords that feel ${feel ?? 'like this looks'}`
+    case 'mood':
+      if (node.type === 'feeling') return `${name}, at ${Math.round(Number(d.amount ?? 0.5) * 100)}%`
+      return `${feel ? cap(feel) : node.type === 'color' ? 'The colours set the feel' : 'Sets the feel'}${name ? `, like “${name}”` : ''}`
+    case 'texture':
+      return name ? `“${name}” sits quietly underneath` : 'Sits quietly underneath'
+    case 'instruments':
+      return name ? `${name} plays the verse` : 'Chooses what plays'
+    default:
+      return 'Shapes what the verse is about'
+  }
+}

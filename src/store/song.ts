@@ -62,6 +62,8 @@ type SongState = {
   made: string | null
   /** The take that's playing; the wires into its section flow while it does. */
   playing: string | null
+  /** The input currently being inspected in the selected section. */
+  focusedInputId: string | null
   /** Swaps the canvas to another song, keeping the one being left. */
   open: (songId: string) => void
   onNodesChange: (changes: NodeChange<AnySongNode>[]) => void
@@ -77,12 +79,15 @@ type SongState = {
   disconnect: (source: string, section: string) => void
   /** Makes (or remakes) a section's two takes, beside it and wired from it. */
   makeTakes: (sectionId: string) => void
+  /** Creates an independent playable take from an existing take. */
+  branchTake: (takeId: string) => void
   /** The prompt someone is typing into, so nothing is suggested from it until they're done. */
   drafting: string | null
   setDrafting: (id: string | null) => void
   /** Turns the suggested first part into a real section at `at`, with `source` plugged in when there is one. */
   startFirstPart: (source: string | null, at: XYPosition, role: Role, energy: number) => void
   setPlaying: (takeId: string | null) => void
+  setFocusedInput: (inputId: string | null) => void
   updateData: (id: string, patch: Record<string, unknown>) => void
   setTool: (tool: Tool) => void
   undo: () => void
@@ -132,7 +137,7 @@ export const useSong = create<SongState>()(
   arrangements: {},
   comments: {},
   focus: null,
-  templatePicker: { open: false, selected: 'photo' },
+  templatePicker: { open: false, selected: 'roadtrip' },
   drawer: null,
   fitRequest: 0,
   dragKind: null,
@@ -141,6 +146,7 @@ export const useSong = create<SongState>()(
   fresh: null,
   made: null,
   playing: null,
+  focusedInputId: null,
   open: (songId) =>
     set((s) => {
       if (s.songId === songId) return s
@@ -154,6 +160,7 @@ export const useSong = create<SongState>()(
         playing: null,
         focus: null,
         clip: null,
+        focusedInputId: null,
         nodes: nodes.map((n) => ({ ...n, selected: false })),
         // Frame whatever's there once it's measured.
         fitRequest: nodes.length ? s.fitRequest + 1 : s.fitRequest,
@@ -166,7 +173,22 @@ export const useSong = create<SongState>()(
       const starts = changes.some(
         (c) => c.type === 'position' && c.dragging && !s.nodes.find((n) => n.id === c.id)?.dragging,
       )
-      const nodes = unplug(applyNodeChanges(changes, s.nodes), (id) => gone.includes(id))
+      const next = unplug(applyNodeChanges(changes, s.nodes), (id) => gone.includes(id))
+      // Takes go with their section, and branches with the take they came from.
+      const removed = new Set(gone)
+      let changed = true
+      while (changed) {
+        changed = false
+        for (const node of next) {
+          if (node.type !== 'take') continue
+          const orphaned = removed.has(node.data.sectionId) || (!!node.data.branchOf && removed.has(node.data.branchOf))
+          if (orphaned && !removed.has(node.id)) {
+            removed.add(node.id)
+            changed = true
+          }
+        }
+      }
+      const nodes = next.filter((node) => !removed.has(node.id))
       const picking = changes.some((c) => c.type === 'select' && c.selected)
       const left = changes.some((c) => (c.type === 'select' && !c.selected) || c.type === 'remove' ? c.id === s.made : false)
       return {
@@ -193,8 +215,9 @@ export const useSong = create<SongState>()(
   applyTemplate: (id) =>
     set((s) => ({
       ...remember(s),
-      ...keep(s, [...s.nodes.map((n) => ({ ...n, selected: false })), ...templateNodes(id, nanoid(6))]),
+      ...keep(s, templateNodes(id, nanoid(6))),
       templatePicker: { ...s.templatePicker, open: false },
+      focusedInputId: null,
       fitRequest: s.fitRequest + 1,
     })),
   setDrawer: (drawer) => set({ drawer }),
@@ -243,7 +266,20 @@ export const useSong = create<SongState>()(
       MAKING_MS,
     )
   },
+  branchTake: (takeId) => {
+    const source = get().nodes.find((n) => n.id === takeId)
+    if (!source || source.type !== 'take' || source.data.state === 'making') return
+    const branch = {
+      id: nanoid(8),
+      type: 'take',
+      position: { x: source.position.x + 285, y: source.position.y + 120 },
+      origin: [0.5, 0.5],
+      data: { sectionId: source.data.sectionId, state: 'done', version: 'A', length: source.data.length, branchOf: source.id },
+    } as AnySongNode
+    set((s) => ({ ...remember(s), ...keep(s, [...s.nodes.map((n) => ({ ...n, selected: false })), branch]) }))
+  },
   setPlaying: (playing) => set({ playing }),
+  setFocusedInput: (focusedInputId) => set({ focusedInputId }),
   setDrafting: (drafting) => set({ drafting }),
   startFirstPart: (source, at, role, energy) => {
     const id = nanoid(8)
@@ -259,10 +295,11 @@ export const useSong = create<SongState>()(
     } as AnySongNode
     set((s) => keep(s, [...s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), section]))
     if (source) get().connect(source, id, role)
-    // The new section ends up selected, with its settings open. Pull back so the cards and it are all in view.
+    // The new section ends up selected, with its settings open and its first input in focus. Pull back so the cards and it are all in view.
     set((s) => ({
       ...keep(s, s.nodes.map((n) => (!!n.selected === (n.id === id) ? n : ({ ...n, selected: n.id === id } as AnySongNode)))),
       made: id,
+      focusedInputId: source,
       fitRequest: s.fitRequest + 1,
     }))
   },

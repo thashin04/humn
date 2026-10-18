@@ -1,4 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { Plus } from 'iconoir-react'
 import pause from '@/assets/figma/node-pause.svg'
 import takeA from '@/assets/figma/take-a.svg'
 import takeB from '@/assets/figma/take-b.svg'
@@ -17,7 +18,7 @@ import { TAKE_A, TAKE_B } from './waves'
  * section flow and anything recorded plays along.
  */
 export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
-  const { updateData, setPlaying } = useSong()
+  const { updateData, setPlaying, branchTake } = useSong()
   const playing = useSong((s) => s.playing === id)
   const sectionName = useSong((s) => {
     const n = s.nodes.find((n) => n.id === data.sectionId)
@@ -38,7 +39,7 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
   return (
     <div
       className={cn(
-        'relative w-[240px] animate-node-enter text-left transition-[filter] duration-200',
+        'group/take relative w-[240px] animate-node-enter text-left transition-[filter] duration-200',
         making ? 'h-[142px]' : 'h-[166px]',
         selected
           ? 'drop-shadow-[0_0_1.5px_var(--soft-accent)]'
@@ -83,22 +84,34 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
             {making ? 'listening…' : `${sectionName} · ${clock(data.length)}`}
           </p>
           {!making && (
-            <button
-              type="button"
-              aria-label={playing ? `Pause take ${data.version}` : `Play take ${data.version}`}
-              onClick={() => setPlaying(playing ? null : id)}
-              className={cn(
-                'nodrag flex size-[30px] items-center justify-center rounded-full transition-[background-color,transform] duration-150 active:scale-95',
-                playing ? 'bg-ink' : 'border-[0.833px] border-rule bg-well hover:bg-level',
-              )}
-            >
-              <img src={playing ? pause : play} alt="" className="size-[10.833px]" />
-            </button>
+            <>
+              <button
+                type="button"
+                aria-label="Branch this take"
+                title="Branch this take"
+                onClick={() => branchTake(id)}
+                className="nodrag flex size-[30px] items-center justify-center rounded-full border border-rule bg-well text-ink-2 opacity-0 transition-[background-color,opacity,transform] duration-200 group-hover/take:opacity-100 hover:bg-level active:scale-95"
+              >
+                <Plus width={13} height={13} strokeWidth={1.75} />
+              </button>
+              <button
+                type="button"
+                aria-label={playing ? `Pause take ${data.version}` : `Play take ${data.version}`}
+                onClick={() => setPlaying(playing ? null : id)}
+                className={cn(
+                  'nodrag flex size-[30px] items-center justify-center rounded-full transition-[background-color,transform] duration-150 active:scale-95',
+                  playing ? 'bg-ink' : 'border-[0.833px] border-rule bg-well hover:bg-level',
+                )}
+              >
+                <img src={playing ? pause : play} alt="" className="size-[10.833px]" />
+              </button>
+            </>
           )}
         </div>
       </div>
 
       <Handle type="target" id="in" position={Position.Left} isConnectable={false} className="wire-in" style={{ top: 82 }} />
+      <Handle type="source" id="out" position={Position.Right} isConnectable={false} className="wire-out" style={{ top: 82 }} />
     </div>
   )
 }
