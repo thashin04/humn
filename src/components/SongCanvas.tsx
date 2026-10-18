@@ -80,16 +80,17 @@ function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
 
 /**
  * Once someone has made their first contribution and there's no section yet,
- * suggest one beside it: a ghost they can make real with one click. It goes
- * away as soon as they add a second card, so it never trails them around.
+ * suggest one beside it: a ghost they can make real with one click. It offers
+ * to plug in that first card; once there's a second, it stops guessing which,
+ * and drops the suggested wire.
  */
 function suggestFirstPart(nodes: AnySongNode[], drafting: string | null, measured?: { width: number; height: number }) {
   if (nodes.some((n) => n.type === 'section')) return null
-  // Only a nudge for the very first contribution: once there's more than one card, step aside.
   const cards = nodes.filter((n) => n.type !== 'take')
-  if (cards.length !== 1) return null
+  if (!cards.length) return null
   const from = cards[0]
-  if (from.id === drafting || (from.type === 'words' && !from.data.text.trim())) return null
+  if (from.id === drafting || ((from.type === 'words' || from.type === 'lyrics') && !from.data.text.trim())) return null
+  const one = cards.length === 1
   const reading = interpret(from)
   const width = from.measured?.width ?? 260
   const node: GhostNode = {
@@ -102,7 +103,7 @@ function suggestFirstPart(nodes: AnySongNode[], drafting: string | null, measure
     selectable: false,
     focusable: false,
     measured,
-    data: { source: from.id, ...reading },
+    data: { source: one ? from.id : null, role: reading.role, energy: reading.energy },
   }
   const edge: GhostEdge = {
     id: `${GHOST_ID}-wire`,
@@ -114,7 +115,7 @@ function suggestFirstPart(nodes: AnySongNode[], drafting: string | null, measure
     focusable: false,
     data: { role: reading.role },
   }
-  return { node, edge }
+  return { node, edge: one ? edge : null }
 }
 
 export function SongCanvas() {
@@ -127,7 +128,7 @@ export function SongCanvas() {
   const [ghostSize, setGhostSize] = useState<{ width: number; height: number }>()
   const ghost = useMemo(() => suggestFirstPart(nodes, drafting, ghostSize), [nodes, drafting, ghostSize])
   const shownNodes = useMemo(() => (ghost ? [...nodes, ghost.node] : nodes) as Node[], [nodes, ghost])
-  const shownEdges = useMemo(() => (ghost ? [...edges, ghost.edge] : edges) as Edge[], [edges, ghost])
+  const shownEdges = useMemo(() => (ghost?.edge ? [...edges, ghost.edge] : edges) as Edge[], [edges, ghost])
   const { screenToFlowPosition, fitView } = useReactFlow()
   const { songId } = useParams()
   const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))

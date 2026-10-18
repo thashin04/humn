@@ -43,6 +43,14 @@ export const DRAWERS: Record<Kind, DrawerSpec> = {
       (text) => ({ name: `“${text}”`, data: { text } }),
     ),
   },
+  lyrics: {
+    label: 'Lyrics',
+    hint: 'Words to be sung, a line or a whole verse.',
+    search: 'Search lyrics',
+    yoursTitle: 'Written',
+    own: [{ label: 'Write your own', does: 'new' }],
+    library: [],
+  },
   voice: {
     label: 'Record',
     hint: 'A tune to carry: a hum, a whistle, a song you have.',

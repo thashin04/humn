@@ -1,5 +1,5 @@
 import { Handle, Position, useReactFlow, type Node, type NodeProps } from '@xyflow/react'
-import { Play } from 'iconoir-react'
+import { Plus } from 'iconoir-react'
 import { type CSSProperties } from 'react'
 import iconSection from '@/assets/figma/node-icon-section.svg'
 import type { Role } from '@/data/nodes'
@@ -8,11 +8,11 @@ import { NodeShell } from './NodeShell'
 
 export const GHOST_ID = 'ghost-first-part'
 
-export type GhostNode = Node<{ source: string; role: Role; energy: number; line: string }, 'ghost'>
+export type GhostNode = Node<{ source: string | null; role: Role; energy: number }, 'ghost'>
 
 /**
  * The first part, suggested beside someone's first contribution: dashed, with
- * a read of what it heard and one thing to do. Hearing it makes it real.
+ * a line on what a verse is and one thing to do. Creating it makes it real.
  */
 export function GhostNode({ data, positionAbsoluteX, positionAbsoluteY }: NodeProps<GhostNode>) {
   const startFirstPart = useSong((s) => s.startFirstPart)
@@ -34,23 +34,28 @@ export function GhostNode({ data, positionAbsoluteX, positionAbsoluteY }: NodePr
     >
       <div className="flex flex-col gap-3.5 px-3 pt-3 pb-3">
         <div className="relative" style={{ '--c': `var(--soft-role-${data.role})` } as CSSProperties}>
-          <Handle type="target" id="in" position={Position.Left} isConnectable={false} className="wire-socket" />
-          <span aria-hidden data-hump="" className="wire-hump opacity-60" />
-          <p className="type-body pl-1 text-ink-2">{data.line}</p>
+          {/* Only plugged in while it's suggesting one card. */}
+          {data.source && (
+            <>
+              <Handle type="target" id="in" position={Position.Left} isConnectable={false} className="wire-socket" />
+              <span aria-hidden data-hump="" className="wire-hump opacity-60" />
+            </>
+          )}
+          <p className="type-body pl-1 text-ink-2">The part of a song where the story unfolds. What you plug in shapes how it sounds.</p>
         </div>
         <button
           type="button"
           onClick={() => {
             // The section lands where its ghost was, level with the card, so it reads as the suggestion becoming real.
             const ghost = getNode(GHOST_ID)
-            const card = getNode(data.source)
+            const card = data.source ? getNode(data.source) : undefined
             const x = ghost?.position.x ?? positionAbsoluteX
-            startFirstPart(data.source, { x, y: card?.position.y ?? positionAbsoluteY }, data.role, data.energy)
+            startFirstPart(data.source, { x, y: card?.position.y ?? ghost?.position.y ?? positionAbsoluteY }, data.role, data.energy)
           }}
           className="nodrag type-action flex h-10 items-center justify-center gap-2 rounded-full bg-ink text-on-ink transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98]"
         >
-          <Play width={14} height={14} strokeWidth={1.75} />
-          Hear 2 ideas
+          <Plus width={15} height={15} strokeWidth={1.75} />
+          Create
         </button>
       </div>
     </NodeShell>

@@ -9,7 +9,9 @@ import { KIND_ICONS } from './kindIcons'
 import { useAddNode } from './useAddNode'
 
 // One button per kind of thing. Sections are added from the toolbar.
-const KINDS: Kind[] = ['words', 'voice', 'photo', 'sound', 'color', 'instrument']
+// Prompts and lyrics are written, not picked: they go straight onto the canvas.
+const WRITTEN: Kind[] = ['words', 'lyrics']
+const KINDS: Kind[] = ['words', 'lyrics', 'voice', 'photo', 'sound', 'color', 'instrument']
 
 /**
  * The rail grows into a drawer, still one floating card: pressing a kind opens
@@ -19,10 +21,9 @@ const KINDS: Kind[] = ['words', 'voice', 'photo', 'sound', 'color', 'instrument'
 export function Rail() {
   const { drawer, setDrawer } = useSong()
   const add = useAddNode()
-  // A prompt is written, not picked: it goes straight onto the canvas, ready to type into.
-  const write = () => {
+  const write = (kind: Kind) => {
     setDrawer(null)
-    add('words')
+    add(kind)
   }
   const ref = useRef<HTMLDivElement>(null)
   // Keep showing the last drawer while it fades out, and note when one drawer
@@ -62,7 +63,7 @@ export function Rail() {
         'flex overflow-hidden rounded-[26px] bg-card shadow-lift transition-[width,height] motion-reduce:transition-none',
         drawer
           ? 'h-[min(632px,calc(100dvh-180px))] w-[369px] duration-[380ms] ease-spring'
-          : 'h-[264px] w-[52px] delay-[60ms] duration-[280ms] ease-soft',
+          : 'h-[306px] w-[52px] delay-[60ms] duration-[280ms] ease-soft',
       )}
     >
       <MotionConfig reducedMotion="user">
@@ -74,8 +75,8 @@ export function Rail() {
               key={k}
               title={DRAWERS[k].label}
               aria-label={DRAWERS[k].label}
-              aria-expanded={k === 'words' ? undefined : drawer === k}
-              onClick={() => (k === 'words' ? write() : setDrawer(drawer === k ? null : k))}
+              aria-expanded={WRITTEN.includes(k) ? undefined : drawer === k}
+              onClick={() => (WRITTEN.includes(k) ? write(k) : setDrawer(drawer === k ? null : k))}
               className={cn(
                 'relative flex size-[38px] shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform] ease-soft active:scale-95',
                 // The icon whitens as the pill arrives, rather than before it gets there.

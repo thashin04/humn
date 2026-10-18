@@ -40,7 +40,7 @@ const SEEDS: Record<TemplateId, Seed[]> = {
   photo: [
     { id: 'words', role: 'intent', node: { type: 'words', position: { x: 0, y: -230 }, data: { text: 'the summers we spent at the red house' } } },
     { id: 'photo', role: 'mood', node: { type: 'photo', position: { x: 0, y: 10 }, data: { caption: 'The red house, 1997', src: redHouse } } },
-    { id: 'feeling', role: 'mood', node: { type: 'feeling', position: { x: 0, y: 205 }, data: { name: 'Nostalgia', amount: 0.7 } } },
+    { id: 'feeling', role: 'harmony', node: { type: 'feeling', position: { x: 0, y: 205 }, data: { name: 'Nostalgia', amount: 0.7 } } },
   ],
   birthday: [
     { id: 'words', role: 'intent', node: { type: 'words', position: { x: 0, y: -230 }, data: { text: "for Nana's 80th, warm and slow" } } },

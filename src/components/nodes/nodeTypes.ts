@@ -4,6 +4,7 @@ import {
   ColorNode,
   FeelingNode,
   InstrumentNode,
+  LyricsNode,
   PhotoNode,
   SoundNode,
   VoiceNode,
@@ -17,6 +18,7 @@ import { SectionNode } from './section'
 export const nodeTypes: NodeTypes = {
   ghost: GhostNode,
   words: WordsNode,
+  lyrics: LyricsNode,
   voice: VoiceNode,
   photo: PhotoNode,
   feeling: FeelingNode,

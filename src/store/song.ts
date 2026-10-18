@@ -27,6 +27,8 @@ type SongState = {
   snap: { section: string; role: Role } | null
   /** The connection just made, for a moment, so it can pulse into place. */
   fresh: { id: string; source: string; section: string; role: Role } | null
+  /** The section just created from the suggestion; its settings open right away, until it's deselected. */
+  made: string | null
   /** The take that's playing; the wires into its section flow while it does. */
   playing: string | null
   /** Swaps the canvas to another song, keeping the one being left. */
@@ -39,7 +41,11 @@ type SongState = {
   setDrawer: (kind: Kind | null) => void
   setDragKind: (kind: Kind | null) => void
   setSnap: (snap: { section: string; role: Role } | null) => void
-  /** Plugs a card into a section's socket. A card plugs in one place, so this moves it if it was elsewhere. */
+  /**
+   * Plugs a card into a section's socket. A card plugs in one place, and a socket
+   * holds one card, so this moves the card if it was elsewhere and replaces
+   * whatever was in that socket (it stays on the canvas, unplugged).
+   */
   connect: (source: string, section: string, role: Role) => void
   disconnect: (source: string, section: string) => void
   /** Makes (or remakes) a section's two takes, beside it and wired from it. */
@@ -47,8 +53,8 @@ type SongState = {
   /** The prompt someone is typing into, so nothing is suggested from it until they're done. */
   drafting: string | null
   setDrafting: (id: string | null) => void
-  /** Turns the suggested first part into a real section at `at`, plugs `source` in, and makes two takes. */
-  startFirstPart: (source: string, at: XYPosition, role: Role, energy: number) => void
+  /** Turns the suggested first part into a real section at `at`, with `source` plugged in when there is one. */
+  startFirstPart: (source: string | null, at: XYPosition, role: Role, energy: number) => void
   setPlaying: (takeId: string | null) => void
   updateData: (id: string, patch: Record<string, unknown>) => void
   setTool: (tool: Tool) => void
@@ -86,6 +92,7 @@ export const useSong = create<SongState>()(
   snap: null,
   drafting: null,
   fresh: null,
+  made: null,
   playing: null,
   open: (songId) =>
     set((s) => {
@@ -96,7 +103,7 @@ export const useSong = create<SongState>()(
         songId,
         saved,
         playing: null,
-        nodes: nodes.map((n) => ({ ...n, selected: false })),
+        nodes: onePerSocket(nodes).map((n) => ({ ...n, selected: false })),
         // Frame whatever's there once it's measured.
         fitRequest: nodes.length ? s.fitRequest + 1 : s.fitRequest,
       }
@@ -105,7 +112,8 @@ export const useSong = create<SongState>()(
     set((s) => {
       const gone = changes.flatMap((c) => (c.type === 'remove' ? [c.id] : []))
       const nodes = unplug(applyNodeChanges(changes, s.nodes), (id) => gone.includes(id))
-      return { nodes, saved: s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved }
+      const left = changes.some((c) => (c.type === 'select' && !c.selected) || c.type === 'remove' ? c.id === s.made : false)
+      return { nodes, saved: s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved, ...(left && { made: null }) }
     }),
   addNode: (kind, at, data) => {
     const id = nanoid(8)
@@ -136,7 +144,7 @@ export const useSong = create<SongState>()(
         const sel = n.id === source
         const m = n.selected === sel ? n : ({ ...n, selected: sel } as AnySongNode)
         return m.id === section && m.type === 'section'
-          ? { ...m, data: { ...m.data, sources: { ...m.data.sources, [role]: [...(m.data.sources[role] ?? []), source] } } }
+          ? { ...m, data: { ...m.data, sources: { ...m.data.sources, [role]: [source] } } }
           : m
       })
       return { ...keep(s, nodes), fresh: pulse(set, { id: `${source}|${section}`, source, section, role }) }
@@ -180,10 +188,13 @@ export const useSong = create<SongState>()(
       data: { ...structuredClone(STARTING_DATA.section), energy },
     } as AnySongNode
     set((s) => keep(s, [...s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), section]))
-    get().connect(source, id, role)
-    get().makeTakes(id)
-    // Pull back so the card, its new section and the take being made are all in view.
-    set((s) => ({ fitRequest: s.fitRequest + 1 }))
+    if (source) get().connect(source, id, role)
+    // The new section ends up selected, with its settings open. Pull back so the cards and it are all in view.
+    set((s) => ({
+      ...keep(s, s.nodes.map((n) => (!!n.selected === (n.id === id) ? n : ({ ...n, selected: n.id === id } as AnySongNode)))),
+      made: id,
+      fitRequest: s.fitRequest + 1,
+    }))
   },
   updateData: (id, patch) =>
     set((s) => keep(s, s.nodes.map((n) => (n.id === id ? ({ ...n, data: { ...n.data, ...patch } } as AnySongNode) : n)))),
@@ -229,6 +240,16 @@ function unplug(nodes: AnySongNode[], match: (id: string) => boolean, section?: 
       const left = ids.filter((id) => !match(id))
       if (left.length) sources[role] = left
     }
+    return { ...n, data: { ...n.data, sources } }
+  })
+}
+
+/** Songs saved before a socket held one card keep only the latest card in each. */
+function onePerSocket(nodes: AnySongNode[]): AnySongNode[] {
+  return nodes.map((n) => {
+    if (n.type !== 'section' || !Object.values(n.data.sources).some((ids) => ids && ids.length > 1)) return n
+    const sources: SectionData['sources'] = {}
+    for (const [role, ids] of Object.entries(n.data.sources) as [Role, string[]][]) if (ids.length) sources[role] = ids.slice(-1)
     return { ...n, data: { ...n.data, sources } }
   })
 }

@@ -4,6 +4,7 @@ import iconChords from '@/assets/figma/node-icon-chords.svg'
 import iconColour from '@/assets/figma/node-icon-colour.svg'
 import iconFeeling from '@/assets/figma/node-icon-feeling.svg'
 import iconInstrument from '@/assets/figma/node-icon-instrument.svg'
+import iconLyrics from '@/assets/figma/node-icon-lyrics.svg'
 import iconPhoto from '@/assets/figma/node-icon-photo.svg'
 import iconSound from '@/assets/figma/node-icon-sound.svg'
 import iconVoice from '@/assets/figma/node-icon-voice.svg'
@@ -86,6 +87,58 @@ export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) 
               </button>
             ))}
           </div>
+        )}
+      </div>
+    </NodeShell>
+  )
+}
+
+/** Lyrics: lines to be sung. Enter starts a new line; clicking away or Escape is done. */
+export function LyricsNode({ id, data, selected }: NodeProps<SongNode<'lyrics'>>) {
+  const updateData = useSong((s) => s.updateData)
+  const setDrafting = useSong((s) => s.setDrafting)
+  const [editing, setEditing] = useState(!data.text)
+  const field = useRef<HTMLTextAreaElement>(null)
+  const empty = !data.text.trim()
+
+  // Just added: ready to write into, once React Flow has shown it.
+  const fresh = useRef(selected && empty)
+  useEffect(() => {
+    if (!fresh.current) return
+    const t = setTimeout(() => field.current?.focus(), 60)
+    return () => clearTimeout(t)
+  }, [])
+
+  return (
+    <NodeShell width={empty ? 290 : 260} icon={iconLyrics} label="Lyrics" selected={selected} port="lyrics">
+      <div className="pt-[18px] pr-[22px] pb-5 pl-5">
+        {editing ? (
+          <textarea
+            ref={field}
+            rows={2}
+            value={data.text}
+            placeholder={'A line to sing…\nand another'}
+            onChange={(e) => updateData(id, { text: e.target.value })}
+            onFocus={() => setDrafting(id)}
+            onBlur={() => {
+              setDrafting(null)
+              if (!empty) setEditing(false)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                e.currentTarget.blur()
+              }
+            }}
+            className="nodrag nowheel field-sizing-content w-full resize-none bg-transparent text-[16px] leading-[1.5] text-ink-1 italic outline-none placeholder:text-ink-3"
+          />
+        ) : (
+          <p
+            onDoubleClick={() => setEditing(true)}
+            className="text-[16px] leading-[1.5] break-words whitespace-pre-wrap text-ink-1 italic"
+          >
+            {data.text}
+          </p>
         )}
       </div>
     </NodeShell>

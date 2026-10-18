@@ -24,13 +24,13 @@ export function SectionPanel({ songTitle }: { songTitle: string }) {
     const picked = s.nodes.filter((n) => n.selected)
     if (picked.length !== 1 || picked[0].type !== 'section') return null
     const section = picked[0] as SongNode<'section'>
-    // Only once something beyond the prompt is shaping it: until then there's little to set.
+    // Only once something beyond the prompt is shaping it (until then there's little to set), or when it's just been created.
     const shaped = ROLES.some(
       (r) =>
         r.id !== 'intent' &&
         (section.data.sources[r.id] ?? []).some((src) => s.nodes.some((x) => x.id === src)),
     )
-    return shaped ? section : null
+    return shaped || section.id === s.made ? section : null
   })
 
   return (
@@ -98,11 +98,11 @@ function Settings({ section, songTitle }: { section: SongNode<'section'>; songTi
           />
         </Field>
 
-        <Field label="Direction for this section" aside="Optional" note="Only changes this section.">
+        <Field label={`How should these shape your ${data.name.toLowerCase()}?`}>
           <textarea
             value={data.direction ?? ''}
             onChange={(e) => set({ direction: e.target.value })}
-            placeholder="Start gently, then let the piano open up."
+            placeholder="Let the house set the mood, and the piano come in slowly."
             rows={3}
             className="type-body field-sizing-content min-h-[76px] w-full resize-none rounded-[12px] border border-rule bg-well px-3 py-2.5 text-ink-1 outline-none transition-colors placeholder:text-ink-3 focus:border-rule-strong focus:bg-card"
           />

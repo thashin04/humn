@@ -1,6 +1,6 @@
 import { Handle, Position, useReactFlow, useUpdateNodeInternals, type NodeProps } from '@xyflow/react'
-import { NavArrowDown, Plus } from 'iconoir-react'
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { Check, NavArrowDown, Plus } from 'iconoir-react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import iconSection from '@/assets/figma/node-icon-section.svg'
 import { KIND_ICONS } from '@/components/chrome/kindIcons'
 import { slotSentence } from '@/data/interpret'
@@ -9,15 +9,14 @@ import { clock, DEFAULT_ROLE, ROLES, type AnySongNode, type Kind, type Role, typ
 import { LENGTHS, PARTS } from '@/data/parts'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
-import { useWorkspace } from '@/store/workspace'
 import { NodeShell } from './NodeShell'
 
-const ADDABLE: Kind[] = ['voice', 'photo', 'sound', 'color', 'instrument']
+const ADDABLE: Kind[] = ['lyrics', 'voice', 'photo', 'sound', 'color', 'instrument']
 
 /**
- * A part of the song, read as a story rather than a form: a title, how it
- * gets shaped, then one line for each kind of thing plugged in ("Nana humming
- * guides the tune"). Empty slots don't show; pulling a wire in, or "Add an
+ * A part of the song, read as a story rather than a form: what shapes it,
+ * then one line for each kind of thing plugged in ("Nana humming guides the
+ * tune"). Empty slots don't show; pulling a wire in, or "Add an
  * influence", is how new ones arrive. Ends with a note and one thing to do.
  */
 export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'>>) {
@@ -40,10 +39,7 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
   const updateNodeInternals = useUpdateNodeInternals()
   const layout = filled.map((f) => f.role).join()
   useEffect(() => updateNodeInternals(id), [layout, id, updateNodeInternals])
-  // Named after the song, so it doesn't repeat the prompt line just below it.
-  const songId = useSong((s) => s.songId)
-  const songTitle = useWorkspace((w) => w.songs.find((song) => song.id === songId)?.title)
-  const title = data.title?.trim() || songTitle || `Your ${data.name.toLowerCase()}`
+  const count = filled.reduce((n, f) => n + f.cards.length, 0)
 
   return (
     <NodeShell
@@ -56,7 +52,10 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
       tab={
         <Menu
           label={data.name}
+          heading="Part of the song"
+          value={data.name}
           options={PARTS.map((p) => p.name)}
+          note={(name) => PARTS.find((p) => p.name === name)?.hint}
           onPick={(name) => set({ name })}
           trigger={
             <>
@@ -71,6 +70,8 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
         <div className="flex justify-end">
           <Menu
             label="Length"
+            heading="Length"
+            value={String(data.length)}
             options={LENGTHS.map(String)}
             show={(l) => clock(Number(l))}
             onPick={(l) => set({ length: Number(l) })}
@@ -79,10 +80,9 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
           />
         </div>
         <div className="flex flex-col gap-1 px-1.5 pb-1.5">
-          <p className="line-clamp-2 text-[19px] leading-[1.2] font-semibold tracking-[-0.015em] text-ink">{title}</p>
+          <p className="line-clamp-2 text-[19px] leading-[1.2] font-semibold tracking-[-0.015em] text-ink">What shapes your {data.name.toLowerCase()}</p>
           <p className="type-caption text-ink-3">
-            {filled.length ? 'Everything plugged in below' : 'Plug in photos, sounds, words or colours and they'}{' '}
-            shape{filled.length ? 's' : ''} your {data.name.toLowerCase()}.
+            {count ? `${count} ${count === 1 ? 'thing' : 'things'} plugged in` : 'Plug in photos, sounds, words or colours.'}
           </p>
         </div>
 
@@ -112,7 +112,7 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
 function Slot({ section, role, cards }: { section: string; role: Role; cards: AnySongNode[] }) {
   const hot = useSong((s) => s.snap?.section === section && s.snap.role === role)
   const landed = useSong((s) => s.fresh?.section === section && s.fresh.role === role)
-  const { title, sub } = slotSentence(cards, role)
+  const title = slotSentence(cards, role)
 
   return (
     <div
@@ -127,7 +127,6 @@ function Slot({ section, role, cards }: { section: string; role: Role; cards: An
       <Thumb cards={cards} role={role} />
       <div className="min-w-0 flex-1">
         <p className="type-caption line-clamp-2 text-ink-1">{title}</p>
-        {sub && <p className="type-small mt-0.5 truncate text-ink-3">{sub}</p>}
       </div>
       <span aria-hidden className="grip-dots shrink-0" />
     </div>
@@ -248,57 +247,103 @@ function AddInfluence({ section, empty, hot }: { section: string; empty: Role[];
 /** A small menu off a label: the part of the song in the tab, the length in its pill. */
 function Menu({
   label,
+  heading,
+  value,
   options,
   show = (o) => o,
+  note,
   onPick,
   trigger,
   pill,
 }: {
   label: string
+  heading: string
+  value: string
   options: string[]
   show?: (o: string) => string
+  /** A quieter line under each option, saying what it's for. */
+  note?: (o: string) => string | undefined
   onPick: (o: string) => void
   trigger: ReactNode
   pill?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  // Escape, or a press anywhere else, closes it.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    const onDown = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
+    window.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onDown, true)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onDown, true)
+    }
+  }, [open])
+
   return (
-    <div className="relative">
+    <div ref={box} className="relative">
       <button
         type="button"
         aria-label={label}
+        aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className={cn(
           'nodrag flex items-center gap-1.5 transition-colors',
           pill ? 'h-7 rounded-full border border-rule bg-card px-2.5 hover:border-rule-strong' : 'h-7 rounded-[8px] hover:opacity-80',
+          open && pill && 'border-rule-strong',
         )}
       >
         {trigger}
         <NavArrowDown width={14} height={14} strokeWidth={1.5} className={cn('text-ink-3 transition-transform duration-200', open && 'rotate-180')} />
       </button>
       {open && (
-        <ul
+        <div
           className={cn(
-            'animate-wire-card absolute top-8 z-20 min-w-[110px] rounded-[12px] bg-card p-1 shadow-[0_0_0_.5px_rgb(20_22_26/0.12),0_8px_24px_rgb(20_22_26/0.12)]',
-            pill ? 'right-0' : 'left-0',
+            'animate-wire-card absolute top-9 z-20 rounded-[16px] bg-card p-1.5 shadow-[0_0_0_.5px_rgb(20_22_26/0.12),0_12px_32px_rgb(20_22_26/0.14)]',
+            note ? 'w-[256px]' : 'w-[132px]',
+            pill ? 'right-0 origin-top-right' : '-left-2 origin-top-left',
           )}
         >
-          {options.map((o) => (
-            <li key={o}>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false)
-                  onPick(o)
-                }}
-                className="nodrag type-caption flex h-8 w-full items-center rounded-[8px] px-2.5 text-left text-ink-1 hover:bg-well"
-              >
-                {show(o)}
-              </button>
-            </li>
-          ))}
-        </ul>
+          <p className="type-small px-2 pt-1 pb-1.5 text-ink-3">{heading}</p>
+          <ul role="listbox" aria-label={heading} className="flex flex-col gap-px">
+            {options.map((o) => {
+              const on = o === value
+              const hint = note?.(o)
+              return (
+                <li key={o}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={on}
+                    onClick={() => {
+                      setOpen(false)
+                      if (!on) onPick(o)
+                    }}
+                    className={cn(
+                      'nodrag flex w-full items-center gap-2 rounded-[10px] px-2 text-left transition-colors',
+                      hint ? 'py-1.5' : 'h-8',
+                      on ? 'bg-well' : 'hover:bg-well',
+                    )}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className={cn('type-caption block text-ink-1', pill && 'font-mono text-[12px]')}>{show(o)}</span>
+                      {hint && <span className="type-small block truncate text-ink-3">{hint}</span>}
+                    </span>
+                    <Check
+                      width={14}
+                      height={14}
+                      strokeWidth={2}
+                      className={cn('shrink-0 text-ink-1 transition-opacity', on ? 'opacity-100' : 'opacity-0')}
+                    />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       )}
     </div>
   )

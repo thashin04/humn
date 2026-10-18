@@ -1,7 +1,7 @@
 import { nameOf } from './library'
-import { DEFAULT_ROLE, ROLES, type AnySongNode, type Kind, type Role } from './nodes'
+import { DEFAULT_ROLE, type AnySongNode, type Kind, type Role } from './nodes'
 
-export type Reading = { line: string; role: Role; energy: number }
+export type Reading = { role: Role; energy: number }
 
 // Words people use, and the feel they suggest. A stand-in for the model's reading.
 const FEELS: { words: RegExp; feel: string; energy: number }[] = [
@@ -11,20 +11,12 @@ const FEELS: { words: RegExp; feel: string; energy: number }[] = [
   { words: /\b(party|birthday|dance|happy|celebrat|friends|loud)/i, feel: 'bright, bouncing', energy: 0.8 },
 ]
 
-/**
- * A short, plain-language read of what someone contributed, so the first part
- * suggested from it shows its working: what it heard, and where it plugs in.
- */
+/** Where someone's first contribution plugs in, and how lively it sounds, for the verse suggested from it. */
 export function interpret(node: AnySongNode): Reading {
-  const role = DEFAULT_ROLE[node.type as Kind] ?? 'intent'
   const said = nameOf(node.data as Record<string, unknown>).trim()
-  const feel = FEELS.find((f) => f.words.test(said)) ?? { feel: 'simple, open', energy: 0.45 }
-  const quote = said.length > 34 ? `${said.slice(0, 32).trimEnd()}…` : said
-  const roleName = ROLES.find((r) => r.id === role)!.name.toLowerCase()
   return {
-    line: quote ? `A ${feel.feel} opening built around “${quote}”, with it as the ${roleName}.` : `A ${feel.feel} opening, with this as the ${roleName}.`,
-    role,
-    energy: feel.energy,
+    role: DEFAULT_ROLE[node.type as Kind] ?? 'intent',
+    energy: (FEELS.find((f) => f.words.test(said)) ?? { energy: 0.45 }).energy,
   }
 }
 
@@ -49,6 +41,8 @@ export function purposeOf(node: AnySongNode, role: Role): string {
     case 'mood':
       if (node.type === 'feeling') return `${name}, at ${Math.round(Number(d.amount ?? 0.5) * 100)}%`
       return `${feel ? cap(feel) : node.type === 'color' ? 'The colours set the feel' : 'Sets the feel'}${name ? `, like “${name}”` : ''}`
+    case 'lyrics':
+      return 'Sung in the verse'
     case 'texture':
       return name ? `“${name}” sits quietly underneath` : 'Sits quietly underneath'
     case 'instruments':
@@ -69,40 +63,23 @@ const cap = (s: string) => s[0].toUpperCase() + s.slice(1)
 const join = (names: string[]) =>
   names.length <= 2 ? names.join(' + ') : `${names.slice(0, 2).join(' + ')} + ${names.length - 2} more`
 
-/**
- * One line for everything plugged into a slot, read as a sentence about the
- * verse ("Nana humming guides the tune"), and a quieter line under it: what
- * people said it should do, or a plain default.
- */
-export function slotSentence(cards: AnySongNode[], role: Role): { title: string; sub: string } {
+/** One line for everything plugged into a slot, read as a sentence about the verse ("Nana humming guides the tune"). */
+export function slotSentence(cards: AnySongNode[], role: Role): string {
   const names = cards.map((c) => {
     const n = nameOf(c.data as Record<string, unknown>).trim()
     return n.length > 22 ? `${n.slice(0, 20).trimEnd()}…` : n || 'This'
   })
   const one = cards.length === 1
-  const own = cards
-    .map((c) => (c.data as { influence?: Influence }).influence)
-    .filter((i): i is Influence => !!i && i.role === role && !!i.text.trim())
-    .map((i) => i.text)
-  const said = cards.map((c) => nameOf(c.data as Record<string, unknown>)).join(' ')
-  const feel = FEELS.find((f) => f.words.test(said))?.feel
   const text = cards[0] && cards[0].type === 'words' ? nameOf(cards[0].data as Record<string, unknown>).trim() : ''
+  const line = (nameOf((cards[0]?.data ?? {}) as Record<string, unknown>).trim().split('\n')[0] ?? '').trim()
 
-  const title = {
+  return {
     intent: text ? `About ${text.length > 52 ? `${text.slice(0, 50).trimEnd()}…` : text}` : `${join(names)} sets what it's about`,
+    lyrics: line ? `“${line.length > 40 ? `${line.slice(0, 38).trimEnd()}…` : line}” gets sung` : 'Words to sing',
     melody: `${join(names)} guide${one ? 's' : ''} the tune`,
     harmony: `${join(names)} shape${one ? 's' : ''} the chords`,
     mood: `${join(names)} set${one ? 's' : ''} the feeling`,
     texture: `${join(names)} sit${one ? 's' : ''} underneath`,
     instruments: `${join(names)} play${one ? 's' : ''} it`,
   }[role]
-  const fallback = {
-    intent: '',
-    melody: cards.some((c) => c.type === 'voice') ? 'Its shape, not your voice' : 'Just its shape',
-    harmony: 'Under the tune',
-    mood: feel ? cap(feel) : 'The overall feel',
-    texture: 'Quiet, in the back',
-    instruments: 'Up front',
-  }[role]
-  return { title, sub: own.length ? own.join(' · ') : fallback }
 }

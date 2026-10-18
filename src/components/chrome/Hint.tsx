@@ -47,7 +47,7 @@ export function Hint() {
   } else if (next === 'make') {
     text = (
       <>
-        Press <B>Make 2 takes</B> to hear it.
+        Press <B>Hear 2 ideas</B> to hear it.
       </>
     )
   }

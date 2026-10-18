@@ -28,6 +28,7 @@
     --color-role-texture: var(--soft-role-texture);
     --color-role-instruments: var(--soft-role-instruments);
     --color-role-harmony: var(--soft-role-harmony);
+    --color-role-lyrics: var(--soft-role-lyrics);
     --color-level: var(--soft-level);
     --color-button: var(--soft-button);
     --color-photo: #d9d9d6;
@@ -111,6 +112,8 @@
     --soft-role-instruments: #0e7c86;
     /* Not in Figma yet: Chords → Harmony, added on request */
     --soft-role-harmony: #9a7414;
+    /* Not in Figma yet: Lyrics, added on request */
+    --soft-role-lyrics: #2d7fc1;
     --soft-level: #e9e9e7;
     --soft-button: #ededec;
     --take: #2a3445;
