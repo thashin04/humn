@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/store/workspace'
 import { LayoutToggle, SearchField } from './Controls'
 import { Sidebar } from './Sidebar'
-import { SongCard, SongRow } from './SongCard'
+import { NewSongCard, SongCard, SongRow } from './SongCard'
 import { StarterCard, StartersPanel } from './Starters'
 import { songsIn, useView, viewTitle } from './views'
 
@@ -23,6 +23,7 @@ export function Workspace() {
     navigate(`/song/${createSong({ folderId, title: name })}`, { state: { template } })
   }
 
+  const canCreate = view.kind === 'mine' || view.kind === 'folder'
   const all = songsIn(view, songs).sort((a, b) => b.editedAt - a.editedAt)
   const shown = all.filter((s) => s.title.toLowerCase().includes(query.trim().toLowerCase()))
   return (
@@ -74,6 +75,7 @@ export function Workspace() {
           <Empty>Sounds you save from your takes will live here.</Empty>
         ) : layout === 'grid' ? (
           <div className={cn('grid content-start gap-4', sidebarCollapsed ? 'grid-cols-4' : 'grid-cols-3')}>
+            {canCreate && !query && <NewSongCard onClick={newSong} />}
             {shown.map((song) => (
               <SongCard key={song.id} song={song} />
             ))}
@@ -83,6 +85,11 @@ export function Workspace() {
             {shown.map((song) => (
               <SongRow key={song.id} song={song} />
             ))}
+            {canCreate && !query && (
+              <button onClick={newSong} className="type-caption flex h-12 items-center gap-2 px-3 text-ink-2 hover:bg-well/60">
+                <Plus className="size-3.5" strokeWidth={1.75} /> New song
+              </button>
+            )}
           </div>
         )}
 
