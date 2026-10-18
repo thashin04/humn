@@ -8,17 +8,17 @@ import {
   type EdgeTypes,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
 import { Rail } from '@/components/chrome/Rail'
-import { Timeline } from '@/components/chrome/Timeline'
 import { TitlePill } from '@/components/chrome/TitlePill'
 import { Toolkit } from '@/components/chrome/Toolkit'
 import { Hint } from '@/components/chrome/Hint'
 import { EmptyState } from '@/components/empty/EmptyState'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
+import { TimelineView } from '@/components/timeline/TimelineView'
 import { PipeEdge } from '@/components/wires/PipeEdge'
 import { WireLine } from '@/components/wires/WireLine'
 import { NODE_DRAG_TYPE } from '@/data/library'
@@ -28,6 +28,8 @@ import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 
 const edgeTypes: EdgeTypes = { pipe: PipeEdge }
+// Kept stable: React Flow copies this into its store on every change, over any fitView queued in between.
+const FIT = { padding: 0.25, maxZoom: 1 }
 
 /**
  * The wires are read off each section's sockets, so a section is the one place
@@ -72,13 +74,11 @@ function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
 }
 
 export function SongCanvas() {
-  const { nodes, tool, timelineOpen, templatePicker, open, onNodesChange } = useSong()
-  const { openTemplatePicker, closeTemplatePicker, selectTemplate, addNode, fitRequest } = useSong()
-  const { connect, disconnect, setSnap } = useSong()
-  const edges = useMemo(() => wiresOf(nodes), [nodes])
-  const { screenToFlowPosition, fitView } = useReactFlow()
+  const view = useSong((s) => s.view)
+  const templatePicker = useSong((s) => s.templatePicker)
   const { songId } = useParams()
   const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
+  const { open, openTemplatePicker, closeTemplatePicker, selectTemplate } = useSong()
   const starter = (useLocation().state as { template?: TemplateId } | null)?.template
 
   // Opening a song from a workspace starter lands on the picker with it chosen.
@@ -91,21 +91,58 @@ export function SongCanvas() {
   useEffect(() => {
     if (songId) open(songId)
   }, [songId, open])
+
+  if (!song || song.trashed) return <Navigate to="/" replace />
+
+  return (
+    <div className="flex h-dvh w-screen flex-col overflow-hidden bg-ground">
+      <div className="relative min-h-0 flex-1">
+        {view === 'canvas' ? <Canvas /> : <TimelineView />}
+
+        <div className="absolute top-5 left-5">
+          <TitlePill title={song.title} />
+        </div>
+        <div className="absolute top-5 right-5">
+          <People ids={song.collaboratorIds} />
+        </div>
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
+          <Toolkit />
+        </div>
+      </div>
+
+      {templatePicker.open && <TemplatePicker />}
+    </div>
+  )
+}
+
+/** The node canvas, with the rail to add to it and the hint for what to do next. */
+function Canvas() {
+  const { nodes, tool, onNodesChange } = useSong()
+  const { addNode, fitRequest, focus, clearFocus } = useSong()
+  const { connect, disconnect, setSnap } = useSong()
+  const edges = useMemo(() => wiresOf(nodes), [nodes])
+  const { screenToFlowPosition, fitView } = useReactFlow()
   // A template just landed: bring all of it into view once every node is measured.
   const measured = useNodesInitialized()
+  // Coming back to a particular node, skip framing everything first.
+  const [arriving] = useState(focus)
   const fitted = useRef(fitRequest)
   useEffect(() => {
     if (!measured || fitted.current === fitRequest) return
     fitted.current = fitRequest
     fitView({ padding: 0.25, maxZoom: 1, duration: 500 })
   }, [measured, fitRequest, fitView])
-
-  if (!song || song.trashed) return <Navigate to="/" replace />
+  // Back from the timeline to a particular card or section: bring it into view.
+  useEffect(() => {
+    if (!measured || !focus) return
+    fitView({ nodes: [{ id: focus }], padding: 0.3, maxZoom: 1, duration: 500 })
+    clearFocus()
+  }, [measured, focus, fitView, clearFocus])
 
   return (
-    <div className="flex h-dvh w-screen flex-col overflow-hidden bg-ground">
+    <>
       <div
-        className="relative min-h-0 flex-1"
+        className="absolute inset-0"
         onDragOver={(e) => {
           if (!e.dataTransfer.types.includes(NODE_DRAG_TYPE)) return
           e.preventDefault()
@@ -137,8 +174,8 @@ export function SongCanvas() {
             if (snap && state.fromNode) connect(state.fromNode.id, snap.section, snap.role)
             setSnap(null)
           }}
-          fitView
-          fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
+          fitView={!arriving}
+          fitViewOptions={FIT}
           panOnDrag={tool === 'hand'}
           selectionOnDrag={tool === 'select'}
           panOnScroll
@@ -153,27 +190,14 @@ export function SongCanvas() {
             <EmptyState />
           </div>
         )}
-
-        <div className="absolute top-5 left-1/2 -translate-x-1/2">
-          <Hint />
-        </div>
-
-        <div className="absolute top-5 left-5">
-          <TitlePill title={song.title} />
-        </div>
-        <div className="absolute top-5 right-5">
-          <People ids={song.collaboratorIds} />
-        </div>
-        <div className="absolute top-1/2 left-5 -translate-y-1/2">
-          <Rail />
-        </div>
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
-          <Toolkit />
-        </div>
       </div>
 
-      {timelineOpen && <Timeline />}
-      {templatePicker.open && <TemplatePicker />}
-    </div>
+      <div className="absolute top-5 left-1/2 -translate-x-1/2">
+        <Hint />
+      </div>
+      <div className="absolute top-1/2 left-5 -translate-y-1/2">
+        <Rail />
+      </div>
+    </>
   )
 }

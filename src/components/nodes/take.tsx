@@ -8,9 +8,8 @@ import { clock, type SongNode } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { useProgress } from './usePlayback'
+import { TAKE_A, TAKE_B } from './waves'
 
-const TAKE_A = [32, 15, 40, 28, 59, 23, 21, 49, 49, 30, 30, 34, 19, 61, 35, 25, 36, 53, 24, 42, 24, 18, 58, 47, 25, 22, 51, 16, 51, 18]
-const TAKE_B = [...TAKE_A].reverse()
 
 /**
  * Two versions of what a section made. Making ("listening…") until it's

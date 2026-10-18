@@ -252,7 +252,7 @@ export function ChordsNode({ data, selected }: NodeProps<SongNode<'chords'>>) {
 }
 
 /** A tiny look at a plugged-in card: its photo, colour, words or sound. */
-function Preview({ id }: { id: string }) {
+export function Preview({ id }: { id: string }) {
   const node = useSong((s) => s.nodes.find((n) => n.id === id))
   const base = 'animate-socket-in flex size-[22px] shrink-0 items-center justify-center overflow-hidden rounded-[6px] border-2 border-well'
   if (node?.type === 'photo' && node.data.src)

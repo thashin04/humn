@@ -350,6 +350,48 @@ svg.react-flow__connectionline.react-flow__container { z-index: 0; }
 .animate-socket-in { animation: socket-in .5s var(--ease-spring) both; }
 @keyframes socket-in { from { opacity: .3; transform: scale(.6); } }
 
+/* Sliders in the timeline's clip panel: a thin track filled in ink from --a to --b, and a round thumb */
+.soft-range {
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+.soft-range:disabled { opacity: .4; cursor: default; }
+.soft-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--soft-level) var(--a), var(--soft-ink) var(--a) var(--b), var(--soft-level) var(--b));
+}
+.soft-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--soft-level) var(--a), var(--soft-ink) var(--a) var(--b), var(--soft-level) var(--b));
+}
+.soft-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--soft-card);
+  box-shadow: 0 0 0 .5px rgb(20 22 26 / .25), 0 1px 4px rgb(20 22 26 / .2);
+  transition: transform .2s var(--ease-spring);
+}
+.soft-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--soft-card);
+  box-shadow: 0 0 0 .5px rgb(20 22 26 / .25), 0 1px 4px rgb(20 22 26 / .2);
+}
+.soft-range:active::-webkit-slider-thumb { transform: scale(1.15); }
+.soft-range:focus-visible { outline: none; }
+.soft-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--soft-accent) 35%, transparent); }
+
 /* One drawer handing over to another inside the open rail: a short settle, no pop */
 @keyframes drawer-swap {
   from { opacity: 0; transform: translateY(4px); filter: blur(1.5px); }
