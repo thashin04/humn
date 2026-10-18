@@ -10,6 +10,7 @@ import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { STARTING_DATA, type AnySongNode, type Kind, type NodeKind, type Pipe, type Role } from '@/data/nodes'
+import { SEED_CANVASES } from '@/data/seedCanvases'
 import { pipe, templateNodes, type TemplateId } from '@/data/templates'
 
 export type Tool = 'select' | 'hand'
@@ -77,13 +78,15 @@ export const useSong = create<SongState>()(
         set((s) => {
           if (s.songId === songId) return s
           const saved = s.songId ? { ...s.saved, [s.songId]: { nodes: s.nodes, edges: s.edges } } : s.saved
-          const canvas = saved[songId] ?? { nodes: [], edges: [] }
+          const canvas = saved[songId] ?? SEED_CANVASES[songId] ?? { nodes: [], edges: [] }
           return {
             songId,
             saved,
             playing: null,
             nodes: canvas.nodes.map((n) => ({ ...n, selected: false })),
             edges: canvas.edges,
+            // Frame whatever's there once it's measured.
+            fitRequest: canvas.nodes.length ? s.fitRequest + 1 : s.fitRequest,
           }
         }),
       onNodesChange: (changes) =>
