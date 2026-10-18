@@ -26,7 +26,8 @@ const join = (names: string[]) =>
 /** One line for everything plugged into a slot, read as a sentence about the verse ("Nana humming guides the tune"). */
 export function slotSentence(cards: AnySongNode[], role: Role): string {
   const names = cards.map((c) => {
-    const n = nameOf(c.data as Record<string, unknown>).trim()
+    // A take is named for the idea it was: "Take B".
+    const n = c.type === 'take' ? `Take ${c.data.version}` : nameOf(c.data as Record<string, unknown>).trim()
     return n.length > 22 ? `${n.slice(0, 20).trimEnd()}…` : n || 'This'
   })
   const one = cards.length === 1
@@ -41,6 +42,7 @@ export function slotSentence(cards: AnySongNode[], role: Role): string {
     mood: `${join(names)} set${one ? 's' : ''} the feeling`,
     texture: `${join(names)} sit${one ? 's' : ''} underneath`,
     instruments: `${join(names)} play${one ? 's' : ''} it`,
+    follows: `Carries on from ${join(names)}`,
   }[role]
 }
 

@@ -1,5 +1,5 @@
 import { Handle, Position, useNodeId, useUpdateNodeInternals } from '@xyflow/react'
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import grip from '@/assets/figma/node-grip.svg'
 import type { Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
@@ -136,11 +136,13 @@ type ShellProps = {
   targeted?: boolean
   /** A suggestion, not yet made: dashed and see-through. */
   ghost?: boolean
+  /** Made but not settled on (a proposed take): solid, with a dashed outline. */
+  dashed?: boolean
   className?: string
   children: ReactNode
 }
 
-export function NodeShell({ width, icon, label, meta, tall, tab, selected, port, targeted, ghost, className, children }: ShellProps) {
+export function NodeShell({ width, icon, label, meta, tall, tab, selected, port, targeted, ghost, dashed, className, children }: ShellProps) {
   const [box, size] = useSize<HTMLDivElement>()
   const id = useNodeId()
   const updateNodeInternals = useUpdateNodeInternals()
@@ -153,6 +155,10 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
   const [content, contentSize] = useSize<HTMLDivElement>()
   const tabH = tall ? 36 : 26
   const humps = useHumps(box)
+  // A connector can appear after the card was first measured (a take once it's in the song), so measure again.
+  useEffect(() => {
+    if (id) updateNodeInternals(id)
+  }, [port, id, updateNodeInternals])
   const ins = humps.map((h) => h.y)
   // The hump sits mid-way down the card's body, below the tab, so on a short card it
   // stays on the straight edge instead of climbing into the top corner.
@@ -183,7 +189,13 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
         ) : (
           <>
             <path d={d} fill="var(--soft-card)" />
-            <path d={line} fill="none" stroke="rgb(20 22 26 / 0.13)" strokeWidth={0.5} />
+            <path
+              d={line}
+              fill="none"
+              stroke={dashed ? 'rgb(20 22 26 / 0.3)' : 'rgb(20 22 26 / 0.13)'}
+              strokeWidth={dashed ? 1 : 0.5}
+              strokeDasharray={dashed ? '4 4' : undefined}
+            />
           </>
         )}
         {/* A pipe's line carries on through the neck its end is tucked under, to the ring. */}
@@ -243,6 +255,7 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
       {port && (
         <Handle
           type="source"
+          id="port"
           position={Position.Right}
           isConnectableEnd={false}
           aria-label="Pull to plug into a section"

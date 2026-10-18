@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { CLIP_DEFAULTS, newClip, type Clip } from '@/data/clips'
-import { STARTING_DATA, type AnySongNode, type Kind, type NodeKind, type Role, type SectionData } from '@/data/nodes'
+import { roleOf, STARTING_DATA, type AnySongNode, type Kind, type NodeKind, type Role, type SectionData, type SongNode, type TakeEdit } from '@/data/nodes'
 import { SEED_CANVASES } from '@/data/seedCanvases'
 import { templateNodes, type TemplateId } from '@/data/templates'
 
@@ -77,8 +77,20 @@ type SongState = {
   /** Plugs a card into a section's socket. A card plugs in one place, so this moves it if it was elsewhere. */
   connect: (source: string, section: string, role: Role) => void
   disconnect: (source: string, section: string) => void
-  /** Makes (or remakes) a section's two takes, beside it and wired from it. */
+  /**
+   * Makes two takes for a section, A and B, beside it and wired from it. Making
+   * again replaces the ones still only proposed; takes in the song stay.
+   */
   makeTakes: (sectionId: string) => void
+  /** Puts a proposed take in the song: it joins the end of the timeline, which opens to show it. */
+  addToTimeline: (takeId: string) => void
+  /** Trims, levels or fades a take; where it's already in the song, its clips follow. */
+  editTake: (takeId: string, edit: TakeEdit | undefined) => void
+  /**
+   * Plugs the given cards into a section, each in its own slot: the selected
+   * section if one is among them, or a new one beside them.
+   */
+  gather: (ids: string[]) => void
   /** Creates an independent playable take from an existing take. */
   branchTake: (takeId: string) => void
   /** The prompt someone is typing into, so nothing is suggested from it until they're done. */
@@ -240,33 +252,106 @@ export const useSong = create<SongState>()(
   makeTakes: (sectionId) => {
     const s = get()
     const section = s.nodes.find((n) => n.id === sectionId)
-    if (!section) return
-    const length = section.type === 'section' ? section.data.length : 30
-    // The section's own take, not a branch grown off it.
-    let take = s.nodes.find((n) => n.type === 'take' && n.data.sectionId === sectionId && !n.data.branchOf)
-    if (take) {
-      s.updateData(take.id, { state: 'making', version: 'A', kept: undefined, length })
-      if (s.playing === take.id) set({ playing: null })
-    } else {
-      take = {
-        id: nanoid(8),
-        type: 'take',
-        // The section is 320 wide; the take is 300 wide.
-        position: { x: section.position.x + 160 + 90 + 150, y: section.position.y - 60 },
-        origin: [0.5, 0.5],
-        data: { sectionId, state: 'making', version: 'A', length },
-      } as AnySongNode
-      set((s) => ({ ...remember(s), ...keep(s, [...s.nodes, take!]) }))
-    }
-    const takeId = take.id
+    if (section?.type !== 'section') return
+    const length = section.data.length
+    const own = s.nodes.filter((n): n is SongNode<'take'> => n.type === 'take' && n.data.sectionId === sectionId && !n.data.branchOf)
+    const proposed = new Set(own.filter((t) => !t.data.added).map((t) => t.id))
+    // New ideas sit beside the section, one column further out for each column of takes already in the song.
+    const kept = own.filter((t) => t.data.added).length
+    const x = section.position.x + 160 + 90 + 150 + Math.ceil(kept / 2) * 340
+    const made = (['A', 'B'] as const).map(
+      (version, i) =>
+        ({
+          id: nanoid(8),
+          type: 'take',
+          position: { x, y: section.position.y - 105 + i * 200 },
+          origin: [0.5, 0.5],
+          data: { sectionId, state: 'making', version, length },
+        }) as AnySongNode,
+    )
+    if (s.playing && proposed.has(s.playing)) set({ playing: null })
+    // The verse lets go, so its panel steps aside and the new ideas are in view.
+    set((s) => ({
+      ...remember(s),
+      ...keep(s, [
+        ...unplug(s.nodes.filter((n) => !proposed.has(n.id)), (id) => proposed.has(id)).map((n) =>
+          n.selected ? ({ ...n, selected: false } as AnySongNode) : n,
+        ),
+        ...made,
+      ]),
+      made: null,
+      focusedInputId: null,
+    }))
+    const ids = new Set(made.map((t) => t.id))
     // The takes finishing isn't something someone did, so it isn't a step to undo.
     window.setTimeout(
       () =>
         set((s) =>
-          keep(s, s.nodes.map((n) => (n.id === takeId && n.type === 'take' ? { ...n, data: { ...n.data, state: 'done' } } : n))),
+          keep(s, s.nodes.map((n) => (ids.has(n.id) && n.type === 'take' ? { ...n, data: { ...n.data, state: 'done' } } : n))),
         ),
       MAKING_MS,
     )
+  },
+  addToTimeline: (takeId) =>
+    set((s) => {
+      const take = s.nodes.find((n) => n.id === takeId)
+      if (take?.type !== 'take' || take.data.state !== 'done' || take.data.added || !s.songId) return s
+      const nodes = s.nodes.map((n) => (n.id === takeId ? ({ ...n, data: { ...n.data, added: true } } as AnySongNode) : n))
+      const section = s.nodes.find((n) => n.id === take.data.sectionId)
+      const clips = s.arrangements[s.songId]
+      const arrangements =
+        clips && section?.type === 'section'
+          ? { ...s.arrangements, [s.songId]: [...clips, newClip(section, take)] }
+          : s.arrangements
+      return { ...remember(s), ...keep(s, nodes), arrangements, timelineOpen: true, playing: null }
+    }),
+  editTake: (takeId, edit) =>
+    set((s) => {
+      const take = s.nodes.find((n) => n.id === takeId)
+      if (take?.type !== 'take') return s
+      const nodes = s.nodes.map((n) => (n.id === takeId ? ({ ...n, data: { ...n.data, edit } } as AnySongNode) : n))
+      const clips = s.songId ? s.arrangements[s.songId] : undefined
+      const e = edit ?? { from: 0, to: take.data.length, volume: 1, fadeIn: 0, fadeOut: 0 }
+      const arrangements =
+        clips && s.songId
+          ? {
+              ...s.arrangements,
+              [s.songId]: clips.map((c) =>
+                c.takeId === takeId
+                  ? { ...c, from: e.from, length: Math.max(1, e.to - e.from), volume: e.volume, fadeIn: e.fadeIn, fadeOut: e.fadeOut }
+                  : c,
+              ),
+            }
+          : s.arrangements
+      return { ...remember(s, `edit:${takeId}`), ...keep(s, nodes), arrangements }
+    }),
+  gather: (ids) => {
+    const s = get()
+    const picked = s.nodes.filter((n) => ids.includes(n.id))
+    const sections = picked.filter((n) => n.type === 'section')
+    // Cards, and takes that are in the song; proposed takes aren't anything to build on yet.
+    const cards = picked.filter((n) => n.type !== 'section' && (n.type !== 'take' || (n.data.added && n.data.state === 'done')))
+    if (!cards.length) return
+    let target = sections.length === 1 ? sections[0].id : null
+    if (!target) {
+      const right = Math.max(...cards.map((n) => n.position.x + (n.measured?.width ?? 260) / 2))
+      const mid = cards.reduce((t, n) => t + n.position.y, 0) / cards.length
+      target = nanoid(8)
+      const section = {
+        id: target,
+        type: 'section',
+        position: { x: right + 120 + 160, y: mid },
+        origin: [0.5, 0.5],
+        data: structuredClone(STARTING_DATA.section),
+      } as AnySongNode
+      set((s) => ({ ...remember(s), ...keep(s, [...s.nodes, section]) }))
+    }
+    for (const c of cards) get().connect(c.id, target, roleOf(c.type))
+    const id = target
+    set((s) => ({
+      ...keep(s, s.nodes.map((n) => (!!n.selected === (n.id === id) ? n : ({ ...n, selected: n.id === id } as AnySongNode)))),
+      made: id,
+    }))
   },
   branchTake: (takeId) => {
     const source = get().nodes.find((n) => n.id === takeId)
@@ -276,7 +361,7 @@ export const useSong = create<SongState>()(
       type: 'take',
       position: { x: source.position.x + 360, y: source.position.y + 140 },
       origin: [0.5, 0.5],
-      data: { sectionId: source.data.sectionId, state: 'done', version: 'A', length: source.data.length, branchOf: source.id },
+      data: { sectionId: source.data.sectionId, state: 'done', version: source.data.version, length: source.data.length, branchOf: source.id },
     } as AnySongNode
     set((s) => ({ ...remember(s), ...keep(s, [...s.nodes.map((n) => ({ ...n, selected: false })), branch]) }))
   },
@@ -367,7 +452,7 @@ export const useSong = create<SongState>()(
     }),
     {
       name: 'humn-songs',
-      version: 3,
+      version: 4,
       partialize: (s) => ({ saved: s.saved, arrangements: s.arrangements, comments: s.comments, dockHeight: s.dockHeight }),
       // v1 kept each song as { nodes, edges }; plug those edges back into their sections.
       migrate: (old) => {
@@ -384,6 +469,11 @@ export const useSong = create<SongState>()(
             return { ...n, data: { ...n.data, sources } }
           })
         }
+        // v3 kept both ideas in one take, with the one in the song as `kept`; that take is now in the song.
+        for (const nodes of Object.values(state.saved ?? {}))
+          if (Array.isArray(nodes))
+            for (const n of nodes as AnySongNode[])
+              if (n.type === 'take' && (n.data as { kept?: string }).kept) n.data = { ...n.data, added: true }
         // v2 kept each song's order as section ids; each becomes a clip as made.
         const arrangements = (state as { arrangements?: Record<string, unknown[]> }).arrangements ?? {}
         for (const [id, list] of Object.entries(arrangements))
@@ -442,13 +532,9 @@ function remember(s: SongState, key = '') {
 }
 
 function keep(s: SongState, nodes: AnySongNode[]) {
+  // Only takes added on purpose go in the song (see addToTimeline), so nothing joins the timeline here.
   const saved = s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved
-  // A section made after the song was arranged joins at the end.
-  const clips = s.songId ? s.arrangements[s.songId] : undefined
-  const had = new Set(s.nodes.map((n) => n.id))
-  const added = nodes.flatMap((n) => (n.type === 'section' && !had.has(n.id) ? [newClip(n)] : []))
-  if (!clips || !added.length) return { nodes, saved }
-  return { nodes, saved, arrangements: { ...s.arrangements, [s.songId!]: [...clips, ...added] } }
+  return { nodes, saved }
 }
 
 /** True while a take is playing whose section this card is plugged into. */

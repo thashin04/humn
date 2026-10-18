@@ -29,6 +29,7 @@
     --color-role-instruments: var(--soft-role-instruments);
     --color-role-harmony: var(--soft-role-harmony);
     --color-role-lyrics: var(--soft-role-lyrics);
+    --color-role-follows: var(--soft-role-follows);
     --color-level: var(--soft-level);
     --color-button: var(--soft-button);
     --color-photo: #d9d9d6;
@@ -114,6 +115,8 @@
     --soft-role-harmony: #9a7414;
     /* Not in Figma yet: Lyrics, added on request */
     --soft-role-lyrics: #2d7fc1;
+    /* A take in the song, carried on into the next part. */
+    --soft-role-follows: #4b5263;
     --soft-level: #e9e9e7;
     --soft-button: #ededec;
     --take: #2a3445;

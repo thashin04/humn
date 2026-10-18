@@ -172,14 +172,18 @@ export function templateNodes(id: TemplateId, prefix: string): AnySongNode[] {
       origin: [0.5, 0.5],
       data: { name: seed.name, title: seed.title, length: seed.length, sources },
     } as AnySongNode
-    const take = {
-      id: `${prefix}-${seed.id}-take`,
-      type: 'take',
-      position: seed.take.position,
-      origin: [0.5, 0.5],
-      data: { sectionId, state: 'done', version: seed.take.version, length: seed.take.length },
-    } as AnySongNode
-    return [section, take]
+    // Both ideas, proposed, one above the other; nothing is in the song until someone adds it.
+    const takes = (['A', 'B'] as const).map(
+      (version, i) =>
+        ({
+          id: `${prefix}-${seed.id}-take${i ? '-b' : ''}`,
+          type: 'take',
+          position: { x: seed.take.position.x, y: seed.take.position.y - 100 + i * 200 },
+          origin: [0.5, 0.5],
+          data: { sectionId, state: 'done', version, length: seed.take.length },
+        }) as AnySongNode,
+    )
+    return [section, ...takes]
   })
 
   return [...nodes, ...sections]

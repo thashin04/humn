@@ -1,6 +1,6 @@
 import { useStoreApi, type ConnectionLineComponentProps, type XYPosition } from '@xyflow/react'
 import { useEffect, useRef, useState } from 'react'
-import { DEFAULT_ROLE, type Kind } from '@/data/nodes'
+import { roleOf } from '@/data/nodes'
 import { useSong } from '@/store/song'
 import { curve, findSnap, PIPE, RING_IN, RING_OUT } from './geometry'
 
@@ -35,7 +35,7 @@ function useGlide(target: XYPosition, snapped: boolean) {
 export function WireLine({ fromX, fromY, toX, toY, fromNode }: ConnectionLineComponentProps) {
   const store = useStoreApi()
   const setSnap = useSong((s) => s.setSnap)
-  const kind = fromNode.type as Kind
+  const kind = fromNode.type
   const snap = findSnap(store.getState().nodeLookup, kind, { x: toX, y: toY })
   const end = useGlide(snap ? { x: snap.at.x + RING_IN, y: snap.at.y } : { x: toX, y: toY }, !!snap)
 
@@ -46,7 +46,7 @@ export function WireLine({ fromX, fromY, toX, toY, fromNode }: ConnectionLineCom
   useEffect(() => () => setSnap(null), [setSnap])
 
   const { d } = curve({ x: fromX + RING_OUT, y: fromY }, end)
-  const color = `var(--soft-role-${snap?.role ?? DEFAULT_ROLE[kind]})`
+  const color = `var(--soft-role-${snap?.role ?? roleOf(kind)})`
 
   return (
     <g>

@@ -121,8 +121,8 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
  */
 function HearButton({ section, disabled, onClick }: { section: string; disabled: boolean; onClick: () => void }) {
   const state = useSong((s) => {
-    const take = s.nodes.find((n) => n.type === 'take' && n.data.sectionId === section && !n.data.branchOf)
-    return take?.type === 'take' ? take.data.state : null
+    const takes = s.nodes.filter((n) => n.type === 'take' && n.data.sectionId === section && !n.data.branchOf)
+    return takes.some((t) => t.type === 'take' && t.data.state === 'making') ? 'making' : takes.length ? 'done' : null
   })
   const [turns, setTurns] = useState(0)
   const making = state === 'making'
@@ -249,7 +249,8 @@ function Thumb({ cards, role }: { cards: AnySongNode[]; role: Role }) {
 }
 
 function KindIcon({ kind, className }: { kind: Kind; className?: string }) {
-  const Icon = KIND_ICONS[kind]
+  // A take carried on from the last part shows as sound.
+  const Icon = KIND_ICONS[kind] ?? KIND_ICONS.sound
   return Icon ? <Icon strokeWidth={1.5} className={className} /> : null
 }
 

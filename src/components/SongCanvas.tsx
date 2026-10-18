@@ -1,6 +1,8 @@
 import {
   Background,
   BackgroundVariant,
+  NodeToolbar,
+  Position,
   ReactFlow,
   useNodesInitialized,
   useReactFlow,
@@ -14,13 +16,16 @@ import {
   type XYPosition,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { Plus } from 'iconoir-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
+import { useShallow } from 'zustand/react/shallow'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
 import { Rail } from '@/components/chrome/Rail'
 import { SectionPanel } from '@/components/chrome/SectionPanel'
+import { TakePanel } from '@/components/chrome/TakePanel'
 import { TitlePill } from '@/components/chrome/TitlePill'
 import { Toolkit } from '@/components/chrome/Toolkit'
 import { Hint } from '@/components/chrome/Hint'
@@ -87,6 +92,7 @@ function linesOf(nodes: AnySongNode[]): PipeEdge[] {
               id: `${src}|${sec.id}`,
               type: 'pipe' as const,
               source: src,
+              sourceHandle: 'port',
               target: sec.id,
               targetHandle: r.id,
               selectable: false,
@@ -144,7 +150,6 @@ export function SongCanvas() {
   const templatePicker = useSong((s) => s.templatePicker)
   const { songId } = useParams()
   const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
-  const updateSongTitle = useWorkspace((s) => s.updateSongTitle)
   const { open, closeTemplatePicker, applyTemplate } = useSong()
   const starter = (useLocation().state as { template?: TemplateId } | null)?.template
 
@@ -173,6 +178,7 @@ export function SongCanvas() {
         {/* A selected section's settings, or the timeline's selected clip, open here on the right. Never both: picking one lets go of the other. */}
         <div className="pointer-events-none absolute top-[76px] right-5 bottom-5 flex items-start">
           <SectionPanel />
+          <TakePanel />
         </div>
         <div id={CLIP_PANEL} className="pointer-events-none absolute top-[76px] right-5 bottom-5 z-10 flex items-start" />
         <div className="absolute top-5 right-5">
@@ -199,7 +205,6 @@ export function SongCanvas() {
         )}
       </AnimatePresence>
       {templatePicker.open && <TemplatePicker />}
-      {song.title === 'Untitled song' && <NameSongDialog onSave={(title) => updateSongTitle(song.id, title)} />}
     </div>
   )
 }
@@ -383,6 +388,7 @@ function Canvas() {
             }}
           />
           <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color="var(--soft-dot)" />
+          <GatherBar />
         </ReactFlow>
 
         {nodes.length === 0 && (
@@ -405,47 +411,34 @@ function Canvas() {
   )
 }
 
-function NameSongDialog({ onSave }: { onSave: (title: string) => void }) {
-  const [title, setTitle] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => inputRef.current?.focus(), [])
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    const name = title.trim()
-    if (name) onSave(name)
-  }
-
+/**
+ * With several cards picked (dragged around, or shift-clicked), one thing to do
+ * with them: plug them all into a section. Into the section that's picked with
+ * them, or a new one beside them.
+ */
+function GatherBar() {
+  const picked = useSong(
+    useShallow((s) =>
+      s.nodes.filter((n) => n.selected && (n.type !== 'take' || (n.data.added && n.data.state === 'done'))).map((n) => n.id),
+    ),
+  )
+  const into = useSong((s) => {
+    const sections = s.nodes.filter((n) => n.selected && n.type === 'section')
+    return sections.length === 1 ? sections[0] : null
+  })
+  const gather = useSong((s) => s.gather)
+  const cards = picked.length - (into ? 1 : 0)
+  const show = cards >= 2 || (cards >= 1 && !!into)
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-ink/10 p-4 backdrop-blur-[2px]">
-      <form
-        onSubmit={submit}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="name-song-title"
-        className="flex w-105 max-w-full flex-col gap-5 rounded-[20px] bg-card p-7 shadow-lift"
+    <NodeToolbar nodeId={picked} isVisible={show} position={Position.Top} offset={14}>
+      <button
+        type="button"
+        onClick={() => gather(picked)}
+        className="type-action animate-wire-card flex h-9 items-center gap-2 rounded-full bg-ink pr-4 pl-3 text-on-ink shadow-lift transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97]"
       >
-        <div className="flex flex-col gap-2">
-          <h2 id="name-song-title" className="type-display text-ink">Name your song</h2>
-          <p className="type-body text-ink-2">Give this song a name so it’s easy to find in your workspace.</p>
-        </div>
-        <input
-          ref={inputRef}
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="e.g. Childhood memories"
-          aria-label="Song name"
-          className="h-11 rounded-[10px] border border-rule-strong bg-well px-3 text-ink outline-none placeholder:text-ink-3 focus:border-select focus:ring-2 focus:ring-select/20"
-        />
-        <button
-          type="submit"
-          disabled={!title.trim()}
-          className="shine-button type-action self-end rounded-full bg-ink px-4 py-2.5 text-on-ink transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Continue
-        </button>
-      </form>
-    </div>
+        <Plus width={15} height={15} strokeWidth={1.75} />
+        {into ? `Add ${cards} to ${into.type === 'section' ? into.data.name.toLowerCase() : 'section'}` : `Add ${cards} to a section`}
+      </button>
+    </NodeToolbar>
   )
 }

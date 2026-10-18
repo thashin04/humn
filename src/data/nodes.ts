@@ -1,7 +1,7 @@
 import type { Node } from '@xyflow/react'
 
 /** What a node does to the music. A section has one socket per role. */
-export type Role = 'intent' | 'lyrics' | 'melody' | 'harmony' | 'mood' | 'texture' | 'instruments'
+export type Role = 'intent' | 'lyrics' | 'melody' | 'harmony' | 'mood' | 'texture' | 'instruments' | 'follows'
 
 export const ROLES: { id: Role; name: string }[] = [
   { id: 'intent', name: 'Intent' },
@@ -11,6 +11,8 @@ export const ROLES: { id: Role; name: string }[] = [
   { id: 'mood', name: 'Mood' },
   { id: 'texture', name: 'Texture' },
   { id: 'instruments', name: 'Instruments' },
+  // A take that's in the song, plugged into the next part so it picks up where that one left off.
+  { id: 'follows', name: 'Carries on' },
 ]
 
 export type Kind = 'words' | 'lyrics' | 'voice' | 'photo' | 'feeling' | 'sound' | 'color' | 'instrument' | 'chords'
@@ -26,6 +28,11 @@ export const DEFAULT_ROLE: Record<Kind, Role> = {
   color: 'mood',
   instrument: 'instruments',
   chords: 'harmony',
+}
+
+/** The slot a node falls into when it's plugged into a section without picking one. */
+export function roleOf(type: string | undefined): Role {
+  return type === 'take' ? 'follows' : (DEFAULT_ROLE[type as Kind] ?? 'intent')
 }
 
 export type WordsData = { text: string }
@@ -52,9 +59,13 @@ export type SectionData = {
   energy?: number
   vocals?: Vocals
 }
+/** Trim, level and fades set on a take before it goes in the song, in seconds (volume 1 is as made). */
+export type TakeEdit = { from: number; to: number; volume: number; fadeIn: number; fadeOut: number }
+
 /**
- * Two versions of what a section made. Making until the mock "listening" ends.
- * `version` is the one last picked or played; `kept` is the one put in the song.
+ * One idea a section made: each "Hear 2 ideas" makes two of these, A and B,
+ * side by side. Making until the mock "listening" ends. It's only proposed
+ * until someone adds it to the timeline (`added`); then it's in the song.
  * A branch (`branchOf`) grows off another take instead of its section.
  */
 export type TakeData = {
@@ -62,7 +73,8 @@ export type TakeData = {
   state: 'making' | 'done'
   version: 'A' | 'B'
   length: number
-  kept?: 'A' | 'B'
+  added?: boolean
+  edit?: TakeEdit
   branchOf?: string
 }
 

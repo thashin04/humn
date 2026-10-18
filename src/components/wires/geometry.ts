@@ -1,5 +1,5 @@
 import type { InternalNode, XYPosition } from '@xyflow/react'
-import { DEFAULT_ROLE, type Kind, type Role } from '@/data/nodes'
+import { roleOf, type Role } from '@/data/nodes'
 
 /** How close (in canvas px) a pulled wire has to come to a section before it's drawn in. */
 const PULL = 70
@@ -64,7 +64,7 @@ export type Snap = { section: string; role: Role; at: XYPosition }
  * socket row it takes that socket; anywhere else on or near a section it falls
  * into the card's own role.
  */
-export function findSnap(lookup: Map<string, InternalNode>, kind: Kind, p: XYPosition): Snap | null {
+export function findSnap(lookup: Map<string, InternalNode>, kind: string | undefined, p: XYPosition): Snap | null {
   let best: (Snap & { dist: number }) | null = null
   for (const n of lookup.values()) {
     if (n.type !== 'section') continue
@@ -79,7 +79,7 @@ export function findSnap(lookup: Map<string, InternalNode>, kind: Kind, p: XYPos
     const sockets = n.internals.handleBounds?.target ?? []
     // Empty slots share one landing row, so over it the card keeps its own slot if that's one of them.
     const over = dist === 0 ? sockets.filter((s) => p.y >= y + s.y - 2 && p.y <= y + s.y + s.height + 2) : []
-    const role = (over.length === 1 ? (over[0].id as Role) : DEFAULT_ROLE[kind]) as Role
+    const role = (over.length === 1 ? (over[0].id as Role) : roleOf(kind)) as Role
     const socket = sockets.find((s) => s.id === role)
     if (!socket) continue
     best = { dist, section: n.id, role, at: { x: x + socket.x, y: y + socket.y + socket.height / 2 } }
