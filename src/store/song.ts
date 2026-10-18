@@ -2,7 +2,7 @@ import { applyNodeChanges, type Edge, type NodeChange, type XYPosition } from '@
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { STARTING_DATA, type AnySongNode, type Kind, type NodeKind } from '@/data/nodes'
+import { STARTING_DATA, type AnySongNode, type Kind, type NodeKind, type Role, type SectionData } from '@/data/nodes'
 import { templateNodes, type TemplateId } from '@/data/templates'
 
 export type Tool = 'select' | 'hand'
@@ -22,6 +22,10 @@ type SongState = {
   fitRequest: number
   /** The kind being dragged out of a drawer, for the drop hint. */
   dragKind: Kind | null
+  /** The socket a wire being pulled would plug into if let go now. */
+  snap: { section: string; role: Role } | null
+  /** The connection just made, for a moment, so it can pulse into place. */
+  fresh: { id: string; source: string; section: string; role: Role } | null
   /** Swaps the canvas to another song, keeping the one being left. */
   open: (songId: string) => void
   onNodesChange: (changes: NodeChange<AnySongNode>[]) => void
@@ -31,6 +35,10 @@ type SongState = {
   applyTemplate: (id: TemplateId) => void
   setDrawer: (kind: Kind | null) => void
   setDragKind: (kind: Kind | null) => void
+  setSnap: (snap: { section: string; role: Role } | null) => void
+  /** Plugs a card into a section's socket. A card plugs in one place, so this moves it if it was elsewhere. */
+  connect: (source: string, section: string, role: Role) => void
+  disconnect: (source: string, section: string) => void
   updateData: (id: string, patch: Record<string, unknown>) => void
   setTool: (tool: Tool) => void
   toggleTimeline: () => void
@@ -38,6 +46,8 @@ type SongState = {
   closeTemplatePicker: () => void
   selectTemplate: (id: TemplateId) => void
 }
+
+let freshTimer = 0
 
 export const useSong = create<SongState>()(
   persist(
@@ -52,6 +62,8 @@ export const useSong = create<SongState>()(
   drawer: null,
   fitRequest: 0,
   dragKind: null,
+  snap: null,
+  fresh: null,
   open: (songId) =>
     set((s) => {
       if (s.songId === songId) return s
@@ -60,7 +72,8 @@ export const useSong = create<SongState>()(
     }),
   onNodesChange: (changes) =>
     set((s) => {
-      const nodes = applyNodeChanges(changes, s.nodes)
+      const gone = changes.flatMap((c) => (c.type === 'remove' ? [c.id] : []))
+      const nodes = unplug(applyNodeChanges(changes, s.nodes), (id) => gone.includes(id))
       return { nodes, saved: s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved }
     }),
   addNode: (kind, at, data) => {
@@ -84,6 +97,21 @@ export const useSong = create<SongState>()(
     })),
   setDrawer: (drawer) => set({ drawer }),
   setDragKind: (dragKind) => set({ dragKind }),
+  setSnap: (snap) => set((s) => (s.snap?.section === snap?.section && s.snap?.role === snap?.role ? s : { snap })),
+  connect: (source, section, role) =>
+    set((s) => {
+      const nodes = unplug(s.nodes, (id) => id === source).map((n) =>
+        n.id === section && n.type === 'section'
+          ? { ...n, data: { ...n.data, sources: { ...n.data.sources, [role]: [...(n.data.sources[role] ?? []), source] } } }
+          : n,
+      )
+      const fresh = { id: `${source}|${section}`, source, section, role }
+      clearTimeout(freshTimer)
+      freshTimer = window.setTimeout(() => set((t) => (t.fresh === fresh ? { fresh: null } : t)), 900)
+      return { ...keep(s, nodes), fresh }
+    }),
+  disconnect: (source, section) =>
+    set((s) => keep(s, unplug(s.nodes, (id) => id === source, section))),
   updateData: (id, patch) =>
     set((s) => keep(s, s.nodes.map((n) => (n.id === id ? ({ ...n, data: { ...n.data, ...patch } } as AnySongNode) : n)))),
   setTool: (tool) => set({ tool }),
@@ -95,6 +123,21 @@ export const useSong = create<SongState>()(
     { name: 'humn-songs', partialize: (s) => ({ saved: s.saved }) },
   ),
 )
+
+/** Takes matching cards out of every socket (or just `section`'s), leaving untouched sections as they were. */
+function unplug(nodes: AnySongNode[], match: (id: string) => boolean, section?: string): AnySongNode[] {
+  return nodes.map((n) => {
+    if (n.type !== 'section' || (section && n.id !== section)) return n
+    const entries = Object.entries(n.data.sources) as [Role, string[]][]
+    if (!entries.some(([, ids]) => ids.some(match))) return n
+    const sources: SectionData['sources'] = {}
+    for (const [role, ids] of entries) {
+      const left = ids.filter((id) => !match(id))
+      if (left.length) sources[role] = left
+    }
+    return { ...n, data: { ...n.data, sources } }
+  })
+}
 
 function keep(s: SongState, nodes: AnySongNode[]) {
   return { nodes, saved: s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved }

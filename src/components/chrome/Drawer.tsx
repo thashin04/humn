@@ -1,8 +1,7 @@
 import { MediaImagePlus, Plus, Search, SidebarCollapse } from 'iconoir-react'
 import { useRef, useState, type DragEvent, type ReactNode } from 'react'
-import { RoleDot } from '@/components/nodes/parts'
 import { DRAWERS, nameOf, NODE_DRAG_TYPE, type LibraryItem, type OwnAction } from '@/data/library'
-import { DEFAULT_ROLE, ROLES, type Kind, type Role } from '@/data/nodes'
+import { DEFAULT_ROLE, type Kind, type Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { useYours } from '@/store/yours'
@@ -23,7 +22,6 @@ type Source = 'yours' | 'library' | 'generate'
 /** One kind's drawer: search, then three sources — yours, the app's library, or make one. */
 export function Drawer({ kind, onClose }: { kind: Kind; onClose: () => void }) {
   const spec = DRAWERS[kind]
-  const role = DEFAULT_ROLE[kind]
   const [source, setSource] = useState<Source>('yours')
   const [query, setQuery] = useState('')
   const kept = useYours((s) => s.kept).filter((k) => k.kind === kind)
@@ -39,7 +37,6 @@ export function Drawer({ kind, onClose }: { kind: Kind; onClose: () => void }) {
     <div className="flex h-full flex-col">
       <div className="flex flex-col gap-3.5 px-4 pt-3">
         <div className="flex h-7 items-center gap-2">
-          <RoleDot role={role} />
           <p className="flex-1 text-[15px] leading-[1.3] font-medium text-ink-1">{spec.label}</p>
           <button
             aria-label="Close drawer"
@@ -87,11 +84,6 @@ export function Drawer({ kind, onClose }: { kind: Kind; onClose: () => void }) {
       </div>
 
       <div className="mt-3.5 min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-        <p className="type-small mb-3.5 text-ink-2">
-          <span className={cn('font-medium', ROLE_TEXT[role])}>{ROLES.find((r) => r.id === role)!.name}.</span>{' '}
-          {spec.hint}
-        </p>
-
         {source === 'yours' && (
           <>
             <Heading label={spec.yoursTitle} right={String(kept.length)} />
@@ -101,9 +93,6 @@ export function Drawer({ kind, onClose }: { kind: Kind; onClose: () => void }) {
                 <ItemTile key={item.id} kind={kind} item={item} square inSong={inSong.has(nameOf(item.data))} />
               ))}
             </Grid>
-            <p className="type-small mt-3.5 text-ink-3">
-              Yours, in every song. Anything you upload or record is kept here too.
-            </p>
           </>
         )}
 

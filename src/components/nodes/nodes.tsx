@@ -1,5 +1,5 @@
-import type { NodeProps } from '@xyflow/react'
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import iconChords from '@/assets/figma/node-icon-chords.svg'
 import iconColour from '@/assets/figma/node-icon-colour.svg'
 import iconFeeling from '@/assets/figma/node-icon-feeling.svg'
@@ -39,7 +39,7 @@ export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) 
   }, [])
 
   return (
-    <NodeShell width={empty ? 290 : 250} icon={iconWords} label="Prompt" selected={selected}>
+    <NodeShell width={empty ? 290 : 250} icon={iconWords} label="Prompt" selected={selected} port="intent">
       <div className="flex flex-col gap-[14px] pt-[18px] pr-[22px] pb-5 pl-5">
         {editing ? (
           <textarea
@@ -88,7 +88,7 @@ export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) 
 export function VoiceNode({ data, selected }: NodeProps<SongNode<'voice'>>) {
   const { playing, progress, toggle } = usePlayback(data.duration)
   return (
-    <NodeShell width={262} icon={iconVoice} label="Record" meta={clock(data.duration)} selected={selected}>
+    <NodeShell width={262} icon={iconVoice} label="Record" meta={clock(data.duration)} selected={selected} port="melody">
       <div className="flex h-[60px] items-center gap-3 pr-5 pl-3">
         <PlayButton playing={playing} onClick={toggle} label={data.label} />
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 overflow-hidden">
@@ -103,7 +103,7 @@ export function VoiceNode({ data, selected }: NodeProps<SongNode<'voice'>>) {
 /** Mood. Framed photo with a caption. */
 export function PhotoNode({ data, selected }: NodeProps<SongNode<'photo'>>) {
   return (
-    <NodeShell width={200} icon={iconPhoto} label="Image" selected={selected}>
+    <NodeShell width={200} icon={iconPhoto} label="Image" selected={selected} port="mood">
       <div className="px-2 pt-2 pb-1.5">
         <div className="h-[150px] overflow-hidden rounded-[9px] bg-photo">
           {data.src && <img src={data.src} alt={data.caption} className="size-full object-cover" draggable={false} />}
@@ -126,7 +126,7 @@ export function FeelingNode({ id, data, selected }: NodeProps<SongNode<'feeling'
   }
 
   return (
-    <NodeShell width={220} icon={iconFeeling} label="Feeling" selected={selected}>
+    <NodeShell width={220} icon={iconFeeling} label="Feeling" selected={selected} port="mood">
       <div
         role="slider"
         aria-label={`How much ${data.name}`}
@@ -159,7 +159,7 @@ export function FeelingNode({ id, data, selected }: NodeProps<SongNode<'feeling'
 /** Texture capsule. */
 export function SoundNode({ data, selected }: NodeProps<SongNode<'sound'>>) {
   return (
-    <NodeShell width={262} icon={iconSound} label="Audio" meta={clock(data.duration)} selected={selected}>
+    <NodeShell width={262} icon={iconSound} label="Audio" meta={clock(data.duration)} selected={selected} port="texture">
       <div className="flex h-[60px] items-center gap-3 pr-5 pl-3">
         <img src={data.place ?? place} alt="" className="size-9 shrink-0 rounded-full object-cover" draggable={false} />
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 overflow-hidden">
@@ -174,7 +174,7 @@ export function SoundNode({ data, selected }: NodeProps<SongNode<'sound'>>) {
 /** Mood. A swatch. */
 export function ColorNode({ data, selected }: NodeProps<SongNode<'color'>>) {
   return (
-    <NodeShell width={140} icon={iconColour} label="Mood" selected={selected}>
+    <NodeShell width={140} icon={iconColour} label="Mood" selected={selected} port="mood">
       <div className="size-[140px] p-1.5">
         <div className="relative size-full overflow-hidden rounded-[11px]" style={{ backgroundImage: data.gradient }}>
           <p className="type-small absolute top-[104px] left-2.5 whitespace-nowrap text-on-ink">{data.label}</p>
@@ -187,7 +187,7 @@ export function ColorNode({ data, selected }: NodeProps<SongNode<'color'>>) {
 /** Instruments. Row with a lid and a separate try-it button. */
 export function InstrumentNode({ data, selected }: NodeProps<SongNode<'instrument'>>) {
   return (
-    <NodeShell width={270} icon={iconInstrument} label={data.tab} selected={selected}>
+    <NodeShell width={270} icon={iconInstrument} label={data.tab} selected={selected} port="instruments">
       <div className="relative h-20">
         <div className="absolute top-3 left-3 size-14 overflow-hidden rounded-[10px] bg-photo">
           {data.thumb && <img src={data.thumb} alt="" className="size-full object-cover" draggable={false} />}
@@ -221,7 +221,7 @@ export function ChordsNode({ data, selected }: NodeProps<SongNode<'chords'>>) {
   const { playing, progress, toggle } = usePlayback(data.chords.length * 1.2)
   const at = playing ? Math.min(data.chords.length - 1, Math.floor(progress * data.chords.length)) : -1
   return (
-    <NodeShell width={262} icon={iconChords} label="Chords" selected={selected}>
+    <NodeShell width={262} icon={iconChords} label="Chords" selected={selected} port="harmony">
       <div className="flex h-[60px] items-center gap-3 pr-5 pl-3">
         <PlayButton playing={playing} onClick={toggle} label="chords" />
         <div className="flex min-w-0 gap-1 overflow-hidden">
@@ -245,29 +245,58 @@ export function ChordsNode({ data, selected }: NodeProps<SongNode<'chords'>>) {
   )
 }
 
-/** Light previews of what's plugged in; mood and colour stack. */
-function Socket({ role, name, sources = [] }: { role: Role; name: string; sources?: string[] }) {
+/** A tiny look at a plugged-in card: its photo, colour, words or sound. */
+function Preview({ id }: { id: string }) {
+  const node = useSong((s) => s.nodes.find((n) => n.id === id))
+  const base = 'animate-socket-in flex size-[22px] shrink-0 items-center justify-center overflow-hidden rounded-[6px] border-2 border-well'
+  if (node?.type === 'photo' && node.data.src)
+    return <img src={node.data.src} alt="" draggable={false} className={cn(base, 'object-cover')} />
+  if (node?.type === 'instrument' && node.data.thumb)
+    return <img src={node.data.thumb} alt="" draggable={false} className={cn(base, 'object-cover')} />
+  if (node?.type === 'color') return <span className={base} style={{ backgroundImage: node.data.gradient }} />
+  if (node?.type === 'words') return <span className={cn(base, 'bg-[#eaeae9] text-[13px] leading-none text-ink-2')}>“</span>
+  if (node?.type === 'voice' || node?.type === 'sound' || node?.type === 'chords')
+    return (
+      <span className={cn(base, 'gap-px bg-[#eaeae9]')}>
+        {[5, 9, 6, 10, 4].map((h, i) => (
+          <i key={i} className="w-0.5 rounded-full bg-ink-3" style={{ height: h }} />
+        ))}
+      </span>
+    )
+  return <span className={cn(base, 'bg-photo')} />
+}
+
+/** One row per role. Wires plug in at its left edge; what's plugged in stacks on the right. */
+function Socket({ section, role, name, sources = [] }: { section: string; role: Role; name: string; sources?: string[] }) {
+  const hot = useSong((s) => s.snap?.section === section && s.snap.role === role)
+  const landed = useSong((s) => s.fresh?.section === section && s.fresh.role === role)
   const filled = sources.length > 0
   return (
     <div
       className={cn(
-        'flex h-[34px] w-[246px] items-center gap-[9px] rounded-[9px] border pr-1.5 pl-[11px] transition-colors duration-200',
-        filled ? 'border-rule bg-well' : 'border-rule-strong',
+        'relative flex h-[34px] w-[246px] items-center gap-[9px] rounded-[9px] border pr-1.5 pl-[11px] transition-[background-color,border-color,box-shadow] duration-200',
+        hot
+          ? 'border-[var(--c)] bg-[color-mix(in_srgb,var(--c)_6%,var(--soft-card))] shadow-[0_0_0_4px_color-mix(in_srgb,var(--c)_12%,transparent)]'
+          : filled
+            ? 'border-rule bg-well'
+            : 'border-rule-strong',
       )}
+      style={{ '--c': `var(--soft-role-${role})` } as CSSProperties}
     >
+      <Handle type="target" id={role} position={Position.Left} isConnectableStart={false} className="wire-socket" />
+      <span
+        aria-hidden
+        className={cn('wire-hump', filled || hot ? 'scale-100 opacity-100' : 'scale-50 opacity-0', landed && 'wire-pop-in')}
+        style={{ transformOrigin: '100% 50%' }}
+      />
       <RoleDot role={role} />
-      <p className={cn('type-caption min-w-0 flex-1', filled ? 'text-ink-1' : 'text-ink-3')}>{name}</p>
+      <p className={cn('type-caption min-w-0 flex-1', filled || hot ? 'text-ink-1' : 'text-ink-3')}>{name}</p>
       {filled && (
         <div className="flex">
           {sources.map((s, i) => (
-            <span
-              key={s}
-              className={cn(
-                'size-[22px] rounded-[6px] border-2 border-well',
-                role === 'intent' || role === 'melody' ? 'bg-[#eaeae9]' : 'bg-photo',
-                i < sources.length - 1 && '-mr-[5px]',
-              )}
-            />
+            <span key={s} className={cn('flex', i < sources.length - 1 && '-mr-[5px]')}>
+              <Preview id={s} />
+            </span>
           ))}
         </div>
       )}
@@ -276,7 +305,8 @@ function Socket({ role, name, sources = [] }: { role: Role; name: string; source
 }
 
 /** A socket board with a label tab. Empty, filling, full. */
-export function SectionNode({ data, selected }: NodeProps<SongNode<'section'>>) {
+export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'>>) {
+  const targeted = useSong((s) => s.snap?.section === id)
   const ready = Object.values(data.sources).some((s) => s && s.length > 0)
   return (
     <NodeShell
@@ -285,6 +315,7 @@ export function SectionNode({ data, selected }: NodeProps<SongNode<'section'>>) 
       icon={iconSection}
       label={data.name}
       selected={selected}
+      targeted={targeted}
       tab={
         <>
           <img src={iconSection} alt="" className="size-[15px]" />
@@ -295,7 +326,7 @@ export function SectionNode({ data, selected }: NodeProps<SongNode<'section'>>) 
     >
       <div className="flex flex-col gap-1 px-3 pt-2.5 pb-3">
         {ROLES.map((r) => (
-          <Socket key={r.id} role={r.id} name={r.name} sources={data.sources[r.id]} />
+          <Socket key={r.id} section={id} role={r.id} name={r.name} sources={data.sources[r.id]} />
         ))}
         <button
           type="button"

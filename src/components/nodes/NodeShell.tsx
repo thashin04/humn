@@ -1,6 +1,9 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { Handle, Position, useNodeId, useUpdateNodeInternals } from '@xyflow/react'
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import grip from '@/assets/figma/node-grip.svg'
+import type { Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
+import { useSong } from '@/store/song'
 
 /**
  * The folder-tab silhouette every node shares. Same geometry as the Figma
@@ -40,15 +43,24 @@ type ShellProps = {
   /** Replaces the icon + label when the tab holds more (section name + length). */
   tab?: ReactNode
   selected?: boolean
+  /** Cards that plug into a section get a tab on their right edge to pull a wire from. */
+  port?: Role
+  /** A wire is being pulled toward this node. */
+  targeted?: boolean
   className?: string
   children: ReactNode
 }
 
-export function NodeShell({ width, icon, label, meta, tall, tab, selected, className, children }: ShellProps) {
+export function NodeShell({ width, icon, label, meta, tall, tab, selected, port, targeted, className, children }: ShellProps) {
   const [box, size] = useSize<HTMLDivElement>()
+  const id = useNodeId()
+  const updateNodeInternals = useUpdateNodeInternals()
+  const plugged = useSong((s) => !!port && s.fresh?.source === id)
   const [tabRef, tabSize] = useSize<HTMLDivElement>()
   const tabH = tall ? 36 : 26
   const d = size.h && tabSize.w ? silhouette(size.w, size.h, tabSize.w, tabH) : ''
+  // The same outline 4px out, dashed, for a wire about to plug in.
+  const halo = d && silhouette(size.w + 8, size.h + 8, tabSize.w + 4, tabH + 4)
 
   return (
     <div
@@ -59,10 +71,22 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, class
         className,
       )}
       style={{ width, paddingTop: tabH }}
+      // React Flow measured where the humps are while the card was still scaling in;
+      // measure again once it's settled so wires meet them exactly.
+      onAnimationEnd={(e) => e.target === e.currentTarget && id && updateNodeInternals(id)}
     >
       <svg className="pointer-events-none absolute inset-0 overflow-visible" width={size.w} height={size.h} aria-hidden>
         <path d={d} fill="var(--soft-card)" stroke="rgb(20 22 26 / 0.13)" strokeWidth={0.5} />
         {selected && <path d={d} fill="none" stroke="var(--soft-accent)" strokeWidth={1.5} />}
+        <path
+          d={halo}
+          transform="translate(-4 -4)"
+          fill="none"
+          stroke="var(--soft-accent)"
+          strokeWidth={1.5}
+          strokeDasharray="5 6"
+          className={cn('transition-opacity duration-200', targeted ? 'opacity-55' : 'opacity-0')}
+        />
       </svg>
 
       <div
@@ -90,6 +114,17 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, class
       <div className="relative">{children}</div>
 
       <div className="node-shine pointer-events-none absolute inset-0" style={{ clipPath: d ? `path('${d}')` : undefined }} />
+
+      {port && (
+        <Handle
+          type="source"
+          position={Position.Right}
+          isConnectableEnd={false}
+          aria-label="Pull to plug into a section"
+          className={cn('wire-port', plugged && 'wire-pop')}
+          style={{ '--c': `var(--soft-role-${port})` } as CSSProperties}
+        />
+      )}
     </div>
   )
 }

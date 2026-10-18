@@ -251,6 +251,105 @@
 .selected > * > .node-shine {
   animation: node-shine 1.2s cubic-bezier(.22, .61, .36, 1) both;
 }
+/* Wires. Each card has a short tab on its right edge to pull from; its role dot shows on hover. */
+.react-flow__handle.wire-port {
+  width: 26px;
+  height: 26px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: crosshair;
+}
+.wire-port::before {
+  /* The hump: a half-disc in the card's own colour, bulging out of its edge. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--soft-card);
+  box-shadow: 0 0 0 .5px rgb(20 22 26 / .13);
+  clip-path: inset(-2px -2px -2px calc(50% - .5px));
+}
+.wire-port::after,
+.wire-hump::after {
+  /* The role's colour sits in it as a ring around a dot. */
+  content: "";
+  position: absolute;
+  top: 6px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--c);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--c) 0 2.5px, transparent 3px);
+  transform: scale(.82);
+  transition: transform .25s var(--ease-spring);
+}
+.wire-port::after { left: 8px; }
+.react-flow__node:hover .wire-port::after,
+.wire-port.connectingfrom::after { transform: scale(1); }
+/* The same hump on a section's edge, wherever something is plugged in. */
+.wire-hump {
+  position: absolute;
+  top: 50%;
+  left: -25px;
+  width: 26px;
+  height: 26px;
+  margin-top: -13px;
+  pointer-events: none;
+  transition: opacity .2s, scale .3s var(--ease-spring);
+}
+.wire-hump::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--soft-card);
+  box-shadow: 0 0 0 .5px rgb(20 22 26 / .13);
+  clip-path: inset(-2px calc(50% - .5px) -2px -2px);
+}
+.wire-hump::after { left: 4px; transform: none; }
+.react-flow__handle.wire-socket {
+  top: 0;
+  left: -12px;
+  width: 2px;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transform: none;
+  pointer-events: none;
+}
+/* Pipes aren't selectable, which React Flow takes to mean inert; they still need hover to unplug. */
+.react-flow__edge.react-flow__edge-pipe.inactive { pointer-events: visibleStroke; }
+/* The wire being pulled runs under the cards too, so it comes out of the hump instead of over it. */
+svg.react-flow__connectionline.react-flow__container { z-index: 0; }
+/* A new connection sends one soft pulse from the card into the section. */
+.wire-flow {
+  stroke-dasharray: .18 1.4;
+  animation: wire-flow .8s cubic-bezier(.3, .6, .25, 1) both;
+}
+@keyframes wire-flow {
+  0% { stroke-dashoffset: .18; opacity: 0; }
+  15% { opacity: .35; }
+  80% { opacity: .3; }
+  100% { stroke-dashoffset: -1; opacity: 0; }
+}
+/* …and both humps it joins give a small nod as it lands. */
+.wire-pop::after { animation: wire-pop .55s var(--ease-spring) both; }
+@keyframes wire-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+.wire-hump.wire-pop-in::after { animation: wire-pop .55s var(--ease-spring) .5s both; }
+/* A card landing in a socket springs into place. */
+.animate-socket-in { animation: socket-in .5s var(--ease-spring) both; }
+@keyframes socket-in { from { opacity: .3; transform: scale(.6); } }
+
 /* One drawer handing over to another inside the open rail: a short settle, no pop */
 @keyframes drawer-swap {
   from { opacity: 0; transform: translateY(4px); filter: blur(1.5px); }
@@ -258,5 +357,7 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-node-enter { animation: none; }
   .animate-drawer-swap { animation: none; }
+  .wire-flow { display: none; }
+  .wire-pop::after, .wire-hump.wire-pop-in::after, .animate-socket-in { animation: none; }
   .selected > * > .node-shine { animation: none; }
 }

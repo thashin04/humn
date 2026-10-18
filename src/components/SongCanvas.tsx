@@ -1,6 +1,14 @@
-import { Background, BackgroundVariant, ReactFlow, useNodesInitialized, useReactFlow } from '@xyflow/react'
+import {
+  Background,
+  BackgroundVariant,
+  ReactFlow,
+  useNodesInitialized,
+  useReactFlow,
+  type EdgeChange,
+  type EdgeTypes,
+} from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
@@ -10,15 +18,44 @@ import { TitlePill } from '@/components/chrome/TitlePill'
 import { Toolkit } from '@/components/chrome/Toolkit'
 import { EmptyState } from '@/components/empty/EmptyState'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
+import { PipeEdge } from '@/components/wires/PipeEdge'
+import { WireLine } from '@/components/wires/WireLine'
 import { DRAWERS, NODE_DRAG_TYPE } from '@/data/library'
-import { DEFAULT_ROLE, ROLES, type Kind } from '@/data/nodes'
+import { DEFAULT_ROLE, ROLES, type AnySongNode, type Kind } from '@/data/nodes'
 import type { TemplateId } from '@/data/templates'
 import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 
+const edgeTypes: EdgeTypes = { pipe: PipeEdge }
+
+/** The wires are read off each section's sockets, so a section is the one place that says what's plugged in. */
+function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
+  const ids = new Set(nodes.map((n) => n.id))
+  return nodes.flatMap((sec) =>
+    sec.type !== 'section'
+      ? []
+      : ROLES.flatMap((r) =>
+          (sec.data.sources[r.id] ?? [])
+            .filter((src) => ids.has(src))
+            .map((src) => ({
+              id: `${src}|${sec.id}`,
+              type: 'pipe' as const,
+              source: src,
+              target: sec.id,
+              targetHandle: r.id,
+              selectable: false,
+              focusable: false,
+              data: { role: r.id },
+            })),
+        ),
+  )
+}
+
 export function SongCanvas() {
-  const { nodes, edges, tool, timelineOpen, templatePicker, open, onNodesChange } = useSong()
+  const { nodes, tool, timelineOpen, templatePicker, open, onNodesChange } = useSong()
   const { openTemplatePicker, closeTemplatePicker, selectTemplate, addNode, fitRequest, dragKind } = useSong()
+  const { connect, disconnect, setSnap } = useSong()
+  const edges = useMemo(() => wiresOf(nodes), [nodes])
   const { screenToFlowPosition, fitView } = useReactFlow()
   const { songId } = useParams()
   const song = useWorkspace((s) => s.songs.find((song) => song.id === songId))
@@ -67,6 +104,19 @@ export function SongCanvas() {
           edges={edges}
           nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
+          onEdgesChange={(changes: EdgeChange[]) =>
+            changes.forEach((c) => c.type === 'remove' && disconnect(...(c.id.split('|') as [string, string])))
+          }
+          edgeTypes={edgeTypes}
+          connectionLineComponent={WireLine}
+          connectOnClick={false}
+          connectionRadius={0}
+          // Let go near a section and the wire plugs into whichever socket it was drawn to.
+          onConnectEnd={(_, state) => {
+            const snap = useSong.getState().snap
+            if (snap && state.fromNode) connect(state.fromNode.id, snap.section, snap.role)
+            setSnap(null)
+          }}
           fitView
           fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
           panOnDrag={tool === 'hand'}
