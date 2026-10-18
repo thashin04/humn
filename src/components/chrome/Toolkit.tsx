@@ -1,8 +1,9 @@
 import { useReactFlow, useViewport } from '@xyflow/react'
-import { AlignBottomBox, ChatBubbleEmpty, CursorPointer, Redo, Undo, ZoomIn, ZoomOut } from 'iconoir-react'
+import { AlignBottomBox, AppWindow, ChatBubbleEmpty, CursorPointer, Redo, Undo, ZoomIn, ZoomOut } from 'iconoir-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
+import { useAddNode } from './useAddNode'
 
 const ICON = { width: 18, height: 18, strokeWidth: 1.5 }
 
@@ -10,6 +11,7 @@ export function Toolkit() {
   const { tool, setTool, undo, redo } = useSong()
   const canUndo = useSong((s) => s.past.length > 0)
   const canRedo = useSong((s) => s.future.length > 0)
+  const add = useAddNode()
 
   return (
     <div className="flex h-[42px] items-center gap-2 rounded-full bg-card px-1.5 shadow-lift">
@@ -18,6 +20,9 @@ export function Toolkit() {
       </ToolButton>
       <ToolButton label="Comment (C)" active={tool === 'comment'} onClick={() => setTool(tool === 'comment' ? 'select' : 'comment')}>
         <ChatBubbleEmpty {...ICON} />
+      </ToolButton>
+      <ToolButton label="Add a section" onClick={() => add('section')}>
+        <AppWindow {...ICON} />
       </ToolButton>
       <Sep />
       <ToolButton label="Undo (⌘Z)" onClick={undo} disabled={!canUndo}>

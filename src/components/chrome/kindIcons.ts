@@ -5,6 +5,7 @@ import {
   MediaImage,
   Microphone,
   MusicDoubleNote,
+  Quote,
   ViewColumns3,
   Voice,
 } from 'iconoir-react'
@@ -14,6 +15,7 @@ import type { Kind } from '@/data/nodes'
 /** Iconoir icon per kind, shared by the rail and its drawer tiles. */
 export const KIND_ICONS: Record<Kind, ComponentType<SVGProps<SVGSVGElement>>> = {
   words: AlignLeft,
+  lyrics: Quote,
   voice: Microphone,
   photo: MediaImage,
   feeling: Emoji,

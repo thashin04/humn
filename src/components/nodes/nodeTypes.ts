@@ -4,16 +4,21 @@ import {
   ColorNode,
   FeelingNode,
   InstrumentNode,
+  LyricsNode,
   PhotoNode,
-  SectionNode,
   SoundNode,
   VoiceNode,
   WordsNode,
 } from './nodes'
 import { TakeNode } from './take'
 
+import { GhostNode } from './ghost'
+import { SectionNode } from './section'
+
 export const nodeTypes: NodeTypes = {
+  ghost: GhostNode,
   words: WordsNode,
+  lyrics: LyricsNode,
   voice: VoiceNode,
   photo: PhotoNode,
   feeling: FeelingNode,

@@ -1,10 +1,11 @@
 import type { Node } from '@xyflow/react'
 
 /** What a node does to the music. A section has one socket per role. */
-export type Role = 'intent' | 'melody' | 'harmony' | 'mood' | 'texture' | 'instruments'
+export type Role = 'intent' | 'lyrics' | 'melody' | 'harmony' | 'mood' | 'texture' | 'instruments'
 
 export const ROLES: { id: Role; name: string }[] = [
   { id: 'intent', name: 'Intent' },
+  { id: 'lyrics', name: 'Lyrics' },
   { id: 'melody', name: 'Melody' },
   { id: 'harmony', name: 'Harmony' },
   { id: 'mood', name: 'Mood' },
@@ -12,11 +13,12 @@ export const ROLES: { id: Role; name: string }[] = [
   { id: 'instruments', name: 'Instruments' },
 ]
 
-export type Kind = 'words' | 'voice' | 'photo' | 'feeling' | 'sound' | 'color' | 'instrument' | 'chords'
+export type Kind = 'words' | 'lyrics' | 'voice' | 'photo' | 'feeling' | 'sound' | 'color' | 'instrument' | 'chords'
 
 /** Each kind starts in a role; people can drop it into a different socket. */
 export const DEFAULT_ROLE: Record<Kind, Role> = {
   words: 'intent',
+  lyrics: 'lyrics',
   voice: 'melody',
   photo: 'mood',
   feeling: 'mood',
@@ -27,6 +29,8 @@ export const DEFAULT_ROLE: Record<Kind, Role> = {
 }
 
 export type WordsData = { text: string }
+/** Lines to be sung, in the person's own words. */
+export type LyricsData = { text: string }
 export type VoiceData = { label: string; duration: number }
 export type PhotoData = { caption: string; src?: string }
 export type FeelingData = { name: string; amount: number }
@@ -35,12 +39,25 @@ export type ColorData = { label: string; gradient: string }
 export type InstrumentData = { tab: string; name: string; detail: string; thumb?: string }
 export type ChordsData = { chords: string[] }
 /** A section says what's plugged into each of its sockets; the wires are drawn from this. */
-export type SectionData = { name: string; length: number; sources: Partial<Record<Role, string[]>> }
+export type Vocals = 'none' | 'hum' | 'words'
+export type SectionData = {
+  name: string
+  length: number
+  sources: Partial<Record<Role, string[]>>
+  /** What this part is called on the card; falls back to the song's title. */
+  title?: string
+  /** A note in people's own words for just this section ("start gently, then let the piano open up"). */
+  direction?: string
+  /** 0 gentle … 1 lively. */
+  energy?: number
+  vocals?: Vocals
+}
 /** Two versions of what a section made. Making until the mock "listening" ends. */
 export type TakeData = { sectionId: string; state: 'making' | 'done'; version: 'A' | 'B'; length: number }
 
 type DataOf = {
   words: WordsData
+  lyrics: LyricsData
   voice: VoiceData
   photo: PhotoData
   feeling: FeelingData
@@ -62,6 +79,7 @@ export type AnySongNode = { [K in NodeKind]: SongNode<K> }[NodeKind]
  */
 export const STARTING_DATA: { [K in NodeKind]: DataOf[K] } = {
   words: { text: '' },
+  lyrics: { text: '' },
   voice: { label: 'Nana humming', duration: 47 },
   photo: { caption: 'The red house, 1997' },
   feeling: { name: 'Nostalgia', amount: 0.7 },

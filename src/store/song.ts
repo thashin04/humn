@@ -58,6 +58,8 @@ type SongState = {
   snap: { section: string; role: Role } | null
   /** The connection just made, for a moment, so it can pulse into place. */
   fresh: { id: string; source: string; section: string; role: Role } | null
+  /** The section just created from the suggestion; its settings open right away, until it's deselected. */
+  made: string | null
   /** The take that's playing; the wires into its section flow while it does. */
   playing: string | null
   /** Swaps the canvas to another song, keeping the one being left. */
@@ -75,6 +77,11 @@ type SongState = {
   disconnect: (source: string, section: string) => void
   /** Makes (or remakes) a section's two takes, beside it and wired from it. */
   makeTakes: (sectionId: string) => void
+  /** The prompt someone is typing into, so nothing is suggested from it until they're done. */
+  drafting: string | null
+  setDrafting: (id: string | null) => void
+  /** Turns the suggested first part into a real section at `at`, with `source` plugged in when there is one. */
+  startFirstPart: (source: string | null, at: XYPosition, role: Role, energy: number) => void
   setPlaying: (takeId: string | null) => void
   updateData: (id: string, patch: Record<string, unknown>) => void
   setTool: (tool: Tool) => void
@@ -98,6 +105,14 @@ type SongState = {
 }
 
 let freshTimer = 0
+
+type Fresh = NonNullable<SongState['fresh']>
+/** Marks a connection as just made, for its pulse, and clears it once the pulse has run. */
+function pulse(set: (fn: (s: SongState) => Partial<SongState> | SongState) => void, fresh: Fresh) {
+  clearTimeout(freshTimer)
+  freshTimer = window.setTimeout(() => set((t) => (t.fresh === fresh ? { fresh: null } : t)), 900)
+  return fresh
+}
 // How long the pretend "listening" takes before the two takes are ready.
 const MAKING_MS = 2600
 
@@ -122,7 +137,9 @@ export const useSong = create<SongState>()(
   fitRequest: 0,
   dragKind: null,
   snap: null,
+  drafting: null,
   fresh: null,
+  made: null,
   playing: null,
   open: (songId) =>
     set((s) => {
@@ -151,11 +168,13 @@ export const useSong = create<SongState>()(
       )
       const nodes = unplug(applyNodeChanges(changes, s.nodes), (id) => gone.includes(id))
       const picking = changes.some((c) => c.type === 'select' && c.selected)
+      const left = changes.some((c) => (c.type === 'select' && !c.selected) || c.type === 'remove' ? c.id === s.made : false)
       return {
         ...(picking ? { clip: null } : {}),
         ...(gone.length || starts ? remember(s) : {}),
         nodes,
         saved: s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved,
+        ...(left && { made: null }),
       }
     }),
   addNode: (kind, at, data) => {
@@ -183,15 +202,15 @@ export const useSong = create<SongState>()(
   setSnap: (snap) => set((s) => (s.snap?.section === snap?.section && s.snap?.role === snap?.role ? s : { snap })),
   connect: (source, section, role) =>
     set((s) => {
-      const nodes = unplug(s.nodes, (id) => id === source).map((n) =>
-        n.id === section && n.type === 'section'
-          ? { ...n, data: { ...n.data, sources: { ...n.data.sources, [role]: [...(n.data.sources[role] ?? []), source] } } }
-          : n,
-      )
-      const fresh = { id: `${source}|${section}`, source, section, role }
-      clearTimeout(freshTimer)
-      freshTimer = window.setTimeout(() => set((t) => (t.fresh === fresh ? { fresh: null } : t)), 900)
-      return { ...remember(s), ...keep(s, nodes), fresh }
+      // The card just plugged in becomes the selection.
+      const nodes = unplug(s.nodes, (id) => id === source).map((n) => {
+        const sel = n.id === source
+        const m = n.selected === sel ? n : ({ ...n, selected: sel } as AnySongNode)
+        return m.id === section && m.type === 'section'
+          ? { ...m, data: { ...m.data, sources: { ...m.data.sources, [role]: [...(m.data.sources[role] ?? []), source] } } }
+          : m
+      })
+      return { ...remember(s), ...keep(s, nodes), fresh: pulse(set, { id: `${source}|${section}`, source, section, role }) }
     }),
   disconnect: (source, section) =>
     set((s) => ({ ...remember(s), ...keep(s, unplug(s.nodes, (id) => id === source, section)) })),
@@ -225,6 +244,28 @@ export const useSong = create<SongState>()(
     )
   },
   setPlaying: (playing) => set({ playing }),
+  setDrafting: (drafting) => set({ drafting }),
+  startFirstPart: (source, at, role, energy) => {
+    const id = nanoid(8)
+    // Shift the section so the row it plugs into sits level with the card, keeping the wire straight.
+    // (A new section is about 450 tall, and its first row's middle is about 170 down.)
+    const socket = 170
+    const section = {
+      id,
+      type: 'section',
+      position: { x: at.x, y: at.y - socket + 450 / 2 },
+      origin: [0.5, 0.5],
+      data: { ...structuredClone(STARTING_DATA.section), energy },
+    } as AnySongNode
+    set((s) => keep(s, [...s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), section]))
+    if (source) get().connect(source, id, role)
+    // The new section ends up selected, with its settings open. Pull back so the cards and it are all in view.
+    set((s) => ({
+      ...keep(s, s.nodes.map((n) => (!!n.selected === (n.id === id) ? n : ({ ...n, selected: n.id === id } as AnySongNode)))),
+      made: id,
+      fitRequest: s.fitRequest + 1,
+    }))
+  },
   updateData: (id, patch) =>
     set((s) => ({
       // Typing into a card, or a slider on it, is one step until it rests.
