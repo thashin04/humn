@@ -1,5 +1,6 @@
 import { Bookmark, Folder, Group, MoreHoriz, MusicNote, Plus, SidebarCollapse, SidebarExpand, Trash } from 'iconoir-react'
 import { useState, type ComponentType, type DragEvent, type ReactElement, type ReactNode, type SVGProps } from 'react'
+import logoWordmark from '@/assets/figma/logo-wordmark.svg'
 import { Avatar } from '@/components/Avatar'
 import {
   DropdownMenu,
@@ -51,9 +52,13 @@ export function Sidebar() {
         collapsed ? 'w-[52px] items-center px-[7px] py-3' : 'w-[232px] px-3 py-4',
       )}
     >
-      {/* The wordmark (a placeholder for the logo), with the collapse toggle; collapsed shows only the toggle */}
+      {/* The wordmark, with the collapse toggle; collapsed shows only the toggle */}
       <div className={cn('flex items-center', collapsed ? 'pb-2' : 'gap-2 px-1.5 pt-1 pb-3')}>
-        {!collapsed && <p className="flex-1 pl-1.5 text-[19px] leading-none font-semibold tracking-[-0.04em] text-ink">humn</p>}
+        {!collapsed && (
+          <div className="flex-1 pl-1.5">
+            <img src={logoWordmark} alt="humn" className="h-[18px] w-auto" />
+          </div>
+        )}
         <WithTooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} show>
           <button
             onClick={toggleSidebar}
