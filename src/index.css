@@ -240,6 +240,9 @@
 /* The comment tool: everything on the canvas becomes somewhere to leave a comment. */
 .react-flow.commenting .react-flow__pane,
 .react-flow.commenting .react-flow__node { cursor: crosshair; }
+/* Moving around: cards let presses through to the canvas, so dragging anywhere moves the view. */
+.react-flow.moving .react-flow__node,
+.react-flow.moving .react-flow__edge { pointer-events: none; }
 
 /* Node motion, after the studio prototype: spring in, and one shine across a node when it's selected */
 @keyframes node-enter {

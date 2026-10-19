@@ -6,7 +6,7 @@ import pause from '@/assets/figma/node-pause.svg'
 import play from '@/assets/figma/take-play.svg'
 import { clock, type SongNode } from '@/data/nodes'
 import { cn } from '@/lib/utils'
-import { useSong } from '@/store/song'
+import { useInPickedClip, useSong } from '@/store/song'
 import { NodeShell } from './NodeShell'
 import { useProgress } from './usePlayback'
 import { TAKE_BARS } from './waves'
@@ -22,6 +22,7 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
   const { setPlaying, addToTimeline, toggleTimeline } = useSong()
   const timelineOpen = useSong((s) => s.timelineOpen)
   const playing = useSong((s) => s.playing === id)
+  const inPickedClip = useInPickedClip(id)
   const sectionName = useSong((s) => {
     const n = s.nodes.find((n) => n.id === data.sectionId)
     return n?.type === 'section' ? n.data.name : 'Verse'
@@ -38,7 +39,7 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
       icon={iconTake}
       label={`Take ${data.version} · ${sectionName}`}
       meta={clock(data.length)}
-      selected={selected}
+      selected={selected || inPickedClip}
       dashed={!added}
       port={added ? 'follows' : undefined}
     >

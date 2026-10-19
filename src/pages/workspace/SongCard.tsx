@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Copy, ExternalLink, FolderInput, Share2, Trash2 } from 'lucide-react'
-import add from '@/assets/figma/ws-add.svg'
+import { Copy, ExternalLink, FolderInput, Plus, Share2, Trash2 } from 'lucide-react'
 import dots from '@/assets/figma/ws-dots.svg'
 import { Faces } from '@/components/Avatar'
 import {
@@ -16,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { editedLabel, type Song } from '@/data/workspace'
 import { cn } from '@/lib/utils'
+import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 import {
   ContextMenu,
@@ -27,6 +27,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import { CanvasThumb } from './CanvasThumb'
 import { SONG_DRAG_TYPE } from './views'
 
 export function SongCard({ song }: { song: Song }) {
@@ -52,7 +53,7 @@ export function SongCard({ song }: { song: Song }) {
           song.trashed && 'cursor-default opacity-60',
         )}
       >
-        {song.thumbnail && <img src={song.thumbnail} alt="" className="absolute inset-0 size-full max-w-none" />}
+        <Thumb song={song} />
       </button>
       <div className="flex flex-col gap-1.5 px-3 pb-3">
         <p className="type-title truncate text-ink">{song.title}</p>
@@ -190,16 +191,41 @@ export function SongMenu({ song }: { song: Song }) {
   )
 }
 
+/**
+ * Once a song has been opened its thumbnail is drawn from its canvas, so it
+ * keeps up with every change. Until then the sample songs show their artwork.
+ */
+function Thumb({ song }: { song: Song }) {
+  const nodes = useSong((s) => s.saved[song.id])
+  if (nodes) return <CanvasThumb nodes={nodes} />
+  return song.thumbnail ? <img src={song.thumbnail} alt="" className="absolute inset-0 size-full max-w-none" /> : null
+}
+
 export function NewSongCard({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex min-h-[221px] w-full flex-col items-center justify-center gap-2 rounded-[12px] border border-dashed border-rule-strong bg-card shadow-lift hover:bg-well/60"
+      className="relative flex min-h-[221px] w-full flex-col items-center justify-center gap-2.5 rounded-[12px] bg-ink text-on-ink shadow-lift transition-[transform,background-color] duration-150 hover:bg-ink/90 active:scale-[0.99]"
     >
-      <span className="flex size-7 items-center justify-center rounded-[8px] bg-well">
-        <img src={add} alt="" />
+      {/* A drawn outline, so the dashes can be spaced out further than a CSS border allows. */}
+      <svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full">
+        <rect
+          x="6"
+          y="6"
+          width="calc(100% - 12px)"
+          height="calc(100% - 12px)"
+          rx="8"
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity="0.35"
+          strokeWidth="1.5"
+          strokeDasharray="6 8"
+        />
+      </svg>
+      <span className="flex size-8 items-center justify-center rounded-[8px] bg-on-ink/12">
+        <Plus className="size-4" strokeWidth={1.75} />
       </span>
-      <span className="type-caption text-ink-2">New song</span>
+      <span className="type-caption">New song</span>
     </button>
   )
 }
@@ -218,7 +244,7 @@ export function SongRow({ song }: { song: Song }) {
         className="flex min-w-0 flex-1 items-center gap-4 text-left"
       >
         <span className="relative h-9 w-[72px] shrink-0 overflow-hidden rounded-[6px] bg-ground">
-          {song.thumbnail && <img src={song.thumbnail} alt="" className="absolute inset-0 size-full max-w-none" />}
+          <Thumb song={song} />
         </span>
         <span className="type-title truncate text-ink">{song.title}</span>
       </button>

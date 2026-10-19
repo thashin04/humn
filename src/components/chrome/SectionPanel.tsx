@@ -4,7 +4,7 @@ import { type CSSProperties, type ReactNode } from 'react'
 import { nameOf } from '@/data/library'
 import { purposeOf } from '@/data/interpret'
 import { LENGTHS, PARTS } from '@/data/parts'
-import { ROLES, type AnySongNode, type Kind, type SongNode, type Vocals } from '@/data/nodes'
+import { ROLES, roleOf, type AnySongNode, type Kind, type SongNode, type Vocals } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { KIND_ICONS } from './kindIcons'
@@ -34,19 +34,29 @@ export function SectionPanel() {
     )
     return shaped || section.id === s.made || !!s.focusedInputId ? section : null
   })
+  // A card on its own, opened from its Edit button.
+  const card = useSong((s) => {
+    const picked = s.nodes.filter((n) => n.selected)
+    return picked.length === 1 && picked[0].id === s.editing ? picked[0] : null
+  })
   const focusedInputId = useSong((s) => s.focusedInputId)
   const nodes = useSong((s) => s.nodes)
   const setFocusedInput = useSong((s) => s.setFocusedInput)
+  const editInput = useSong((s) => s.editInput)
   const focusedInput = section && focusedInputId
     ? connectedInputs(section, nodes).find(({ node }) => node.id === focusedInputId)
     : null
+  // The socket it's plugged into, or the one it would go in.
+  const cardRole = card &&
+    (ROLES.find((r) => nodes.some((n) => n.type === 'section' && n.data.sources[r.id]?.includes(card.id))) ??
+      ROLES.find((r) => r.id === roleOf(card.type))!)
 
   return (
     <MotionConfig reducedMotion="user">
       <AnimatePresence>
-        {section && (
+        {(card || section) && (
           <motion.aside
-            key={section.id}
+            key={(card ?? section)!.id}
             initial={{ opacity: 0, x: 28, scale: 0.98 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 20, scale: 0.98, transition: { duration: 0.16, ease: [0.25, 0.8, 0.25, 1] } }}
@@ -55,10 +65,12 @@ export function SectionPanel() {
             className="pointer-events-auto flex max-h-full w-[300px] flex-col overflow-hidden rounded-[26px] bg-card shadow-lift"
             aria-label="Section settings"
           >
-            {focusedInput ? (
+            {card && cardRole ? (
+              <InputSettings input={{ node: card, role: cardRole }} onBack={() => editInput(null)} closes />
+            ) : focusedInput ? (
               <InputSettings input={focusedInput} onBack={() => setFocusedInput(null)} />
             ) : (
-              <Settings section={section} onOpenInput={setFocusedInput} />
+              section && <Settings section={section} onOpenInput={setFocusedInput} />
             )}
           </motion.aside>
         )}
@@ -230,7 +242,16 @@ function connectedInputs(section: SongNode<'section'>, nodes: AnySongNode[]) {
   )
 }
 
-function InputSettings({ input, onBack }: { input: { node: AnySongNode; role: (typeof ROLES)[number] }; onBack: () => void }) {
+function InputSettings({
+  input,
+  onBack,
+  closes,
+}: {
+  input: { node: AnySongNode; role: (typeof ROLES)[number] }
+  onBack: () => void
+  /** Opened on its own rather than from a section, so there's nothing to go back to: it closes instead. */
+  closes?: boolean
+}) {
   const Icon = input.node.type in KIND_ICONS ? KIND_ICONS[input.node.type as Kind] : null
 
   return (
@@ -238,11 +259,18 @@ function InputSettings({ input, onBack }: { input: { node: AnySongNode; role: (t
       <div className="flex items-start gap-2.5 px-5 pt-[18px] pb-3">
         <button
           type="button"
-          aria-label="Back to section settings"
+          aria-label={closes ? 'Close' : 'Back to section settings'}
           onClick={onBack}
-          className="-ml-2 flex size-7 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-well hover:text-ink-1"
+          className={cn(
+            'flex size-7 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-well hover:text-ink-1',
+            closes ? 'order-last -mr-2' : '-ml-2',
+          )}
         >
-          <NavArrowDown width={17} height={17} strokeWidth={1.5} className="rotate-90" />
+          {closes ? (
+            <Xmark width={17} height={17} strokeWidth={1.5} />
+          ) : (
+            <NavArrowDown width={17} height={17} strokeWidth={1.5} className="rotate-90" />
+          )}
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">

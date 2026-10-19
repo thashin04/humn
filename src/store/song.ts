@@ -2,7 +2,7 @@ import { applyNodeChanges, type Edge, type NodeChange, type XYPosition } from '@
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { CLIP_DEFAULTS, newClip, type Clip } from '@/data/clips'
+import { CLIP_DEFAULTS, clipsOf, newClip, type Clip } from '@/data/clips'
 import { roleOf, STARTING_DATA, type AnySongNode, type Kind, type NodeKind, type Role, type SectionData, type SongNode, type TakeEdit } from '@/data/nodes'
 import { SEED_CANVASES } from '@/data/seedCanvases'
 import { templateNodes, type TemplateId } from '@/data/templates'
@@ -64,6 +64,9 @@ type SongState = {
   playing: string | null
   /** The input currently being inspected in the selected section. */
   focusedInputId: string | null
+  /** The card whose settings are open in the side panel, from its Edit button. */
+  editing: string | null
+  editInput: (id: string | null) => void
   /** Swaps the canvas to another song, keeping the one being left. */
   open: (songId: string) => void
   onNodesChange: (changes: NodeChange<AnySongNode>[]) => void
@@ -159,6 +162,7 @@ export const useSong = create<SongState>()(
   made: null,
   playing: null,
   focusedInputId: null,
+  editing: null,
   open: (songId) =>
     set((s) => {
       if (s.songId === songId) return s
@@ -173,6 +177,7 @@ export const useSong = create<SongState>()(
         focus: null,
         clip: null,
         focusedInputId: null,
+        editing: null,
         nodes: nodes.map((n) => ({ ...n, selected: false })),
         // Frame whatever's there once it's measured.
         fitRequest: nodes.length ? s.fitRequest + 1 : s.fitRequest,
@@ -203,8 +208,13 @@ export const useSong = create<SongState>()(
       const nodes = next.filter((node) => !removed.has(node.id))
       const picking = changes.some((c) => c.type === 'select' && c.selected)
       const left = changes.some((c) => (c.type === 'select' && !c.selected) || c.type === 'remove' ? c.id === s.made : false)
+      // Letting go of the card being edited closes its settings.
+      const stopEditing = changes.some(
+        (c) => (c.type === 'select' && !c.selected) || c.type === 'remove' ? c.id === s.editing : false,
+      )
       return {
         ...(picking ? { clip: null } : {}),
+        ...(stopEditing && { editing: null }),
         ...(gone.length || starts ? remember(s) : {}),
         nodes,
         saved: s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved,
@@ -367,6 +377,7 @@ export const useSong = create<SongState>()(
   },
   setPlaying: (playing) => set({ playing }),
   setFocusedInput: (focusedInputId) => set({ focusedInputId }),
+  editInput: (editing) => set({ editing }),
   setDrafting: (drafting) => set({ drafting }),
   startFirstPart: (source, at, role, energy) => {
     const id = nanoid(8)
@@ -535,6 +546,15 @@ function keep(s: SongState, nodes: AnySongNode[]) {
   // Only takes added on purpose go in the song (see addToTimeline), so nothing joins the timeline here.
   const saved = s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved
   return { nodes, saved }
+}
+
+/** True while the clip picked in the timeline is this section, or the take it plays. */
+export function useInPickedClip(nodeId: string) {
+  return useSong((s) => {
+    if (!s.clip || !s.timelineOpen) return false
+    const picked = clipsOf(s.nodes, s.songId ? s.arrangements[s.songId] : undefined).find((i) => i.clip.id === s.clip)
+    return picked?.section.id === nodeId || picked?.take.id === nodeId
+  })
 }
 
 /** True while a take is playing whose section this card is plugged into. */

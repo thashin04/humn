@@ -9,7 +9,7 @@ import { DRAWERS } from '@/data/library'
 import { clock, DEFAULT_ROLE, ROLES, type AnySongNode, type Kind, type Role, type SongNode } from '@/data/nodes'
 import { LENGTHS, PARTS } from '@/data/parts'
 import { cn } from '@/lib/utils'
-import { useSong } from '@/store/song'
+import { useInPickedClip, useSong } from '@/store/song'
 import { NodeShell } from './NodeShell'
 
 const ADDABLE: Kind[] = ['lyrics', 'voice', 'photo', 'sound', 'color', 'instrument']
@@ -43,6 +43,8 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
   const layout = filled.map((f) => f.role).join()
   useEffect(() => updateNodeInternals(id), [layout, id, updateNodeInternals])
   const count = filled.reduce((n, f) => n + f.cards.length, 0)
+  // Picking one of this part's clips in the timeline lights it up here too.
+  const inPickedClip = useInPickedClip(id)
 
   return (
     <NodeShell
@@ -50,7 +52,7 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
       tall
       icon={iconSection}
       label={data.name}
-      selected={selected}
+      selected={selected || inPickedClip}
       targeted={targeted}
       tab={
         <Menu

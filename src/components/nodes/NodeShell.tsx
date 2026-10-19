@@ -4,6 +4,7 @@ import grip from '@/assets/figma/node-grip.svg'
 import type { Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
+import { NodeActions } from './NodeActions'
 
 /** Hump radius, and the small concave fillet that blends it into the card's edge. */
 const R = 13
@@ -251,6 +252,8 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
       </div>
 
       <div className="node-shine pointer-events-none absolute inset-0" style={{ clipPath: d ? `path('${d}')` : undefined }} />
+
+      {port && !ghost && <NodeActions wire={out} />}
 
       {port && (
         <Handle

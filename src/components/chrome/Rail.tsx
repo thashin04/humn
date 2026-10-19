@@ -5,6 +5,7 @@ import type { Kind } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { Drawer } from './Drawer'
+import { ButtonTip } from './ButtonTip'
 import { KIND_ICONS } from './kindIcons'
 import { useAddNode } from './useAddNode'
 
@@ -12,6 +13,16 @@ import { useAddNode } from './useAddNode'
 // Prompts and lyrics are written, not picked: they go straight onto the canvas.
 const WRITTEN: Kind[] = ['words', 'lyrics']
 const KINDS: Kind[] = ['words', 'lyrics', 'voice', 'photo', 'sound', 'color', 'instrument']
+/** What each button does, for its tooltip. */
+const HINTS: Partial<Record<Kind, string>> = {
+  words: 'Write a prompt',
+  lyrics: 'Write lyrics',
+  voice: 'Record your voice',
+  photo: 'Add an image',
+  sound: 'Add a sound',
+  color: 'Pick a colour',
+  instrument: 'Add an instrument',
+}
 
 /**
  * The rail grows into a drawer, still one floating card: pressing a kind opens
@@ -71,9 +82,8 @@ export function Rail() {
         {KINDS.map((k) => {
           const Icon = KIND_ICONS[k]
           return (
+            <ButtonTip key={k} label={HINTS[k] ?? DRAWERS[k].label} side="right">
             <button
-              key={k}
-              title={DRAWERS[k].label}
               aria-label={DRAWERS[k].label}
               aria-expanded={WRITTEN.includes(k) ? undefined : drawer === k}
               onClick={() => (WRITTEN.includes(k) ? write(k) : setDrawer(drawer === k ? null : k))}
@@ -95,6 +105,7 @@ export function Rail() {
               )}
               <Icon width={18} height={18} strokeWidth={1.5} className="relative" />
             </button>
+            </ButtonTip>
           )
         })}
       </div>

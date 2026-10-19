@@ -226,6 +226,7 @@ function useShortcuts() {
         redo()
       } else if (!mod && !e.altKey && e.key === 'v') setTool('select')
       else if (!mod && !e.altKey && e.key === 'c') setTool('comment')
+      else if (!mod && !e.altKey && e.key === 'h') setTool('hand')
       else if (e.key === 'Escape' && tool === 'comment') setTool('select')
       // + and − zoom the canvas, with or without ⌘ (instead of the browser zooming the page); ⇧1 fits it all.
       else if (e.key === '=' || e.key === '+') {
@@ -361,9 +362,10 @@ function Canvas() {
           panOnDrag={tool === 'hand'}
           selectionOnDrag={tool === 'select'}
           // Commenting: a press anywhere, on a card or not, starts a comment there.
-          nodesDraggable={!commenting}
-          nodesConnectable={!commenting}
-          elementsSelectable={!commenting}
+          // Moving around: a press anywhere, on a card or not, drags the view.
+          nodesDraggable={tool === 'select'}
+          nodesConnectable={tool === 'select'}
+          elementsSelectable={tool === 'select'}
           onPaneClick={(e) => {
             setOpenComment(null)
             if (commenting) setDraft(screenToFlowPosition({ x: e.clientX, y: e.clientY }))
@@ -375,7 +377,7 @@ function Canvas() {
           }}
           panOnScroll
           proOptions={{ hideAttribution: true }}
-          className={tool === 'hand' ? 'cursor-grab' : commenting ? 'commenting' : undefined}
+          className={tool === 'hand' ? 'moving' : commenting ? 'commenting' : undefined}
         >
           <CanvasComments
             draft={draft}
