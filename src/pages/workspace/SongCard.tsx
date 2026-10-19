@@ -204,28 +204,21 @@ function Thumb({ song }: { song: Song }) {
 export function NewSongCard({ onClick }: { onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="relative flex min-h-[221px] w-full flex-col items-center justify-center gap-2.5 rounded-[12px] bg-ink text-on-ink shadow-lift transition-[transform,background-color] duration-150 hover:bg-ink/90 active:scale-[0.99]"
+      aria-label="Create a new song from a blank canvas"
+      className="shine-button group relative flex min-h-[221px] w-full overflow-hidden rounded-[14px] border border-rule-strong bg-level text-center shadow-lift transition-[border-color,box-shadow,transform] duration-300 ease-out hover:-translate-y-0.5 hover:border-ink-3 hover:shadow-[0_12px_30px_rgb(20_22_26/0.11)]"
     >
-      {/* A drawn outline, so the dashes can be spaced out further than a CSS border allows. */}
-      <svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full">
-        <rect
-          x="6"
-          y="6"
-          width="calc(100% - 12px)"
-          height="calc(100% - 12px)"
-          rx="8"
-          fill="none"
-          stroke="currentColor"
-          strokeOpacity="0.35"
-          strokeWidth="1.5"
-          strokeDasharray="6 8"
-        />
-      </svg>
-      <span className="flex size-8 items-center justify-center rounded-[8px] bg-on-ink/12">
-        <Plus className="size-4" strokeWidth={1.75} />
+      <span aria-hidden className="new-song-pattern pointer-events-none absolute inset-0 opacity-55 transition-opacity duration-500 group-hover:opacity-80" />
+      <span className="relative flex h-full w-full flex-col items-center justify-center gap-3 p-4">
+        <span className="flex size-11 items-center justify-center rounded-[12px] border border-rule-strong bg-button text-ink-2 shadow-[0_2px_8px_rgb(20_22_26/0.06)] transition-[background-color,color,box-shadow,transform] duration-400 ease-out group-hover:scale-105 group-hover:rotate-90 group-hover:bg-card group-hover:text-ink-1 group-hover:shadow-[0_4px_12px_rgb(20_22_26/0.10)]">
+          <Plus className="size-4" strokeWidth={1.75} />
+        </span>
+        <span className="flex min-w-0 flex-col gap-1">
+          <span className="type-title text-ink">New song</span>
+          <span className="type-small text-ink-2">Start from a blank canvas</span>
+        </span>
       </span>
-      <span className="type-caption">New song</span>
     </button>
   )
 }

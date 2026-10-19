@@ -180,7 +180,7 @@ function NavItem({
       <div
         {...dropProps}
         className={cn(
-          'group relative flex shrink-0 items-center rounded-full',
+          'group relative flex shrink-0 items-center rounded-full transition-[background-color,color,box-shadow,transform] duration-500 ease-out hover:translate-x-0.5',
           collapsed ? 'size-[38px] justify-center' : 'h-8 w-full',
           active ? 'bg-nav-active text-nav-ink' : 'text-nav-ink-2 hover:bg-well',
           over && 'ring-[1.5px] ring-select',
