@@ -6,8 +6,8 @@ import iconSection from '@/assets/figma/node-icon-section.svg'
 import { KIND_ICONS } from '@/components/chrome/kindIcons'
 import { slotSentence } from '@/data/interpret'
 import { DRAWERS } from '@/data/library'
-import { clock, DEFAULT_ROLE, ROLES, type AnySongNode, type Kind, type Role, type SongNode } from '@/data/nodes'
-import { LENGTHS, PARTS } from '@/data/parts'
+import { DEFAULT_ROLE, ROLES, type AnySongNode, type Kind, type Role, type SongNode } from '@/data/nodes'
+import { bars, LENGTHS, PARTS } from '@/data/parts'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { NodeShell } from './NodeShell'
@@ -76,10 +76,10 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
             heading="Length"
             value={String(data.length)}
             options={LENGTHS.map(String)}
-            show={(l) => clock(Number(l))}
+            show={(l) => bars(Number(l))}
             onPick={(l) => set({ length: Number(l) })}
             pill
-            trigger={<span className="font-mono text-[12px] text-ink-1">{clock(data.length)}</span>}
+            trigger={<span className="type-caption text-ink-1">{bars(data.length)}</span>}
           />
         </div>
         <div className="flex flex-col gap-1 px-1.5 pb-1.5">
@@ -407,7 +407,7 @@ function Menu({
                     )}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className={cn('type-caption block text-ink-1', pill && 'font-mono text-[12px]')}>{show(o)}</span>
+                      <span className="type-caption block text-ink-1">{show(o)}</span>
                       {hint && <span className="type-small block truncate text-ink-3">{hint}</span>}
                     </span>
                     <Check

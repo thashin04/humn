@@ -3,7 +3,7 @@ import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { type CSSProperties, type ReactNode } from 'react'
 import { nameOf } from '@/data/library'
 import { purposeOf } from '@/data/interpret'
-import { LENGTHS, PARTS } from '@/data/parts'
+import { bars, LENGTHS, PARTS } from '@/data/parts'
 import { ROLES, type AnySongNode, type Kind, type SongNode, type Vocals } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
@@ -119,7 +119,7 @@ function Settings({ section, onOpenInput }: { section: SongNode<'section'>; onOp
 
         <Field label="Length">
           <Pills
-            options={LENGTHS.map((l) => ({ id: String(l), label: l === 60 ? '1 min' : `${l} sec` }))}
+            options={LENGTHS.map((l) => ({ id: String(l), label: bars(l) }))}
             value={String(data.length)}
             onChange={(l) => set({ length: Number(l) })}
           />
