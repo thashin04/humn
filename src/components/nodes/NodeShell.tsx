@@ -1,10 +1,12 @@
-import { Handle, Position, useNodeId, useUpdateNodeInternals } from '@xyflow/react'
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
+import { Position, useNodeId, useUpdateNodeInternals } from '@xyflow/react'
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode, type RefObject, type SVGProps } from 'react'
 import grip from '@/assets/figma/node-grip.svg'
 import type { Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { NodeActions } from './NodeActions'
+import { NodeHandle } from './preview'
+import { Preview } from './previewContext'
 
 /** Hump radius, and the small concave fillet that blends it into the card's edge. */
 const R = 13
@@ -123,7 +125,7 @@ function useSize<T extends HTMLElement>() {
 
 type ShellProps = {
   width: number
-  icon: string
+  icon: ComponentType<SVGProps<SVGSVGElement>>
   label: string
   meta?: string
   /** Sections have the taller title tab. */
@@ -143,10 +145,11 @@ type ShellProps = {
   children: ReactNode
 }
 
-export function NodeShell({ width, icon, label, meta, tall, tab, selected, port, targeted, ghost, dashed, className, children }: ShellProps) {
+export function NodeShell({ width, icon: Icon, label, meta, tall, tab, selected, port, targeted, ghost, dashed, className, children }: ShellProps) {
   const [box, size] = useSize<HTMLDivElement>()
   const id = useNodeId()
   const updateNodeInternals = useUpdateNodeInternals()
+  const preview = useContext(Preview)
   const plugged = useSong((s) => !!port && s.fresh?.source === id)
   // Is this card's pipe plugged into a section? Then its hump flows into the pipe.
   const piped = useSong(
@@ -163,7 +166,8 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
   const ins = humps.map((h) => h.y)
   // The hump sits mid-way down the card's body, below the tab, so on a short card it
   // stays on the straight edge instead of climbing into the top corner.
-  const out = port && size.h ? tabH + (size.h - tabH) / 2 : undefined
+  // An example (a preview) has no connector, so no hump either.
+  const out = port && !preview && size.h ? tabH + (size.h - tabH) / 2 : undefined
   // A section's humps only show where something's plugged in, so all of them have pipes (a ghost's wire isn't one).
   const pipes = { out: piped, ins: !ghost }
   const d = size.h && tabSize.w ? silhouette(size.w, size.h, tabSize.w, tabH, out, ins, pipes) : ''
@@ -226,7 +230,7 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
       >
         {tab ?? (
           <>
-            <img src={icon} alt="" className="size-3.5" />
+            <Icon className="size-3.5 shrink-0 text-ink-2" />
             <p className="type-caption whitespace-nowrap text-ink-2">{label}</p>
           </>
         )}
@@ -253,10 +257,10 @@ export function NodeShell({ width, icon, label, meta, tall, tab, selected, port,
 
       <div className="node-shine pointer-events-none absolute inset-0" style={{ clipPath: d ? `path('${d}')` : undefined }} />
 
-      {port && !ghost && <NodeActions wire={out} />}
+      {port && !ghost && !preview && <NodeActions wire={out} />}
 
       {port && (
-        <Handle
+        <NodeHandle
           type="source"
           id="port"
           position={Position.Right}

@@ -1,10 +1,9 @@
+import { PauseSolid, PlaySolid } from 'iconoir-react'
 import dotInstruments from '@/assets/figma/node-dot-instruments.svg'
 import dotIntent from '@/assets/figma/node-dot-intent.svg'
 import dotMelody from '@/assets/figma/node-dot-melody.svg'
 import dotMood from '@/assets/figma/node-dot-mood.svg'
 import dotTexture from '@/assets/figma/node-dot-texture.svg'
-import pause from '@/assets/figma/node-pause.svg'
-import play from '@/assets/figma/timeline-play.svg'
 import type { Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 
@@ -35,7 +34,7 @@ export function PlayButton({ playing, onClick, label }: { playing: boolean; onCl
         playing ? 'bg-ink' : 'border border-rule bg-well hover:bg-level',
       )}
     >
-      <img src={playing ? pause : play} alt="" className="size-[13px]" />
+      {playing ? <PauseSolid className="size-3.5 text-on-ink" /> : <PlaySolid className="size-3.5 text-ink-1" />}
     </button>
   )
 }

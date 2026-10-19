@@ -61,7 +61,7 @@ function BackToWorkspace() {
       aria-label="Back to workspace"
       className="group/back flex h-[30px] items-center rounded-[8px] px-1.5 text-ink-2 transition-colors duration-200 hover:bg-well hover:text-ink-1"
     >
-      <NavArrowLeft width={18} height={18} strokeWidth={1.6} className="shrink-0" />
+      <NavArrowLeft width={18} height={18} className="shrink-0" />
       <span className="type-caption max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,padding] duration-200 group-hover/back:max-w-24 group-hover/back:pr-1 group-hover/back:pl-1 group-hover/back:opacity-100">
         Workspace
       </span>

@@ -1,13 +1,12 @@
-import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { Check } from 'iconoir-react'
-import { type CSSProperties } from 'react'
-import iconTake from '@/assets/figma/node-icon-take.svg'
-import pause from '@/assets/figma/node-pause.svg'
-import play from '@/assets/figma/take-play.svg'
+import { Position, type NodeProps } from '@xyflow/react'
+import { Check, MusicNote, PauseSolid, PlaySolid } from 'iconoir-react'
+import { useContext, type CSSProperties } from 'react'
 import { clock, type SongNode } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useInPickedClip, useSong } from '@/store/song'
 import { NodeShell } from './NodeShell'
+import { NodeHandle } from './preview'
+import { Preview } from './previewContext'
 import { useProgress } from './usePlayback'
 import { TAKE_BARS } from './waves'
 
@@ -23,6 +22,7 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
   const timelineOpen = useSong((s) => s.timelineOpen)
   const playing = useSong((s) => s.playing === id)
   const inPickedClip = useInPickedClip(id)
+  const preview = useContext(Preview)
   const sectionName = useSong((s) => {
     const n = s.nodes.find((n) => n.id === data.sectionId)
     return n?.type === 'section' ? n.data.name : 'Verse'
@@ -36,7 +36,7 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
   return (
     <NodeShell
       width={280}
-      icon={iconTake}
+      icon={MusicNote}
       label={`Take ${data.version} · ${sectionName}`}
       meta={clock(data.length)}
       selected={selected || inPickedClip}
@@ -46,9 +46,9 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
       <div className="flex flex-col gap-2.5 px-3 pt-2 pb-3">
         <div className="relative flex h-12 items-center gap-2.5 pl-1">
           {/* The pipe from the section comes in here; a branch's leaves from the other side. */}
-          <Handle type="target" id="in" position={Position.Left} isConnectable={false} className="wire-socket" />
-          <span aria-hidden data-hump="" className="wire-hump" style={{ '--c': 'var(--soft-ink)' } as CSSProperties} />
-          <Handle type="source" id="out" position={Position.Right} isConnectable={false} className="wire-out" style={{ top: '50%', right: -12 }} />
+          <NodeHandle type="target" id="in" position={Position.Left} isConnectable={false} className="wire-socket" />
+          {!preview && <span aria-hidden data-hump="" className="wire-hump" style={{ '--c': 'var(--soft-ink)' } as CSSProperties} />}
+          <NodeHandle type="source" id="out" position={Position.Right} isConnectable={false} className="wire-out" style={{ top: '50%', right: -12 }} />
 
           <div className={cn('flex h-7 min-w-0 flex-1 items-center gap-[2.5px] overflow-hidden', !added && !making && 'opacity-70')} aria-hidden>
             {bars.map((h, i) => (
@@ -74,14 +74,14 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
               playing ? 'bg-ink' : 'border border-rule bg-well enabled:hover:bg-level',
             )}
           >
-            <img src={playing ? pause : play} alt="" className="size-[11px]" />
+            {playing ? <PauseSolid className="size-3 text-on-ink" /> : <PlaySolid className="size-3 text-ink-1" />}
           </button>
         </div>
 
         {added ? (
           <div className="flex h-10 items-center gap-2">
             <span className="type-caption flex h-7 items-center gap-1.5 rounded-full bg-ink pr-3 pl-2 text-on-ink">
-              <Check width={13} height={13} strokeWidth={2.2} />
+              <Check width={13} height={13} />
               In timeline
             </span>
             <span className="flex-1" />

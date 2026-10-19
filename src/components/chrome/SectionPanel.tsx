@@ -88,7 +88,7 @@ function Settings({ section, onOpenInput }: { section: SongNode<'section'>; onOp
   return (
     <>
       <div className="flex items-start gap-2.5 px-5 pt-[18px] pb-3">
-        <AppWindow width={18} height={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-ink-1" />
+        <AppWindow width={18} height={18} className="mt-0.5 shrink-0 text-ink-1" />
         <div className="min-w-0 flex-1">
           <p className="text-[15px] leading-[1.3] font-medium text-ink-1">Shape this {data.name.toLowerCase()}</p>
           <p className="type-small text-ink-3">Choose what this part should feel like.</p>
@@ -99,7 +99,7 @@ function Settings({ section, onOpenInput }: { section: SongNode<'section'>; onOp
           onClick={() => onNodesChange([{ type: 'select', id, selected: false }])}
           className="-mt-1 -mr-1.5 flex size-7 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-well hover:text-ink-1"
         >
-          <Xmark width={16} height={16} strokeWidth={1.5} />
+          <Xmark width={16} height={16} />
         </button>
       </div>
 
@@ -140,7 +140,7 @@ function Settings({ section, onOpenInput }: { section: SongNode<'section'>; onOp
         <Connected section={section} onOpenInput={onOpenInput} />
 
         <p className="type-small flex items-center gap-1.5 text-ink-3">
-          <InfoCircle width={14} height={14} strokeWidth={1.5} className="shrink-0" />
+          <InfoCircle width={14} height={14} className="shrink-0" />
           Next: choose “Hear 2 ideas” on the canvas card.
         </p>
       </div>
@@ -218,10 +218,10 @@ function Connected({ section, onOpenInput }: { section: SongNode<'section'>; onO
                 onClick={() => onOpenInput(node.id)}
                 className="flex min-h-11 w-full items-center gap-2 rounded-[10px] px-2 text-left transition-[background-color,color] duration-200 hover:bg-well"
               >
-                {Icon && <Icon width={15} height={15} strokeWidth={1.5} className="shrink-0 text-ink-2" />}
+                {Icon && <Icon width={15} height={15} className="shrink-0 text-ink-2" />}
                 <span className="type-small min-w-0 flex-1 truncate text-ink-1">{inputName(node)}</span>
                 <span className="type-small shrink-0 text-ink-3">{role.name}</span>
-                <NavArrowDown width={14} height={14} strokeWidth={1.5} className="-rotate-90 shrink-0 text-ink-3" />
+                <NavArrowDown width={14} height={14} className="-rotate-90 shrink-0 text-ink-3" />
               </button>
             )
           })}
@@ -267,14 +267,14 @@ function InputSettings({
           )}
         >
           {closes ? (
-            <Xmark width={17} height={17} strokeWidth={1.5} />
+            <Xmark width={17} height={17} />
           ) : (
-            <NavArrowDown width={17} height={17} strokeWidth={1.5} className="rotate-90" />
+            <NavArrowDown width={17} height={17} className="rotate-90" />
           )}
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            {Icon && <Icon width={16} height={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />}
+            {Icon && <Icon width={16} height={16} className="shrink-0 text-ink-2" />}
             <p className="truncate text-[15px] leading-[1.3] font-medium text-ink-1">{inputName(input.node)}</p>
           </div>
           <p className="type-small text-ink-3">{input.role.name} input</p>

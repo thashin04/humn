@@ -1,6 +1,5 @@
+import { ArrowRight, Xmark } from 'iconoir-react'
 import { useEffect, useState } from 'react'
-import arrowRight from '@/assets/figma/arrow-right.svg'
-import close from '@/assets/figma/icon-close.svg'
 import scrim from '@/assets/figma/scrim.svg'
 import { templates } from '@/data/templates'
 import { useSong } from '@/store/song'
@@ -41,15 +40,16 @@ export function TemplatePicker() {
             onClick={closeTemplatePicker}
             className="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-well"
           >
-            <img src={close} alt="" />
+            <Xmark className="size-4 text-ink-2" />
           </button>
         </div>
 
-        <div className="mt-6 flex gap-4">
+        {/* More starters than fit across, so they scroll sideways. */}
+        <div className="-mx-8 mt-6 flex snap-x scroll-px-8 gap-4 overflow-x-auto px-8 pt-1 pb-3 [scrollbar-width:thin]">
           {templates.map((t) => (
             <div
               key={t.id}
-              className={`min-w-0 flex-1 transition-[opacity,transform] duration-300 ease-spring ${hovered && hovered !== t.id ? 'opacity-40' : ''} ${hovered === t.id ? 'scale-[1.02]' : ''}`}
+              className={`w-[252px] shrink-0 snap-start transition-[opacity,transform] duration-300 ease-spring ${hovered && hovered !== t.id ? 'opacity-40' : ''} ${hovered === t.id ? 'scale-[1.02]' : ''}`}
               onPointerEnter={() => setHovered(t.id)}
               onPointerLeave={() => setHovered(null)}
             >
@@ -69,7 +69,7 @@ export function TemplatePicker() {
             className="shine-button type-action mt-px flex h-10 items-center gap-2 rounded-full border border-rule-strong bg-ink pr-3.5 pl-4 text-on-ink"
           >
             Start with {selected.name}
-            <img src={arrowRight} alt="" />
+            <ArrowRight className="size-4" />
           </button>
         </div>
       </div>

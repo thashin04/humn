@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Copy, ExternalLink, FolderInput, Plus, Share2, Trash2 } from 'lucide-react'
-import dots from '@/assets/figma/ws-dots.svg'
+import { Copy, Folder, Link, MoreHoriz, OpenNewWindow, Plus, ShareAndroid, Trash, Undo } from 'iconoir-react'
 import { Faces } from '@/components/Avatar'
 import {
   DropdownMenu,
@@ -87,17 +86,17 @@ function SongContextMenu({ song }: { song: Song }) {
     <ContextMenuContent>
       {song.trashed ? (
         <>
-          <ContextMenuItem onClick={() => restoreSong(song.id)}><ExternalLink />Restore</ContextMenuItem>
-          <ContextMenuItem variant="destructive" onClick={() => deleteSong(song.id)}><Trash2 />Delete forever</ContextMenuItem>
+          <ContextMenuItem onClick={() => restoreSong(song.id)}><Undo />Restore</ContextMenuItem>
+          <ContextMenuItem variant="destructive" onClick={() => deleteSong(song.id)}><Trash />Delete forever</ContextMenuItem>
         </>
       ) : (
         <>
-          <ContextMenuItem onClick={() => navigate(`/song/${song.id}`)}><ExternalLink />Open song</ContextMenuItem>
+          <ContextMenuItem onClick={() => navigate(`/song/${song.id}`)}><OpenNewWindow />Open song</ContextMenuItem>
           <ContextMenuItem onClick={duplicate}><Copy />Duplicate</ContextMenuItem>
-          <ContextMenuItem onClick={copyLink}><Copy />Copy link</ContextMenuItem>
-          <ContextMenuItem onClick={share}><Share2 />Share</ContextMenuItem>
+          <ContextMenuItem onClick={copyLink}><Link />Copy link</ContextMenuItem>
+          <ContextMenuItem onClick={share}><ShareAndroid />Share</ContextMenuItem>
           <ContextMenuSub>
-            <ContextMenuSubTrigger><FolderInput />Move to folder</ContextMenuSubTrigger>
+            <ContextMenuSubTrigger><Folder />Move to folder</ContextMenuSubTrigger>
             <ContextMenuSubContent>
               {folders.map((folder) => (
                 <ContextMenuItem
@@ -117,7 +116,7 @@ function SongContextMenu({ song }: { song: Song }) {
             </ContextMenuSubContent>
           </ContextMenuSub>
           <ContextMenuSeparator />
-          <ContextMenuItem variant="destructive" onClick={() => trashSong(song.id)}><Trash2 />Move to trash</ContextMenuItem>
+          <ContextMenuItem variant="destructive" onClick={() => trashSong(song.id)}><Trash />Move to trash</ContextMenuItem>
         </>
       )}
     </ContextMenuContent>
@@ -146,7 +145,7 @@ export function SongMenu({ song }: { song: Song }) {
         aria-label={`Options for ${song.title}`}
         className="flex size-6 items-center justify-center rounded-[6px] hover:bg-well"
       >
-        <img src={dots} alt="" className="size-4" />
+        <MoreHoriz className="size-4 text-ink-2" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         {song.trashed ? (
@@ -212,7 +211,7 @@ export function NewSongCard({ onClick }: { onClick: () => void }) {
       <span aria-hidden className="new-song-pattern pointer-events-none absolute inset-0 opacity-55 transition-opacity duration-500 group-hover:opacity-80" />
       <span className="relative flex h-full w-full flex-col items-center justify-center gap-3 p-4">
         <span className="flex size-11 items-center justify-center rounded-[12px] border border-rule-strong bg-button text-ink-2 shadow-[0_2px_8px_rgb(20_22_26/0.06)] transition-[background-color,color,box-shadow,transform] duration-400 ease-out group-hover:scale-105 group-hover:rotate-90 group-hover:bg-card group-hover:text-ink-1 group-hover:shadow-[0_4px_12px_rgb(20_22_26/0.10)]">
-          <Plus className="size-4" strokeWidth={1.75} />
+          <Plus className="size-4" />
         </span>
         <span className="flex min-w-0 flex-col gap-1">
           <span className="type-title text-ink">New song</span>
@@ -230,13 +229,13 @@ export function SongRow({ song }: { song: Song }) {
     <div
       draggable={!song.trashed}
       onDragStart={(e) => e.dataTransfer.setData(SONG_DRAG_TYPE, song.id)}
-      className="flex h-14 items-center gap-4 border-b border-rule px-3 last:border-b-0 hover:bg-well/60"
+      className="flex h-[72px] items-center gap-4 border-b border-rule px-4 last:border-b-0 hover:bg-well/60"
     >
       <button
         onClick={() => !song.trashed && navigate(`/song/${song.id}`)}
         className="flex min-w-0 flex-1 items-center gap-4 text-left"
       >
-        <span className="relative h-9 w-[72px] shrink-0 overflow-hidden rounded-[6px] bg-ground">
+        <span className="relative h-12 w-[88px] shrink-0 overflow-hidden rounded-[10px] bg-ground">
           <Thumb song={song} />
         </span>
         <span className="type-title truncate text-ink">{song.title}</span>

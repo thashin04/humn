@@ -1,7 +1,6 @@
 import { Handle, Position, useReactFlow, type Node, type NodeProps } from '@xyflow/react'
-import { Plus } from 'iconoir-react'
+import { AppWindow, Plus } from 'iconoir-react'
 import { type CSSProperties } from 'react'
-import iconSection from '@/assets/figma/node-icon-section.svg'
 import type { Role } from '@/data/nodes'
 import { useSong } from '@/store/song'
 import { NodeShell } from './NodeShell'
@@ -23,11 +22,11 @@ export function GhostNode({ data, positionAbsoluteX, positionAbsoluteY }: NodePr
       width={270}
       tall
       ghost
-      icon={iconSection}
+      icon={AppWindow}
       label="Verse"
       tab={
         <>
-          <img src={iconSection} alt="" className="size-[15px] opacity-70" />
+          <AppWindow className="size-[15px] shrink-0 text-ink-1 opacity-70" />
           <p className="type-title whitespace-nowrap text-ink-2">Verse</p>
         </>
       }
@@ -54,7 +53,7 @@ export function GhostNode({ data, positionAbsoluteX, positionAbsoluteY }: NodePr
           }}
           className="nodrag type-action flex h-10 items-center justify-center gap-2 rounded-full bg-ink text-on-ink transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98]"
         >
-          <Plus width={15} height={15} strokeWidth={1.75} />
+          <Plus width={15} height={15} />
           Create
         </button>
       </div>

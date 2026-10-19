@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { roleOf, type AnySongNode, type Kind, type SongNode } from '@/data/nodes'
 import { useSong } from '@/store/song'
 
-const ICON = { width: 17, height: 17, strokeWidth: 1.6 }
+const ICON = { width: 17, height: 17 }
 /** The fan hugs the card's top-right corner: along its top, round the corner, and down its right side. */
 const GAP = 24 // from the card's edge to a button's middle
 const BEND = 20 // how round the corner it wraps is

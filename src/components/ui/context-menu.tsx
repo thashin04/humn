@@ -1,7 +1,7 @@
 "use client"
 
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu"
-import { ChevronRightIcon } from "lucide-react"
+import { NavArrowRight } from "iconoir-react"
 import { cn } from "@/lib/utils"
 
 function ContextMenu({ ...props }: ContextMenuPrimitive.Root.Props) {
@@ -62,7 +62,7 @@ function ContextMenuSubTrigger({ className, children, ...props }: ContextMenuPri
       {...props}
     >
       {children}
-      <ChevronRightIcon className="ml-auto size-4" />
+      <NavArrowRight className="ml-auto size-4" />
     </ContextMenuPrimitive.SubmenuTrigger>
   )
 }

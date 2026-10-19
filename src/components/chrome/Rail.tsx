@@ -103,7 +103,7 @@ export function Rail() {
                   className="absolute inset-0 rounded-full bg-ink"
                 />
               )}
-              <Icon width={18} height={18} strokeWidth={1.5} className="relative" />
+              <Icon width={18} height={18} className="relative" />
             </button>
             </ButtonTip>
           )

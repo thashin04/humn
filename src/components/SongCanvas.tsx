@@ -444,7 +444,7 @@ function GatherBar() {
         onClick={() => gather(picked)}
         className="type-action animate-wire-card flex h-9 items-center gap-2 rounded-full bg-ink pr-4 pl-3 text-on-ink shadow-lift transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97]"
       >
-        <Plus width={15} height={15} strokeWidth={1.75} />
+        <Plus width={15} height={15} />
         {into ? `Add ${cards} to ${into.type === 'section' ? into.data.name.toLowerCase() : 'section'}` : `Add ${cards} to a section`}
       </button>
     </NodeToolbar>

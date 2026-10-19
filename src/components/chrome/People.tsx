@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download, Share2 } from 'lucide-react'
+import { Download, ShareAndroid } from 'iconoir-react'
 import { Faces } from '@/components/Avatar'
 
 export function People({ ids, songId, title }: { ids: string[]; songId: string; title: string }) {
@@ -70,7 +70,7 @@ export function People({ ids, songId, title }: { ids: string[]; songId: string; 
             </div>
             <div className="flex flex-col gap-2">
               <button onClick={shareCanvas} className="flex min-h-11 items-center gap-3 rounded-[10px] bg-well px-3 text-left hover:bg-level">
-                <Share2 className="size-4 text-ink-2" />
+                <ShareAndroid className="size-4 text-ink-2" />
                 <span className="flex flex-col">
                   <span className="type-action text-ink">Share canvas</span>
                   <span className="type-caption text-ink-3">Send a link to this song</span>

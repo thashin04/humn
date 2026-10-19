@@ -110,7 +110,7 @@ export function PipeEdge({ id, source, target, sourceX, sourceY, targetX, target
                 onClick={() => disconnect(source, target)}
                 className="flex size-6 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-well hover:text-ink-1"
               >
-                <Xmark width={12} height={12} strokeWidth={2} />
+                <Xmark width={12} height={12} />
               </button>
             </div>
           </EdgeLabelRenderer>

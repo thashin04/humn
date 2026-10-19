@@ -117,11 +117,11 @@ export function Drawer({ kind, onClose }: { kind: Kind; onClose: () => void }) {
             onClick={onClose}
             className="flex size-7 items-center justify-center rounded-full hover:bg-well"
           >
-            <SidebarCollapse width={16} height={16} strokeWidth={1.5} className="text-ink-3" />
+            <SidebarCollapse width={16} height={16} className="text-ink-3" />
           </button>
         </div>
         <label className="flex h-[34px] items-center gap-2 rounded-full border border-rule bg-well px-[11px]">
-          <Search width={14} height={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />
+          <Search width={14} height={14} className="shrink-0 text-ink-3" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -265,7 +265,7 @@ function ItemTile({ kind, item, square, inSong }: { kind: Kind; item: LibraryIte
         {item.gradient ? (
           <span className="block h-[42px] flex-1 rounded-[7px]" style={{ background: item.gradient }} />
         ) : (
-          <Icon width={18} height={18} strokeWidth={1.5} className="text-ink-2" />
+          <Icon width={18} height={18} className="text-ink-2" />
         )}
         {kind === 'instrument' && <InstrumentPreview label={item.name} />}
       </span>
@@ -300,7 +300,7 @@ function InstrumentPreview({ label }: { label: string }) {
       onPointerDown={(event) => event.stopPropagation()}
       className="flex size-7 shrink-0 items-center justify-center rounded-full bg-card text-ink-2 shadow-[0_1px_4px_rgb(20_22_26/0.08)] transition-[background-color,color,transform] duration-200 hover:scale-105 hover:bg-ink hover:text-on-ink"
     >
-      {playing ? <Square width={11} height={11} strokeWidth={1.75} /> : <Play width={13} height={13} strokeWidth={1.75} />}
+      {playing ? <Square width={11} height={11} /> : <Play width={13} height={13} />}
     </button>
   )
 }
@@ -349,9 +349,9 @@ function OwnTile({ kind, action }: { kind: Kind; action: OwnAction }) {
         )}
       >
         {kind === 'photo' ? (
-          <MediaImagePlus width={20} height={20} strokeWidth={1.5} className="text-ink-2" />
+          <MediaImagePlus width={20} height={20} className="text-ink-2" />
         ) : (
-          <Plus width={18} height={18} strokeWidth={1.75} className={ROLE_TEXT[role]} />
+          <Plus width={18} height={18} className={ROLE_TEXT[role]} />
         )}
         <span className={cn('text-[12px] leading-[1.3]', kind === 'photo' ? 'text-ink-2' : 'font-medium text-ink-1')}>
           {action.label}

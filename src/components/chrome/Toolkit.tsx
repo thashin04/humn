@@ -1,13 +1,12 @@
 import { useReactFlow, useViewport } from '@xyflow/react'
-import { AlignBottomBox, AppWindow, ChatBubbleEmpty, CursorPointer, Redo, Undo, ZoomIn, ZoomOut } from 'iconoir-react'
-import { Hand } from 'lucide-react'
+import { AlignBottomBox, AppWindow, ChatBubbleEmpty, CursorPointer, OpenSelectHandGesture, Redo, Undo, ZoomIn, ZoomOut } from 'iconoir-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { ButtonTip } from './ButtonTip'
 import { useAddNode } from './useAddNode'
 
-const ICON = { width: 18, height: 18, strokeWidth: 1.5 }
+const ICON = { width: 18, height: 18 }
 
 export function Toolkit() {
   const { tool, setTool, undo, redo } = useSong()
@@ -21,7 +20,7 @@ export function Toolkit() {
         <CursorPointer {...ICON} />
       </ToolButton>
       <ToolButton label="Move around" keys="H" active={tool === 'hand'} onClick={() => setTool('hand')}>
-        <Hand width={17} height={17} strokeWidth={1.5} />
+        <OpenSelectHandGesture {...ICON} />
       </ToolButton>
       <ToolButton label="Comment" keys="C" active={tool === 'comment'} onClick={() => setTool(tool === 'comment' ? 'select' : 'comment')}>
         <ChatBubbleEmpty {...ICON} />
@@ -86,7 +85,7 @@ function TimelineToggle() {
         open ? 'bg-ink text-on-ink' : 'text-ink-2 hover:bg-well hover:text-ink-1',
       )}
     >
-      <AlignBottomBox width={16} height={16} strokeWidth={1.5} />
+      <AlignBottomBox width={16} height={16} />
       Timeline
     </button>
     </ButtonTip>

@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   ArrowUpRight,
   Copy,
   PauseSolid,
@@ -17,7 +18,6 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { nanoid } from 'nanoid'
 import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
-import iconSection from '@/assets/figma/node-icon-section.svg'
 import { DraftPin, PinWithCard } from '@/components/comments/Comments'
 import { TAKE_A, TAKE_B } from '@/components/nodes/waves'
 import { CLIP_DEFAULTS, EFFECTS, SPEEDS, clipsOf, newClip, playTime, type Clip } from '@/data/clips'
@@ -312,7 +312,7 @@ export function TimelineView() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex h-14 shrink-0 items-center gap-2 border-b border-rule px-4">
           <ToolIcon label="Back to the start" onClick={() => seek(0)} disabled={!total}>
-            <SkipPrev width={17} height={17} strokeWidth={1.5} />
+            <SkipPrev width={17} height={17} />
           </ToolIcon>
           <button
             type="button"
@@ -328,14 +328,14 @@ export function TimelineView() {
           </p>
           <span className="mx-2 h-5 w-px bg-rule-strong" />
           <ToolIcon label="Split at the playhead (S)" onClick={split} disabled={current < 0 && sel < 0}>
-            <Scissor width={17} height={17} strokeWidth={1.5} />
+            <Scissor width={17} height={17} />
           </ToolIcon>
           <span className="flex-1" />
           <ToolIcon label="Zoom out" onClick={() => setZoom((z) => Math.max(1, z / 1.5))} disabled={zoom <= 1}>
-            <ZoomOut width={17} height={17} strokeWidth={1.5} />
+            <ZoomOut width={17} height={17} />
           </ToolIcon>
           <ToolIcon label="Zoom in" onClick={() => setZoom((z) => Math.min(8, z * 1.5))} disabled={zoom >= 8}>
-            <ZoomIn width={17} height={17} strokeWidth={1.5} />
+            <ZoomIn width={17} height={17} />
           </ToolIcon>
         </div>
 
@@ -424,7 +424,7 @@ export function TimelineView() {
                   className="type-caption absolute top-2 left-0 flex items-center gap-1.5 rounded-[10px] border border-dashed border-rule-strong px-3.5 text-ink-3 transition-[transform,color,background-color] duration-300 ease-spring hover:bg-well hover:text-ink-1"
                   style={{ height: TRACK_H, transform: `translateX(${PAD + total * pps + (total ? 8 : 0)}px)` }}
                 >
-                  <Plus width={14} height={14} strokeWidth={1.5} />
+                  <Plus width={14} height={14} />
                   Add section
                 </button>
               </div>
@@ -463,7 +463,7 @@ export function TimelineView() {
                 }}
                 className="type-caption flex h-[28px] items-center gap-1.5 rounded-[8px] bg-well px-2.5 text-ink-2 transition-colors hover:bg-level hover:text-ink-1"
               >
-                <Plus width={13} height={13} strokeWidth={1.5} />
+                <Plus width={13} height={13} />
                 {sectionOf(t)?.data.name ?? 'Take'} {t.data.version}
               </button>
             ))}
@@ -644,13 +644,13 @@ function ClipBlock({
       )}
     >
       <div className="flex h-7 shrink-0 items-center gap-1.5 pt-1 pr-2 pl-2.5">
-        <img src={iconSection} alt="" className="size-[12px] shrink-0" draggable={false} />
+        <AppWindow className="size-3 shrink-0 text-ink-1" />
         <p className="type-small min-w-0 truncate text-ink-1">{section.data.name}</p>
         {made && <p className="shrink-0 font-mono text-[10.5px] text-ink-3">{take!.data.version}</p>}
         <span className="flex-1" />
         {width > 200 && (
           <div className="flex min-w-0 gap-1 overflow-hidden">
-            {clip.muted && <Badge><SoundOff width={11} height={11} strokeWidth={1.8} /></Badge>}
+            {clip.muted && <Badge><SoundOff width={11} height={11} /></Badge>}
             {clip.speed !== 1 && <Badge>{clip.speed}×</Badge>}
             {clip.pitch !== 0 && <Badge>{clip.pitch > 0 ? `+${clip.pitch}` : clip.pitch}</Badge>}
             {clip.reversed && <Badge>backwards</Badge>}
@@ -809,7 +809,7 @@ function Properties({
   return (
     <aside className="flex w-[300px] flex-col overflow-hidden rounded-[18px] bg-card shadow-lift">
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-rule pr-2 pl-4">
-        <img src={iconSection} alt="" className="size-[14px]" />
+        <AppWindow className="size-3.5 shrink-0 text-ink-1" />
         <div className="min-w-0 flex-1">
           <p className="type-caption truncate text-ink-1">
             {section.data.name}
@@ -820,10 +820,10 @@ function Properties({
           </p>
         </div>
         <ToolIcon label="Show on canvas" onClick={() => showOnCanvas(section.id)}>
-          <ArrowUpRight width={16} height={16} strokeWidth={1.5} />
+          <ArrowUpRight width={16} height={16} />
         </ToolIcon>
         <ToolIcon label="Close" onClick={onClose}>
-          <Xmark width={16} height={16} strokeWidth={1.5} />
+          <Xmark width={16} height={16} />
         </ToolIcon>
       </div>
 
@@ -841,7 +841,7 @@ function Properties({
                 clip.muted ? 'bg-ink text-on-ink' : 'bg-well text-ink-2 hover:bg-level',
               )}
             >
-              {clip.muted ? <SoundOff width={15} height={15} strokeWidth={1.5} /> : <SoundHigh width={15} height={15} strokeWidth={1.5} />}
+              {clip.muted ? <SoundOff width={15} height={15} /> : <SoundHigh width={15} height={15} />}
             </button>
             <Slider min={0} max={2} step={0.05} value={clip.volume} onChange={(volume) => onChange({ volume, muted: false })} label="Volume" />
           </div>
@@ -906,15 +906,15 @@ function Properties({
 
       <div className="flex shrink-0 items-center gap-1 border-t border-rule px-2 py-2">
         <PanelAction onClick={onSplit} disabled={!canSplit} title="Move the playhead into this clip to split it">
-          <Scissor width={15} height={15} strokeWidth={1.5} />
+          <Scissor width={15} height={15} />
           Split
         </PanelAction>
         <PanelAction onClick={onDuplicate}>
-          <Copy width={15} height={15} strokeWidth={1.5} />
+          <Copy width={15} height={15} />
           Copy
         </PanelAction>
         <PanelAction onClick={onRemove}>
-          <Trash width={15} height={15} strokeWidth={1.5} />
+          <Trash width={15} height={15} />
           Delete
         </PanelAction>
         <span className="flex-1" />
