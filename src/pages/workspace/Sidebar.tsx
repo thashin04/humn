@@ -1,5 +1,6 @@
 import { Bookmark, Folder, Group, MoreHoriz, MusicNote, Plus, SidebarCollapse, SidebarExpand, Trash } from 'iconoir-react'
 import { useState, type ComponentType, type DragEvent, type ReactElement, type ReactNode, type SVGProps } from 'react'
+import logoMark from '@/assets/figma/logo-mark.svg'
 import logoWordmark from '@/assets/figma/logo-wordmark.svg'
 import { Avatar } from '@/components/Avatar'
 import {
@@ -52,7 +53,7 @@ export function Sidebar() {
         collapsed ? 'w-[52px] items-center px-[7px] py-3' : 'w-[232px] px-3 py-4',
       )}
     >
-      {/* The wordmark, with the collapse toggle; collapsed shows only the toggle */}
+      {/* The wordmark, with the collapse toggle; collapsed shows only the mark, which turns into the toggle on hover */}
       <div className={cn('flex items-center', collapsed ? 'pb-2' : 'gap-2 px-1.5 pt-1 pb-3')}>
         {!collapsed && (
           <div className="flex-1 pl-1.5">
@@ -63,9 +64,23 @@ export function Sidebar() {
           <button
             onClick={toggleSidebar}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={cn('flex items-center justify-center rounded-full text-ink-1 hover:bg-well', collapsed ? 'size-[38px]' : 'size-7')}
+            className={cn('group/toggle relative flex items-center justify-center rounded-full text-ink-1 hover:bg-well', collapsed ? 'size-[38px]' : 'size-7')}
           >
-            {collapsed ? <SidebarExpand className="size-4" strokeWidth={STROKE} /> : <SidebarCollapse className="size-4" strokeWidth={STROKE} />}
+            {collapsed ? (
+              <>
+                <img
+                  src={logoMark}
+                  alt=""
+                  className="h-[17px] w-auto transition-opacity duration-150 group-hover/toggle:opacity-0 group-focus-visible/toggle:opacity-0"
+                />
+                <SidebarExpand
+                  className="absolute size-4 opacity-0 transition-opacity duration-150 group-hover/toggle:opacity-100 group-focus-visible/toggle:opacity-100"
+                  strokeWidth={STROKE}
+                />
+              </>
+            ) : (
+              <SidebarCollapse className="size-4" strokeWidth={STROKE} />
+            )}
           </button>
         </WithTooltip>
       </div>

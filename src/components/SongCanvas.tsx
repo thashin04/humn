@@ -28,6 +28,7 @@ import { SectionPanel } from '@/components/chrome/SectionPanel'
 import { TakePanel } from '@/components/chrome/TakePanel'
 import { TitlePill } from '@/components/chrome/TitlePill'
 import { Toolkit } from '@/components/chrome/Toolkit'
+import { Help } from '@/components/chrome/Help'
 import { Hint } from '@/components/chrome/Hint'
 import { DraftPin, PinWithCard } from '@/components/comments/Comments'
 import { EmptyState } from '@/components/empty/EmptyState'
@@ -173,44 +174,52 @@ export function SongCanvas() {
       initial={still ? false : { opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={still ? { duration: 0 } : { duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-      // Framed like the workspace: the canvas is inset on the flat page, and the timeline docks flat beneath it.
-      className="flex h-dvh w-screen flex-col overflow-hidden bg-card p-3"
+      // Framed like the workspace: the rail is a sidebar flat on the page, the canvas is inset beside it,
+      // and the timeline docks flat beneath the canvas.
+      className="flex h-dvh w-screen gap-2 overflow-hidden bg-card p-3"
     >
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] bg-ground">
-        <Canvas />
+      <Rail />
 
-        <div className="absolute top-5 left-5">
-          <TitlePill songId={song.id} title={song.title} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] bg-ground">
+          <Canvas />
+
+          <div className="absolute top-5 left-5">
+            <TitlePill songId={song.id} title={song.title} />
+          </div>
+          {/* A selected section's settings, or the timeline's selected clip, open here on the right. Never both: picking one lets go of the other. */}
+          <div className="pointer-events-none absolute top-[76px] right-5 bottom-5 flex items-start">
+            <SectionPanel />
+            <TakePanel />
+          </div>
+          <div id={CLIP_PANEL} className="pointer-events-none absolute top-[76px] right-5 bottom-5 z-10 flex items-start" />
+          <div className="absolute top-5 right-5">
+            <People ids={song.collaboratorIds} songId={song.id} title={song.title} />
+          </div>
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
+            <Toolkit />
+          </div>
+          <div className="absolute right-5 bottom-5">
+            <Help />
+          </div>
         </div>
-        {/* A selected section's settings, or the timeline's selected clip, open here on the right. Never both: picking one lets go of the other. */}
-        <div className="pointer-events-none absolute top-[76px] right-5 bottom-5 flex items-start">
-          <SectionPanel />
-          <TakePanel />
-        </div>
-        <div id={CLIP_PANEL} className="pointer-events-none absolute top-[76px] right-5 bottom-5 z-10 flex items-start" />
-        <div className="absolute top-5 right-5">
-          <People ids={song.collaboratorIds} songId={song.id} title={song.title} />
-        </div>
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
-          <Toolkit />
-        </div>
+
+        {/* The dock grows up from the bottom edge, and the canvas gives way as it does. */}
+        <AnimatePresence initial={false}>
+          {timelineOpen && (
+            <motion.div
+              key="timeline"
+              className="shrink-0 overflow-hidden pt-2"
+              initial={{ height: 0 }}
+              animate={{ height: 'auto' }}
+              exit={{ height: 0 }}
+              transition={still ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0 }}
+            >
+              <TimelineView />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-
-      {/* The dock grows up from the bottom edge, and the canvas gives way as it does. */}
-      <AnimatePresence initial={false}>
-        {timelineOpen && (
-          <motion.div
-            key="timeline"
-            className="shrink-0 overflow-hidden pt-2"
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            transition={still ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0 }}
-          >
-            <TimelineView />
-          </motion.div>
-        )}
-      </AnimatePresence>
       {templatePicker.open && <TemplatePicker />}
     </motion.div>
   )
@@ -409,12 +418,6 @@ function Canvas() {
 
       <div className="absolute top-5 left-1/2 -translate-x-1/2">
         <Hint />
-      </div>
-      {/* Centred in the open space between the title and the canvas's bottom edge, timeline or not. */}
-      <div className="pointer-events-none absolute top-[76px] bottom-5 left-5">
-        <div className="flex h-full items-center">
-          <Rail />
-        </div>
       </div>
     </>
   )

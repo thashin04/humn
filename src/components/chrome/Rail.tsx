@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, MotionConfig } from 'motion/react'
+import { Link } from 'react-router'
+import logoMark from '@/assets/figma/logo-mark.svg'
 import { DRAWERS } from '@/data/library'
 import type { Kind } from '@/data/nodes'
 import { cn } from '@/lib/utils'
@@ -25,9 +27,9 @@ const HINTS: Partial<Record<Kind, string>> = {
 }
 
 /**
- * The rail grows into a drawer, still one floating card: pressing a kind opens
- * its drawer beside the buttons. Only the size animates; the corner radius is
- * half the rail's width, so it's a pill when closed and the same curve when open.
+ * The song's sidebar, flat on the page like the workspace's: pressing a kind
+ * widens it to open that kind's drawer beside the buttons, over the canvas
+ * rather than pushing it aside. Only the width animates.
  */
 export function Rail() {
   const { drawer, setDrawer } = useSong()
@@ -68,17 +70,24 @@ export function Rail() {
   // Opening: the card grows with a hint of spring, then the contents drift in.
   // Closing: the contents leave first, then the card settles back to a pill.
   return (
+    // The rail keeps its own width in the page; the drawer opens out over the canvas.
+    <div className="relative z-20 w-[52px] shrink-0">
     <div
       ref={ref}
       className={cn(
-        'pointer-events-auto flex overflow-hidden rounded-[26px] bg-card shadow-lift transition-[width,height] motion-reduce:transition-none',
-        drawer
-          ? 'h-[min(632px,100%)] w-[369px] duration-[380ms] ease-spring'
-          : 'h-[306px] w-[52px] delay-[60ms] duration-[280ms] ease-soft',
+        'absolute inset-y-0 left-0 flex overflow-hidden rounded-r-[28px] bg-card transition-[width,box-shadow] motion-reduce:transition-none',
+        drawer ? 'w-[369px] shadow-lift duration-[380ms] ease-spring' : 'w-[52px] delay-[60ms] duration-[280ms] ease-soft',
       )}
     >
       <MotionConfig reducedMotion="user">
-      <div className="flex w-[52px] shrink-0 flex-col items-center justify-center gap-1 px-[7px] py-2">
+      <div className="flex w-[52px] shrink-0 flex-col items-center gap-1 px-[7px] pt-3">
+        {/* The mark at the top, as on the workspace's sidebar, is the way back there. */}
+        <ButtonTip label="Back to workspace" side="right">
+          <Link to="/" aria-label="Back to workspace" className="flex size-[38px] shrink-0 items-center justify-center rounded-full hover:bg-well">
+            <img src={logoMark} alt="" className="h-[17px] w-auto" />
+          </Link>
+        </ButtonTip>
+        <span className="my-2 h-px w-6 shrink-0 bg-rule" />
         {KINDS.map((k) => {
           const Icon = KIND_ICONS[k]
           return (
@@ -132,6 +141,7 @@ export function Rail() {
           </div>
         )}
       </div>
+    </div>
     </div>
   )
 }
