@@ -307,7 +307,7 @@ export function TimelineView() {
   const still = useReducedMotion()
 
   return (
-    <div className="relative flex border-t border-rule bg-card" style={{ height: dockHeight }}>
+    <div className="relative flex bg-card" style={{ height: dockHeight }}>
       <ResizeEdge height={dockHeight} onResize={setDockHeight} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex h-14 shrink-0 items-center gap-2 border-b border-rule px-4">

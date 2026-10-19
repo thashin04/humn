@@ -76,23 +76,33 @@ const ADD: { kind: Kind; label: string }[] = [
 
 type Card = 'feeling' | 'photo' | 'take'
 
-// Each card's box in the 760×200 fan, as big as the real node it holds. Stacked, the
-// three pile up behind the photo, peeking out either side; open, they fan out to their boxes.
+const FAN_W = 760
+const FAN_H = 216
+/** A card the size of the real node it holds, centred in the fan so every card shares one middle. */
+const centred = (width: number, height: number): CSSProperties => ({
+  left: (FAN_W - width) / 2,
+  top: (FAN_H - height) / 2,
+  width,
+  height,
+})
+
+// Stacked, the side cards hide behind the photo, just peeking out; open, they fan out
+// around the bottom like a hand of cards, still tucked behind it, reaching equally far each way.
 const PLACES: Record<Card, { box: CSSProperties; stacked: string; open: string }> = {
   feeling: {
-    box: { left: 20, top: 62, width: 240, height: 100 },
-    stacked: 'translate(190px, -6px) rotate(-8deg)',
-    open: 'rotate(-12deg)',
+    box: centred(240, 100),
+    stacked: 'translate(-40px, 10px) rotate(-6deg)',
+    open: 'translate(-150px, 22px) rotate(-11deg)',
   },
   photo: {
-    box: { left: 262, top: -12, width: 200, height: 216 },
+    box: centred(200, 216),
     stacked: 'none',
     open: 'translateY(-6px)',
   },
   take: {
-    box: { left: 450, top: 26, width: 300, height: 170 },
-    stacked: 'translate(-200px, -8px) rotate(8deg)',
-    open: 'rotate(12deg)',
+    box: centred(300, 170),
+    stacked: 'translate(40px, 6px) rotate(6deg)',
+    open: 'translate(120px, 18px) rotate(11deg)',
   },
 }
 
@@ -114,6 +124,7 @@ function TemplateFan({ open, onOpen }: { open: boolean; onOpen: () => void }) {
         className="pointer-events-auto absolute flex cursor-pointer items-center justify-center transition-transform duration-500 ease-spring motion-reduce:transition-none"
         style={{
           ...place.box,
+          transformOrigin: '50% 100%',
           transform: `${open ? place.open : place.stacked}${lift}`,
           // The photo stays on top of the pile; open, whichever card is pointed at comes forward.
           zIndex: open && hot === id ? 3 : id === 'photo' ? 2 : 1,
@@ -125,7 +136,7 @@ function TemplateFan({ open, onOpen }: { open: boolean; onOpen: () => void }) {
   }
 
   return (
-    <div className="relative h-[200px] w-[760px] shrink-0">
+    <div className="relative shrink-0" style={{ width: FAN_W, height: FAN_H }}>
       <Preview.Provider value>
         {card('feeling', <FeelingNode {...FEELING} />)}
         {card('photo', <PhotoNode {...PHOTO} />)}

@@ -173,9 +173,10 @@ export function SongCanvas() {
       initial={still ? false : { opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={still ? { duration: 0 } : { duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-      className="flex h-dvh w-screen flex-col overflow-hidden bg-ground"
+      // Framed like the workspace: the canvas is inset on the flat page, and the timeline docks flat beneath it.
+      className="flex h-dvh w-screen flex-col overflow-hidden bg-card p-3"
     >
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] bg-ground">
         <Canvas />
 
         <div className="absolute top-5 left-5">
@@ -200,7 +201,7 @@ export function SongCanvas() {
         {timelineOpen && (
           <motion.div
             key="timeline"
-            className="shrink-0 overflow-hidden"
+            className="shrink-0 overflow-hidden pt-2"
             initial={{ height: 0 }}
             animate={{ height: 'auto' }}
             exit={{ height: 0 }}
