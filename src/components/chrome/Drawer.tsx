@@ -1,5 +1,9 @@
 import { MediaImagePlus, Play, Plus, Search, SidebarCollapse, Square } from 'iconoir-react'
-import { useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
+import { play, type Score } from '@/audio/engine'
+import { chordsScore, instrumentScore, soundScore, voiceScore } from '@/audio/scores'
+import { whole } from '@/audio/useSound'
+import { GENERATED } from '@/data/generated'
 import { DRAWERS, nameOf, NODE_DRAG_TYPE, type LibraryItem, type OwnAction } from '@/data/library'
 import { DEFAULT_ROLE, type Kind, type Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
@@ -20,77 +24,6 @@ const ROLE_TEXT: Record<Role, string> = {
 }
 
 type Source = 'yours' | 'library' | 'generate'
-
-let stopActivePreview: (() => void) | null = null
-
-function playInstrumentPreview(label: string, onDone: () => void) {
-  stopActivePreview?.()
-  const AudioContextClass = window.AudioContext
-  if (!AudioContextClass) return
-
-  const context = new AudioContextClass()
-  const lower = label.toLowerCase()
-  const musicBox = lower.includes('music box')
-  const strings = lower.includes('string') || lower.includes('guitar') || lower.includes('ukulele')
-  const drums = lower.includes('drum')
-  const notes = musicBox ? [659.25, 783.99, 987.77, 1174.66] : strings ? [196, 246.94, 293.66] : [261.63, 329.63, 392]
-  const oscillators: OscillatorNode[] = []
-  const gains: GainNode[] = []
-  const start = context.currentTime
-  const duration = musicBox ? 1.15 : 1.35
-
-  if (drums) {
-    const buffer = context.createBuffer(1, context.sampleRate * 0.35, context.sampleRate)
-    const data = buffer.getChannelData(0)
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length)
-    const noise = context.createBufferSource()
-    const filter = context.createBiquadFilter()
-    const gain = context.createGain()
-    noise.buffer = buffer
-    filter.type = 'bandpass'
-    filter.frequency.value = 1800
-    gain.gain.setValueAtTime(0.0001, start)
-    gain.gain.exponentialRampToValueAtTime(0.22, start + 0.01)
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.32)
-    noise.connect(filter).connect(gain).connect(context.destination)
-    noise.start(start)
-    noise.stop(start + 0.35)
-  } else {
-    notes.forEach((frequency, index) => {
-      const oscillator = context.createOscillator()
-      const gain = context.createGain()
-      const noteStart = start + index * 0.08
-      const noteEnd = noteStart + duration - index * 0.05
-      oscillator.type = musicBox ? 'sine' : strings ? 'triangle' : 'triangle'
-      oscillator.frequency.setValueAtTime(frequency, noteStart)
-      gain.gain.setValueAtTime(0.0001, noteStart)
-      gain.gain.exponentialRampToValueAtTime(musicBox ? 0.16 : 0.12, noteStart + 0.015)
-      gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd)
-      oscillator.connect(gain).connect(context.destination)
-      oscillator.start(noteStart)
-      oscillator.stop(noteEnd)
-      oscillators.push(oscillator)
-      gains.push(gain)
-    })
-  }
-
-  let stopped = false
-  const finish = () => {
-    if (stopped) return
-    stopped = true
-    if (stopActivePreview === stop) stopActivePreview = null
-    context.close()
-    onDone()
-  }
-  const stop = () => {
-    oscillators.forEach((oscillator) => oscillator.stop())
-    gains.forEach((gain) => gain.disconnect())
-    finish()
-  }
-  stopActivePreview = stop
-  context.resume().catch(finish)
-  window.setTimeout(finish, duration * 1000 + 180)
-}
 
 /** One kind's drawer: search, then three sources — yours, the app's library, or make one. */
 export function Drawer({ kind, onClose }: { kind: Kind; onClose: () => void }) {
@@ -267,7 +200,7 @@ function ItemTile({ kind, item, square, inSong }: { kind: Kind; item: LibraryIte
         ) : (
           <Icon width={18} height={18} className="text-ink-2" />
         )}
-        {kind === 'instrument' && <InstrumentPreview label={item.name} />}
+        <TilePreview kind={kind} data={item.data} label={item.name} />
       </span>
       <span className="flex flex-col gap-0.5">
         <span className="text-[12px] leading-[1.3] font-medium text-ink-1">{item.name}</span>
@@ -278,29 +211,47 @@ function ItemTile({ kind, item, square, inSong }: { kind: Kind; item: LibraryIte
   )
 }
 
-function InstrumentPreview({ label }: { label: string }) {
-  const [playing, setPlaying] = useState(false)
+/** What a tile sounds like, for the kinds that make a sound. A few seconds is enough to tell. */
+function previewOf(kind: Kind, data: Record<string, unknown>): Score | null {
+  const label = String(data.label ?? data.name ?? '')
+  const src = typeof data.src === 'string' ? data.src : undefined
+  const length = Math.min(8, Number(data.duration ?? 8))
+  if (kind === 'instrument') return instrumentScore(label)
+  if (kind === 'voice') return voiceScore(label, length, src)
+  if (kind === 'sound') return soundScore(label, length, 1, src)
+  if (kind === 'chords' && Array.isArray(data.chords)) return chordsScore(data.chords as string[])
+  return null
+}
+
+function TilePreview({ kind, data, label }: { kind: Kind; data: Record<string, unknown>; label: string }) {
+  const [stop, setStop] = useState<(() => void) | null>(null)
+  const score = previewOf(kind, data)
+  useEffect(() => () => stop?.(), [stop])
+  if (!score) return null
 
   const toggle = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    if (playing) {
-      stopActivePreview?.()
-      setPlaying(false)
-      return
-    }
-    setPlaying(true)
-    playInstrumentPreview(label, () => setPlaying(false))
+    if (stop) return setStop(null)
+    const end = window.setTimeout(() => setStop(null), score.length * 1000 + 300)
+    const halt = play(whole(score), 0, () => setStop(null))
+    setStop(() => () => {
+      window.clearTimeout(end)
+      halt()
+    })
   }
 
   return (
     <button
       type="button"
-      aria-label={`${playing ? 'Stop' : 'Preview'} ${label}`}
+      aria-label={`${stop ? 'Stop' : 'Preview'} ${label}`}
       onClick={toggle}
       onPointerDown={(event) => event.stopPropagation()}
-      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-card text-ink-2 shadow-[0_1px_4px_rgb(20_22_26/0.08)] transition-[background-color,color,transform] duration-200 hover:scale-105 hover:bg-ink hover:text-on-ink"
+      className={cn(
+        'flex size-7 shrink-0 items-center justify-center rounded-full shadow-[0_1px_4px_rgb(20_22_26/0.08)] transition-[background-color,color,transform] duration-200 hover:scale-105',
+        stop ? 'bg-ink text-on-ink' : 'bg-card text-ink-2 hover:bg-ink hover:text-on-ink',
+      )}
     >
-      {playing ? <Square width={11} height={11} /> : <Play width={13} height={13} />}
+      {stop ? <Square width={11} height={11} /> : <Play width={13} height={13} />}
     </button>
   )
 }
@@ -333,7 +284,7 @@ function OwnTile({ kind, action }: { kind: Kind; action: OwnAction }) {
     const audio = new Audio(src)
     audio.onloadedmetadata = () => {
       const duration = Math.round(audio.duration) || 0
-      const data = { label: name, duration }
+      const data = { label: name, duration, src }
       keep({ kind, name, meta: `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')} · You`, data })
       add(kind, data)
     }
@@ -374,32 +325,33 @@ function OwnTile({ kind, action }: { kind: Kind; action: OwnAction }) {
   )
 }
 
-/** Describe one and get two to choose from. Mocked: the results are made from your words. */
+/**
+ * Describe one and get two to choose from. Written ahead for the prototype:
+ * pressing into the box types a prompt in, and Generate brings back the two it "made".
+ */
 function Generate({ kind }: { kind: Kind }) {
   const [text, setText] = useState('')
   const [state, setState] = useState<'idle' | 'making' | 'done'>('idle')
-  const [made, setMade] = useState<LibraryItem[]>([])
+  const [typing, setTyping] = useState(false)
   const spec = DRAWERS[kind]
+  const { prompt, made } = GENERATED[kind]
+
+  // Types the prompt in a letter at a time, as if someone were writing it.
+  useEffect(() => {
+    if (!typing) return
+    let i = 0
+    const timer = window.setInterval(() => {
+      i += 1
+      setText(prompt.slice(0, i))
+      if (i >= prompt.length) setTyping(false)
+    }, 28)
+    return () => window.clearInterval(timer)
+  }, [typing, prompt])
 
   const make = () => {
-    const words = text.trim()
-    if (!words) return
+    if (!text.trim() || typing) return
     setState('making')
-    window.setTimeout(() => {
-      setMade(
-        [0, 1].map((i) => {
-          const base = spec.library[i % spec.library.length]
-          const name = i === 0 ? words : `${words}, again`
-          const data = { ...base.data }
-          if ('caption' in data) data.caption = name
-          if ('label' in data) data.label = name
-          if ('name' in data) data.name = name
-          if ('text' in data) data.text = name
-          return { ...base, name, data, img: undefined }
-        }),
-      )
-      setState('done')
-    }, 1100)
+    window.setTimeout(() => setState('done'), 1100)
   }
 
   return (
@@ -413,7 +365,11 @@ function Generate({ kind }: { kind: Kind }) {
       >
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onFocus={() => !text && state === 'idle' && setTyping(true)}
+          onChange={(e) => {
+            setTyping(false)
+            setText(e.target.value)
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
@@ -426,7 +382,7 @@ function Generate({ kind }: { kind: Kind }) {
         />
         <button
           type="submit"
-          disabled={!text.trim() || state === 'making'}
+          disabled={!text.trim() || typing || state === 'making'}
           className="shine-button type-action self-end rounded-full bg-ink px-3.5 py-2 text-on-ink transition-opacity disabled:opacity-40"
         >
           {state === 'making' ? 'Making…' : 'Generate'}

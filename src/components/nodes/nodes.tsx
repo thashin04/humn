@@ -1,7 +1,8 @@
 import type { NodeProps } from '@xyflow/react'
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import place from '@/assets/figma/node-place.svg'
-import { PlaySolid } from 'iconoir-react'
+import { PauseSolid, PlaySolid } from 'iconoir-react'
+import { chordsScore, instrumentScore, soundScore, voiceScore } from '@/audio/scores'
 import { KIND_ICONS } from '@/components/chrome/kindIcons'
 import { clock, type SongNode } from '@/data/nodes'
 import { cn } from '@/lib/utils'
@@ -139,7 +140,7 @@ export function LyricsNode({ id, data, selected }: NodeProps<SongNode<'lyrics'>>
 
 /** Melody capsule. 60 tall. */
 export function VoiceNode({ id, data, selected }: NodeProps<SongNode<'voice'>>) {
-  const own = usePlayback(data.duration)
+  const own = usePlayback(data.duration, () => voiceScore(data.label, data.duration, data.src))
   // Plugged into a section whose take is playing, the recording plays along.
   const fed = useFeedsPlaying(id)
   const fedProgress = useProgress(fed, data.duration, () => {})
@@ -217,13 +218,30 @@ export function FeelingNode({ id, data, selected }: NodeProps<SongNode<'feeling'
 
 /** Texture capsule. */
 export function SoundNode({ data, selected }: NodeProps<SongNode<'sound'>>) {
+  const { playing, progress, toggle } = usePlayback(data.duration, () => soundScore(data.label, data.duration, 1, data.src))
   return (
     <NodeShell width={262} icon={KIND_ICONS.sound} label="Sound" meta={clock(data.duration)} selected={selected} port="texture">
       <div className="flex h-[60px] items-center gap-3 pr-5 pl-3">
-        <img src={data.place ?? place} alt="" className="size-9 shrink-0 rounded-full object-cover" draggable={false} />
+        {/* The place it was recorded, which plays it when pressed. */}
+        <button
+          type="button"
+          aria-label={playing ? `Pause ${data.label}` : `Play ${data.label}`}
+          onClick={toggle}
+          className="nodrag group/play relative size-9 shrink-0 overflow-hidden rounded-full transition-transform duration-150 active:scale-95"
+        >
+          <img src={data.place ?? place} alt="" className="size-full object-cover" draggable={false} />
+          <span
+            className={cn(
+              'absolute inset-0 flex items-center justify-center bg-ink/55 transition-opacity duration-150',
+              playing ? 'opacity-100' : 'opacity-0 group-hover/play:opacity-100',
+            )}
+          >
+            {playing ? <PauseSolid className="size-3.5 text-on-ink" /> : <PlaySolid className="size-3.5 text-on-ink" />}
+          </span>
+        </button>
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 overflow-hidden">
           <p className="type-caption truncate text-ink-2">{data.label}</p>
-          <Waveform kind="texture" />
+          <Waveform kind="texture" progress={progress} />
         </div>
       </div>
     </NodeShell>
@@ -245,6 +263,7 @@ export function ColorNode({ data, selected }: NodeProps<SongNode<'color'>>) {
 
 /** Instruments. Row with a lid and a separate try-it button. */
 export function InstrumentNode({ data, selected }: NodeProps<SongNode<'instrument'>>) {
+  const { playing, toggle } = usePlayback(4.8, () => instrumentScore(data.name))
   return (
     <NodeShell width={270} icon={KIND_ICONS.instrument} label={data.tab} selected={selected} port="instruments">
       <div className="relative h-20">
@@ -255,10 +274,14 @@ export function InstrumentNode({ data, selected }: NodeProps<SongNode<'instrumen
         <p className="type-small absolute top-[43px] left-[81px] max-w-[125px] truncate text-ink-3">{data.detail}</p>
         <button
           type="button"
-          aria-label={`Try ${data.name}`}
-          className="nodrag absolute top-5 left-[216px] flex size-10 items-center justify-center rounded-[10px] bg-well transition-[background-color,transform] duration-150 hover:bg-level active:scale-95"
+          aria-label={playing ? `Stop ${data.name}` : `Try ${data.name}`}
+          onClick={toggle}
+          className={cn(
+            'nodrag absolute top-5 left-[216px] flex size-10 items-center justify-center rounded-[10px] transition-[background-color,transform] duration-150 active:scale-95',
+            playing ? 'bg-ink' : 'bg-well hover:bg-level',
+          )}
         >
-          <PlaySolid className="size-3.5 text-ink-2" />
+          {playing ? <PauseSolid className="size-3.5 text-on-ink" /> : <PlaySolid className="size-3.5 text-ink-2" />}
         </button>
       </div>
     </NodeShell>
@@ -277,7 +300,7 @@ function numeral(chord: string, home: string) {
 
 /** Harmony. Not in Figma yet; built in the capsule family. */
 export function ChordsNode({ data, selected }: NodeProps<SongNode<'chords'>>) {
-  const { playing, progress, toggle } = usePlayback(data.chords.length * 1.2)
+  const { playing, progress, toggle } = usePlayback(data.chords.length * 1.2, () => chordsScore(data.chords))
   const at = playing ? Math.min(data.chords.length - 1, Math.floor(progress * data.chords.length)) : -1
   return (
     <NodeShell width={262} icon={KIND_ICONS.chords} label="Chords" selected={selected} port="harmony">

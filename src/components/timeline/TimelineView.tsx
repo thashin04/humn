@@ -18,6 +18,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { nanoid } from 'nanoid'
 import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
+import { takeScore } from '@/audio/scores'
+import { useSound } from '@/audio/useSound'
 import { DraftPin, PinWithCard } from '@/components/comments/Comments'
 import { TAKE_A, TAKE_B } from '@/components/nodes/waves'
 import { CLIP_DEFAULTS, EFFECTS, SPEEDS, clipsOf, newClip, playTime, type Clip } from '@/data/clips'
@@ -147,6 +149,21 @@ export function TimelineView() {
     setPlaying(true)
   }
   const current = starts.findIndex((st, i) => time >= st && time < st + times[i])
+  // The song out loud: each clip's take, played as the clip sets it. A seek starts it again from there.
+  useSound(
+    playing,
+    () =>
+      items.map(({ clip: c, take }, i) => ({
+        score: takeScore(nodes, take),
+        at: starts[i],
+        start: c.from,
+        length: c.length,
+        mix: { ...c, volume: c.muted ? 0 : c.volume },
+      })),
+    () => time,
+    () => setPlaying(false),
+    anchor.current.wall,
+  )
 
   /** Cuts the selected clip (or whichever is under the playhead) in two where the playhead is. */
   const split = () => {

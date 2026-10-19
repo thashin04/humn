@@ -21,6 +21,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { useShallow } from 'zustand/react/shallow'
+import { TakeSound } from '@/audio/TakeSound'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
 import { Rail } from '@/components/chrome/Rail'
@@ -201,6 +202,7 @@ export function SongCanvas() {
           </div>
           <div className="absolute right-5 bottom-5">
             <Help />
+            <TakeSound />
           </div>
         </div>
 
