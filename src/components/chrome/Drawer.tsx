@@ -1,5 +1,5 @@
-import { MediaImagePlus, Plus, Search, SidebarCollapse } from 'iconoir-react'
-import { useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { MediaImagePlus, Play, Plus, Search, SidebarCollapse, Square } from 'iconoir-react'
+import { useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 import { DRAWERS, nameOf, NODE_DRAG_TYPE, type LibraryItem, type OwnAction } from '@/data/library'
 import { DEFAULT_ROLE, type Kind, type Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
@@ -20,6 +20,77 @@ const ROLE_TEXT: Record<Role, string> = {
 }
 
 type Source = 'yours' | 'library' | 'generate'
+
+let stopActivePreview: (() => void) | null = null
+
+function playInstrumentPreview(label: string, onDone: () => void) {
+  stopActivePreview?.()
+  const AudioContextClass = window.AudioContext
+  if (!AudioContextClass) return
+
+  const context = new AudioContextClass()
+  const lower = label.toLowerCase()
+  const musicBox = lower.includes('music box')
+  const strings = lower.includes('string') || lower.includes('guitar') || lower.includes('ukulele')
+  const drums = lower.includes('drum')
+  const notes = musicBox ? [659.25, 783.99, 987.77, 1174.66] : strings ? [196, 246.94, 293.66] : [261.63, 329.63, 392]
+  const oscillators: OscillatorNode[] = []
+  const gains: GainNode[] = []
+  const start = context.currentTime
+  const duration = musicBox ? 1.15 : 1.35
+
+  if (drums) {
+    const buffer = context.createBuffer(1, context.sampleRate * 0.35, context.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length)
+    const noise = context.createBufferSource()
+    const filter = context.createBiquadFilter()
+    const gain = context.createGain()
+    noise.buffer = buffer
+    filter.type = 'bandpass'
+    filter.frequency.value = 1800
+    gain.gain.setValueAtTime(0.0001, start)
+    gain.gain.exponentialRampToValueAtTime(0.22, start + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.32)
+    noise.connect(filter).connect(gain).connect(context.destination)
+    noise.start(start)
+    noise.stop(start + 0.35)
+  } else {
+    notes.forEach((frequency, index) => {
+      const oscillator = context.createOscillator()
+      const gain = context.createGain()
+      const noteStart = start + index * 0.08
+      const noteEnd = noteStart + duration - index * 0.05
+      oscillator.type = musicBox ? 'sine' : strings ? 'triangle' : 'triangle'
+      oscillator.frequency.setValueAtTime(frequency, noteStart)
+      gain.gain.setValueAtTime(0.0001, noteStart)
+      gain.gain.exponentialRampToValueAtTime(musicBox ? 0.16 : 0.12, noteStart + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd)
+      oscillator.connect(gain).connect(context.destination)
+      oscillator.start(noteStart)
+      oscillator.stop(noteEnd)
+      oscillators.push(oscillator)
+      gains.push(gain)
+    })
+  }
+
+  let stopped = false
+  const finish = () => {
+    if (stopped) return
+    stopped = true
+    if (stopActivePreview === stop) stopActivePreview = null
+    context.close()
+    onDone()
+  }
+  const stop = () => {
+    oscillators.forEach((oscillator) => oscillator.stop())
+    gains.forEach((gain) => gain.disconnect())
+    finish()
+  }
+  stopActivePreview = stop
+  context.resume().catch(finish)
+  window.setTimeout(finish, duration * 1000 + 180)
+}
 
 /** One kind's drawer: search, then three sources — yours, the app's library, or make one. */
 export function Drawer({ kind, onClose }: { kind: Kind; onClose: () => void }) {
@@ -178,20 +249,58 @@ function ItemTile({ kind, item, square, inSong }: { kind: Kind; item: LibraryIte
   }
 
   return (
-    <button
+    <div
       {...handlers}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          handlers.onClick()
+        }
+      }}
       className="group relative flex min-h-[84px] cursor-grab flex-col justify-between gap-2 rounded-[12px] border border-rule bg-well p-2.5 text-left transition-[transform,background-color] duration-200 ease-spring hover:-translate-y-px hover:bg-level active:cursor-grabbing"
     >
-      {item.gradient ? (
-        <span className="block h-[42px] rounded-[7px]" style={{ background: item.gradient }} />
-      ) : (
-        <Icon width={18} height={18} strokeWidth={1.5} className="text-ink-2" />
-      )}
+      <span className="flex items-start justify-between gap-2">
+        {item.gradient ? (
+          <span className="block h-[42px] flex-1 rounded-[7px]" style={{ background: item.gradient }} />
+        ) : (
+          <Icon width={18} height={18} strokeWidth={1.5} className="text-ink-2" />
+        )}
+        {kind === 'instrument' && <InstrumentPreview label={item.name} />}
+      </span>
       <span className="flex flex-col gap-0.5">
         <span className="text-[12px] leading-[1.3] font-medium text-ink-1">{item.name}</span>
         {item.meta && <span className="font-mono text-[10px] leading-[1.3] text-ink-3">{item.meta}</span>}
       </span>
       {inSong && <span className="type-small absolute top-2 right-2 text-ink-3">In song</span>}
+    </div>
+  )
+}
+
+function InstrumentPreview({ label }: { label: string }) {
+  const [playing, setPlaying] = useState(false)
+
+  const toggle = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    if (playing) {
+      stopActivePreview?.()
+      setPlaying(false)
+      return
+    }
+    setPlaying(true)
+    playInstrumentPreview(label, () => setPlaying(false))
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={`${playing ? 'Stop' : 'Preview'} ${label}`}
+      onClick={toggle}
+      onPointerDown={(event) => event.stopPropagation()}
+      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-card text-ink-2 shadow-[0_1px_4px_rgb(20_22_26/0.08)] transition-[background-color,color,transform] duration-200 hover:scale-105 hover:bg-ink hover:text-on-ink"
+    >
+      {playing ? <Square width={11} height={11} strokeWidth={1.75} /> : <Play width={13} height={13} strokeWidth={1.75} />}
     </button>
   )
 }
