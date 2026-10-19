@@ -7,22 +7,21 @@ import { roleOf, type AnySongNode, type Kind, type SongNode } from '@/data/nodes
 import { useSong } from '@/store/song'
 
 const ICON = { width: 17, height: 17 }
-/** The fan hugs the card's top-right corner: along its top, round the corner, and down its right side. */
-const GAP = 24 // from the card's edge to a button's middle
+/** The fan hugs the card's top-left corner: along its top, round the corner, and down its left side,
+ * clear of the wire that leaves from the right. */
+const GAP = 32 // from the card's edge to a button's middle
 const BEND = 20 // how round the corner it wraps is
 const STEP = 40 // between one button's middle and the next
 const SIZE = 34
-/** How far above the wire leaving the card's right side the lowest button stays. */
-const CLEAR = 30
 
-/** A point `s` along the wrap, measured from the middle of the corner: up and left when positive, down when negative. */
+/** A point `s` along the wrap, measured from the middle of the corner: up and right when positive, down when negative. */
 function along(s: number) {
   const r = BEND + GAP
   const half = (Math.PI / 4) * r
-  if (s > half) return { x: -BEND - (s - half), y: -GAP, side: 'top' as const }
-  if (s < -half) return { x: GAP, y: BEND + (-s - half), side: 'right' as const }
+  if (s > half) return { x: BEND + (s - half), y: -GAP, side: 'top' as const }
+  if (s < -half) return { x: -GAP, y: BEND + (-s - half), side: 'left' as const }
   const a = Math.PI / 4 + s / r
-  return { x: -BEND + Math.cos(a) * r, y: BEND - Math.sin(a) * r, side: a > Math.PI / 3 ? ('top' as const) : ('right' as const) }
+  return { x: BEND - Math.cos(a) * r, y: BEND - Math.sin(a) * r, side: a > Math.PI / 3 ? ('top' as const) : ('left' as const) }
 }
 /** Where a copy lands, down and to the right of the card it came from. */
 const NUDGE = 36
@@ -38,17 +37,17 @@ const sectionOf = (nodes: AnySongNode[], id: string) =>
  * What can be done to a card, fanned out around its corner once it's the only
  * thing picked: plug it in or out, add more like it, copy it, change it, or let it go.
  */
-export function NodeActions({ wire }: { wire?: number }) {
+export function NodeActions() {
   const id = useNodeId()!
   const shown = useSong((s) => {
     const picked = s.nodes.filter((n) => n.selected)
     return picked.length === 1 && picked[0].id === id && !picked[0].dragging && s.tool === 'select'
   })
   if (!shown) return null
-  return <Fan id={id} wire={wire} />
+  return <Fan id={id} />
 }
 
-function Fan({ id, wire }: { id: string; wire?: number }) {
+function Fan({ id }: { id: string }) {
   const node = useSong((s) => s.nodes.find((n) => n.id === id))!
   const section = useSong((s) => sectionOf(s.nodes, id))
   const { addNode, connect, disconnect, gather, setDrawer, editInput, onNodesChange } = useSong.getState()
@@ -81,16 +80,14 @@ function Fan({ id, wire }: { id: string; wire?: number }) {
     { label: 'Delete', icon: <Trash {...ICON} />, onClick: () => onNodesChange([{ type: 'remove', id }]), danger: true },
   ]
 
-  // Centred on the corner, then slid up and round if the lowest would sit on the wire.
+  // Centred on the corner.
   const mid = (actions.length - 1) / 2
-  const lowest = along(-mid * STEP).y
-  const lift = wire !== undefined && lowest > wire - CLEAR ? lowest - (wire - CLEAR) : 0
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="pointer-events-none absolute top-0 right-0 z-20">
+      <div className="pointer-events-none absolute top-0 left-0 z-20">
         {actions.map((a, i) => {
-          const p = along((mid - i) * STEP + lift)
+          const p = along((mid - i) * STEP)
           return (
             <motion.div
               key={a.label}

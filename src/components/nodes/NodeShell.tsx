@@ -257,7 +257,7 @@ export function NodeShell({ width, icon: Icon, label, meta, tall, tab, selected,
 
       <div className="node-shine pointer-events-none absolute inset-0" style={{ clipPath: d ? `path('${d}')` : undefined }} />
 
-      {port && !ghost && !preview && <NodeActions wire={out} />}
+      {port && !ghost && !preview && <NodeActions />}
 
       {port && (
         <NodeHandle
