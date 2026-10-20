@@ -75,8 +75,9 @@ export function Rail() {
     <div
       ref={ref}
       className={cn(
-        'absolute inset-y-0 left-0 flex overflow-hidden rounded-r-[28px] bg-card transition-[width,box-shadow] motion-reduce:transition-none',
-        drawer ? 'w-[369px] shadow-lift duration-[380ms] ease-spring' : 'w-[52px] delay-[60ms] duration-[280ms] ease-soft',
+        // Flat like the page: the canvas's own rounded edge moves aside to meet it (see SongCanvas).
+        'absolute inset-y-0 left-0 flex overflow-hidden bg-card transition-[width] motion-reduce:transition-none',
+        drawer ? 'w-[369px] duration-[380ms] ease-spring' : 'w-[52px] delay-[60ms] duration-[280ms] ease-soft',
       )}
     >
       <MotionConfig reducedMotion="user">

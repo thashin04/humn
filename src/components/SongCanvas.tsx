@@ -44,6 +44,7 @@ import { interpret } from '@/data/interpret'
 import { NODE_DRAG_TYPE } from '@/data/library'
 import { ROLES, type AnySongNode, type Kind } from '@/data/nodes'
 import type { TemplateId } from '@/data/templates'
+import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 
@@ -148,6 +149,7 @@ function suggestFirstPart(nodes: AnySongNode[], drafting: string | null, measure
 
 export function SongCanvas() {
   const timelineOpen = useSong((s) => s.timelineOpen)
+  const drawer = useSong((s) => s.drawer)
   const still = useReducedMotion()
   const templatePicker = useSong((s) => s.templatePicker)
   const { songId } = useParams()
@@ -182,7 +184,16 @@ export function SongCanvas() {
       <Rail />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] bg-ground">
+        {/* An open drawer covers the canvas's left side without moving it; the canvas is clipped
+            to start just past the drawer, so its rounded corners follow the drawer's edge. */}
+        <div
+          className={cn(
+            'relative min-h-0 flex-1 overflow-hidden rounded-[28px] bg-ground transition-[clip-path] motion-reduce:transition-none',
+            drawer ? 'duration-[380ms] ease-spring' : 'delay-[60ms] duration-[280ms] ease-soft',
+          )}
+          // The drawer is 369 wide from the page's edge and the rail is 52 plus an 8 gap, so 317 keeps the same 8 gap.
+          style={{ clipPath: `inset(0 0 0 ${drawer ? 317 : 0}px round 28px)` }}
+        >
           <Canvas />
 
           <div className="absolute top-5 left-5">
