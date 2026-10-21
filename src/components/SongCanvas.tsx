@@ -21,6 +21,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { useShallow } from 'zustand/react/shallow'
+import { TakeSound } from '@/audio/TakeSound'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
 import { Rail } from '@/components/chrome/Rail'
@@ -28,6 +29,7 @@ import { SectionPanel } from '@/components/chrome/SectionPanel'
 import { TakePanel } from '@/components/chrome/TakePanel'
 import { TitlePill } from '@/components/chrome/TitlePill'
 import { Toolkit } from '@/components/chrome/Toolkit'
+import { Help } from '@/components/chrome/Help'
 import { Hint } from '@/components/chrome/Hint'
 import { DraftPin, PinWithCard } from '@/components/comments/Comments'
 import { EmptyState } from '@/components/empty/EmptyState'
@@ -42,6 +44,7 @@ import { interpret } from '@/data/interpret'
 import { NODE_DRAG_TYPE } from '@/data/library'
 import { ROLES, type AnySongNode, type Kind } from '@/data/nodes'
 import type { TemplateId } from '@/data/templates'
+import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 
@@ -146,6 +149,7 @@ function suggestFirstPart(nodes: AnySongNode[], drafting: string | null, measure
 
 export function SongCanvas() {
   const timelineOpen = useSong((s) => s.timelineOpen)
+  const drawer = useSong((s) => s.drawer)
   const still = useReducedMotion()
   const templatePicker = useSong((s) => s.templatePicker)
   const { songId } = useParams()
@@ -173,43 +177,62 @@ export function SongCanvas() {
       initial={still ? false : { opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={still ? { duration: 0 } : { duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-      className="flex h-dvh w-screen flex-col overflow-hidden bg-ground"
+      // Framed like the workspace: the rail is a sidebar flat on the page, the canvas is inset beside it,
+      // and the timeline docks flat beneath the canvas.
+      className="flex h-dvh w-screen gap-2 overflow-hidden bg-card p-3"
     >
-      <div className="relative min-h-0 flex-1">
-        <Canvas />
+      <Rail />
 
-        <div className="absolute top-5 left-5">
-          <TitlePill songId={song.id} title={song.title} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* An open drawer covers the canvas's left side without moving it; the canvas is clipped
+            to start just past the drawer, so its rounded corners follow the drawer's edge. */}
+        <div
+          className={cn(
+            'relative min-h-0 flex-1 overflow-hidden rounded-[28px] bg-ground transition-[clip-path] motion-reduce:transition-none',
+            drawer ? 'duration-[380ms] ease-spring' : 'delay-[60ms] duration-[280ms] ease-soft',
+          )}
+          // The drawer is 369 wide from the page's edge and the rail is 52 plus an 8 gap, so 317 keeps the same 8 gap.
+          style={{ clipPath: `inset(0 0 0 ${drawer ? 317 : 0}px round 28px)` }}
+        >
+          <Canvas />
+
+          <div className="absolute top-5 left-5">
+            <TitlePill songId={song.id} title={song.title} />
+          </div>
+          {/* A selected section's settings, or the timeline's selected clip, open here on the right. Never both: picking one lets go of the other. */}
+          <div className="pointer-events-none absolute top-[76px] right-5 bottom-5 flex items-start">
+            <SectionPanel />
+            <TakePanel />
+          </div>
+          <div id={CLIP_PANEL} className="pointer-events-none absolute top-[76px] right-5 bottom-5 z-10 flex items-start" />
+          <div className="absolute top-5 right-5">
+            <People ids={song.collaboratorIds} songId={song.id} title={song.title} />
+          </div>
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
+            <Toolkit />
+          </div>
+          <div className="absolute right-5 bottom-5">
+            <Help />
+            <TakeSound />
+          </div>
         </div>
-        {/* A selected section's settings, or the timeline's selected clip, open here on the right. Never both: picking one lets go of the other. */}
-        <div className="pointer-events-none absolute top-[76px] right-5 bottom-5 flex items-start">
-          <SectionPanel />
-          <TakePanel />
-        </div>
-        <div id={CLIP_PANEL} className="pointer-events-none absolute top-[76px] right-5 bottom-5 z-10 flex items-start" />
-        <div className="absolute top-5 right-5">
-          <People ids={song.collaboratorIds} songId={song.id} title={song.title} />
-        </div>
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
-          <Toolkit />
-        </div>
+
+        {/* The dock grows up from the bottom edge, and the canvas gives way as it does. */}
+        <AnimatePresence initial={false}>
+          {timelineOpen && (
+            <motion.div
+              key="timeline"
+              className="shrink-0 overflow-hidden pt-2"
+              initial={{ height: 0 }}
+              animate={{ height: 'auto' }}
+              exit={{ height: 0 }}
+              transition={still ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0 }}
+            >
+              <TimelineView />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-
-      {/* The dock grows up from the bottom edge, and the canvas gives way as it does. */}
-      <AnimatePresence initial={false}>
-        {timelineOpen && (
-          <motion.div
-            key="timeline"
-            className="shrink-0 overflow-hidden"
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            transition={still ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0 }}
-          >
-            <TimelineView />
-          </motion.div>
-        )}
-      </AnimatePresence>
       {templatePicker.open && <TemplatePicker />}
     </motion.div>
   )
@@ -232,6 +255,7 @@ function useShortcuts() {
         redo()
       } else if (!mod && !e.altKey && e.key === 'v') setTool('select')
       else if (!mod && !e.altKey && e.key === 'c') setTool('comment')
+      else if (!mod && !e.altKey && e.key === 'h') setTool('hand')
       else if (e.key === 'Escape' && tool === 'comment') setTool('select')
       // + and − zoom the canvas, with or without ⌘ (instead of the browser zooming the page); ⇧1 fits it all.
       else if (e.key === '=' || e.key === '+') {
@@ -367,9 +391,10 @@ function Canvas() {
           panOnDrag={tool === 'hand'}
           selectionOnDrag={tool === 'select'}
           // Commenting: a press anywhere, on a card or not, starts a comment there.
-          nodesDraggable={!commenting}
-          nodesConnectable={!commenting}
-          elementsSelectable={!commenting}
+          // Moving around: a press anywhere, on a card or not, drags the view.
+          nodesDraggable={tool === 'select'}
+          nodesConnectable={tool === 'select'}
+          elementsSelectable={tool === 'select'}
           onPaneClick={(e) => {
             setOpenComment(null)
             if (commenting) setDraft(screenToFlowPosition({ x: e.clientX, y: e.clientY }))
@@ -381,7 +406,7 @@ function Canvas() {
           }}
           panOnScroll
           proOptions={{ hideAttribution: true }}
-          className={tool === 'hand' ? 'cursor-grab' : commenting ? 'commenting' : undefined}
+          className={tool === 'hand' ? 'moving' : commenting ? 'commenting' : undefined}
         >
           <CanvasComments
             draft={draft}
@@ -406,12 +431,6 @@ function Canvas() {
 
       <div className="absolute top-5 left-1/2 -translate-x-1/2">
         <Hint />
-      </div>
-      {/* Centred in the open space between the title and the canvas's bottom edge, timeline or not. */}
-      <div className="pointer-events-none absolute top-[76px] bottom-5 left-5">
-        <div className="flex h-full items-center">
-          <Rail />
-        </div>
       </div>
     </>
   )
@@ -442,7 +461,7 @@ function GatherBar() {
         onClick={() => gather(picked)}
         className="type-action animate-wire-card flex h-9 items-center gap-2 rounded-full bg-ink pr-4 pl-3 text-on-ink shadow-lift transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97]"
       >
-        <Plus width={15} height={15} strokeWidth={1.75} />
+        <Plus width={15} height={15} />
         {into ? `Add ${cards} to ${into.type === 'section' ? into.data.name.toLowerCase() : 'section'}` : `Add ${cards} to a section`}
       </button>
     </NodeToolbar>

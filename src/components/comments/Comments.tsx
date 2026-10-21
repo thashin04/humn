@@ -82,7 +82,7 @@ export function Thread({ comment }: { comment: SongComment }) {
           onClick={() => resolve(comment.id)}
           className="flex size-7 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-well hover:text-ink-1"
         >
-          <Check width={15} height={15} strokeWidth={1.8} />
+          <Check width={15} height={15} />
         </button>
       </div>
       <p className="type-body mt-1 break-words whitespace-pre-wrap text-ink-1">{comment.text}</p>
@@ -129,7 +129,7 @@ export function Composer({ onPost, onCancel }: { onPost: (text: string) => void;
         disabled={!ready}
         className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-on-ink transition-opacity disabled:opacity-25"
       >
-        <ArrowUp width={15} height={15} strokeWidth={2} />
+        <ArrowUp width={15} height={15} />
       </button>
     </form>
   )

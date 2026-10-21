@@ -1,14 +1,11 @@
-import gridIcon from '@/assets/figma/ws-icon-grid.svg'
-import listIcon from '@/assets/figma/ws-icon-list.svg'
-import searchIcon from '@/assets/figma/ws-search.svg'
-import { MaskIcon } from '@/components/MaskIcon'
+import { List, Search, ViewGrid } from 'iconoir-react'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/store/workspace'
 
-export function SearchField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export function SearchField({ value, onChange, className }: { value: string; onChange: (value: string) => void; className?: string }) {
   return (
-    <label className="flex h-[30px] w-[220px] items-center gap-1.5 rounded-[8px] border border-nav-rule bg-raised px-2.5">
-      <img src={searchIcon} alt="" />
+    <label className={cn('flex h-[30px] w-[220px] items-center gap-1.5 rounded-[8px] border border-nav-rule bg-raised px-2.5', className)}>
+      <Search className="size-3.5 shrink-0 text-nav-ink-3" />
       <input
         type="search"
         value={value}
@@ -24,24 +21,24 @@ export function SearchField({ value, onChange }: { value: string; onChange: (val
 export function LayoutToggle() {
   const { layout, setLayout } = useWorkspace()
   return (
-    <div className="flex rounded-[8px] border border-nav-rule bg-raised p-0.5">
+    <div className="flex h-9 items-center gap-0.5 rounded-full border border-nav-rule bg-raised p-1">
       {(
         [
-          ['grid', gridIcon, 'Grid'],
-          ['list', listIcon, 'List'],
+          ['grid', ViewGrid, 'Grid'],
+          ['list', List, 'List'],
         ] as const
-      ).map(([id, icon, label]) => (
+      ).map(([id, Icon, label]) => (
         <button
           key={id}
           onClick={() => setLayout(id)}
           aria-label={`${label} view`}
           aria-pressed={layout === id}
           className={cn(
-            'flex h-6 w-7 items-center justify-center rounded-[6px] transition-[background-color,color,box-shadow,transform] duration-400 ease-out',
+            'flex h-full w-9 items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-400 ease-out',
             layout === id ? 'bg-nav-active text-nav-ink' : 'text-nav-ink-2',
           )}
         >
-          <MaskIcon src={icon} className="size-3.5" />
+          <Icon className="size-3.5" />
         </button>
       ))}
     </div>

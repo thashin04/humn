@@ -38,10 +38,11 @@ export function roleOf(type: string | undefined): Role {
 export type WordsData = { text: string }
 /** Lines to be sung, in the person's own words. */
 export type LyricsData = { text: string }
-export type VoiceData = { label: string; duration: number }
+/** `src` is a recording someone uploaded; without one, the prototype hums it. */
+export type VoiceData = { label: string; duration: number; src?: string }
 export type PhotoData = { caption: string; src?: string }
 export type FeelingData = { name: string; amount: number }
-export type SoundData = { label: string; duration: number; place?: string }
+export type SoundData = { label: string; duration: number; place?: string; src?: string }
 export type ColorData = { label: string; gradient: string }
 export type InstrumentData = { tab: string; name: string; detail: string; thumb?: string }
 export type ChordsData = { chords: string[] }

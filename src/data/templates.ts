@@ -1,9 +1,12 @@
 import birthday from '@/assets/photos/template-birthday.jpg'
 import redHouse from '@/assets/photos/template-photo.jpg'
 import roadTrip from '@/assets/photos/template-roadtrip.png'
+import graduation from '@/assets/photos/template-graduation.jpg'
+import lateNight from '@/assets/photos/template-latenight.jpg'
+import summer from '@/assets/photos/template-summer.jpg'
 import type { AnySongNode, Role } from './nodes'
 
-export type TemplateId = 'roadtrip' | 'childhood' | 'anniversary'
+export type TemplateId = 'roadtrip' | 'childhood' | 'anniversary' | 'summer' | 'latenight' | 'graduation'
 
 export type Template = {
   id: TemplateId
@@ -35,6 +38,27 @@ export const templates: Template[] = [
     ingredients: 'words + photo + a voice',
     description: 'Make a warm, personal song about the years you have chosen each other.',
     image: birthday,
+  },
+  {
+    id: 'summer',
+    name: 'Last summer together',
+    ingredients: 'words + feeling + a sound',
+    description: 'Gather the jokes, the heat, and the noise of the summer you all keep talking about.',
+    image: summer,
+  },
+  {
+    id: 'graduation',
+    name: 'Graduation day',
+    ingredients: 'words + feeling + a voice',
+    description: 'Mark the end of one chapter and the start of the next, with the people who got you there.',
+    image: graduation,
+  },
+  {
+    id: 'latenight',
+    name: 'Late-night talks',
+    ingredients: 'words + colour + a voice',
+    description: 'For the conversations that only happen after midnight, slow and a little honest.',
+    image: lateNight,
   },
 ]
 
@@ -141,6 +165,96 @@ const DEFINITIONS: Record<TemplateId, TemplateDefinition> = {
           { input: 'personal-message', role: 'melody' },
           { input: 'rose-colour', role: 'mood' },
           { input: 'acoustic-guitar', role: 'instruments' },
+        ],
+        take: { version: 'A', length: 30, position: { x: 875, y: 610 } },
+      },
+    ],
+  },
+  summer: {
+    inputs: [
+      { id: 'summer-words', node: { type: 'words', position: { x: 0, y: -180 }, data: { text: 'Sticky afternoons, everyone on the roof' } } },
+      { id: 'summer-colour', node: { type: 'color', position: { x: 0, y: 30 }, data: { label: 'Late sun', gradient: 'linear-gradient(135deg, #f2a65a 0%, #f6d27a 48%, #8cc7c1 100%)' } } },
+      { id: 'summer-ukulele', node: { type: 'instrument', position: { x: 0, y: 190 }, data: { tab: 'Strings', name: 'Ukulele', detail: 'light and bouncy' } } },
+      { id: 'summer-joy', node: { type: 'feeling', position: { x: 0, y: 550 }, data: { name: 'Easy joy', amount: 0.84 } } },
+      { id: 'summer-sounds', node: { type: 'sound', position: { x: 0, y: 710 }, data: { label: 'Friends laughing by the pool', duration: 16 } } },
+      { id: 'summer-claps', node: { type: 'instrument', position: { x: 0, y: 870 }, data: { tab: 'Percussion', name: 'Hand claps', detail: 'loose and together' } } },
+    ],
+    sections: [
+      {
+        id: 'first-week', name: 'Intro', title: 'The First Week', length: 15, position: { x: 470, y: 0 },
+        sources: [
+          { input: 'summer-words', role: 'intent' },
+          { input: 'summer-colour', role: 'mood' },
+          { input: 'summer-ukulele', role: 'instruments' },
+        ],
+        take: { version: 'A', length: 15, position: { x: 875, y: -40 } },
+      },
+      {
+        id: 'all-of-us', name: 'Chorus', title: 'All of Us', length: 30, position: { x: 470, y: 650 },
+        sources: [
+          { input: 'summer-joy', role: 'mood' },
+          { input: 'summer-sounds', role: 'texture' },
+          { input: 'summer-claps', role: 'instruments' },
+        ],
+        take: { version: 'A', length: 30, position: { x: 875, y: 610 } },
+      },
+    ],
+  },
+  latenight: {
+    inputs: [
+      { id: 'night-words', node: { type: 'words', position: { x: 0, y: -180 }, data: { text: 'Still talking at 2am' } } },
+      { id: 'night-colour', node: { type: 'color', position: { x: 0, y: 30 }, data: { label: 'Midnight blue', gradient: 'linear-gradient(135deg, #1f2a4a 0%, #4b4f86 52%, #b58bb0 100%)' } } },
+      { id: 'night-keys', node: { type: 'instrument', position: { x: 0, y: 190 }, data: { tab: 'Keys', name: 'Soft electric piano', detail: 'hazy and warm' } } },
+      { id: 'night-voice', node: { type: 'voice', position: { x: 0, y: 550 }, data: { label: 'Something we said', duration: 22 } } },
+      { id: 'night-feeling', node: { type: 'feeling', position: { x: 0, y: 710 }, data: { name: 'Quiet and close', amount: 0.36 } } },
+      { id: 'night-rain', node: { type: 'sound', position: { x: 0, y: 870 }, data: { label: 'Rain on the window', duration: 20 } } },
+    ],
+    sections: [
+      {
+        id: 'after-midnight', name: 'Intro', title: 'After Midnight', length: 15, position: { x: 470, y: 0 },
+        sources: [
+          { input: 'night-words', role: 'intent' },
+          { input: 'night-colour', role: 'mood' },
+          { input: 'night-keys', role: 'instruments' },
+        ],
+        take: { version: 'A', length: 15, position: { x: 875, y: -40 } },
+      },
+      {
+        id: 'honest-part', name: 'Verse', title: 'The Honest Part', length: 30, position: { x: 470, y: 650 },
+        sources: [
+          { input: 'night-voice', role: 'melody' },
+          { input: 'night-feeling', role: 'mood' },
+          { input: 'night-rain', role: 'texture' },
+        ],
+        take: { version: 'A', length: 30, position: { x: 875, y: 610 } },
+      },
+    ],
+  },
+  graduation: {
+    inputs: [
+      { id: 'grad-words', node: { type: 'words', position: { x: 0, y: -180 }, data: { text: 'We actually made it' } } },
+      { id: 'grad-feeling', node: { type: 'feeling', position: { x: 0, y: 30 }, data: { name: 'Proud and a little scared', amount: 0.68 } } },
+      { id: 'grad-strings', node: { type: 'instrument', position: { x: 0, y: 190 }, data: { tab: 'Strings', name: 'Swelling strings', detail: 'big and hopeful' } } },
+      { id: 'grad-voice', node: { type: 'voice', position: { x: 0, y: 550 }, data: { label: 'A thank-you to the group', duration: 25 } } },
+      { id: 'grad-colour', node: { type: 'color', position: { x: 0, y: 710 }, data: { label: 'Fresh green', gradient: 'linear-gradient(135deg, #6f8f72 0%, #c9d6a3 50%, #f3ead2 100%)' } } },
+      { id: 'grad-drums', node: { type: 'instrument', position: { x: 0, y: 870 }, data: { tab: 'Percussion', name: 'Marching drums', detail: 'steady and building' } } },
+    ],
+    sections: [
+      {
+        id: 'last-day', name: 'Verse', title: 'The Last Day', length: 30, position: { x: 470, y: 0 },
+        sources: [
+          { input: 'grad-words', role: 'intent' },
+          { input: 'grad-feeling', role: 'mood' },
+          { input: 'grad-strings', role: 'instruments' },
+        ],
+        take: { version: 'A', length: 30, position: { x: 875, y: -40 } },
+      },
+      {
+        id: 'whats-next', name: 'Chorus', title: 'What’s Next', length: 30, position: { x: 470, y: 650 },
+        sources: [
+          { input: 'grad-voice', role: 'melody' },
+          { input: 'grad-colour', role: 'mood' },
+          { input: 'grad-drums', role: 'instruments' },
         ],
         take: { version: 'A', length: 30, position: { x: 875, y: 610 } },
       },

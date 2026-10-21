@@ -91,7 +91,7 @@
 
 :root {
     /* humn "Soft" tokens, from Figma */
-    --soft-ground: #f4f4f3;
+    --soft-ground: #f0f0ee;
     --soft-card: #fcfcfb;
     --soft-well: #f3f3f2;
     --soft-ink: #24272b;
@@ -240,6 +240,9 @@
 /* The comment tool: everything on the canvas becomes somewhere to leave a comment. */
 .react-flow.commenting .react-flow__pane,
 .react-flow.commenting .react-flow__node { cursor: crosshair; }
+/* Moving around: cards let presses through to the canvas, so dragging anywhere moves the view. */
+.react-flow.moving .react-flow__node,
+.react-flow.moving .react-flow__edge { pointer-events: none; }
 
 /* Node motion, after the studio prototype: spring in, and one shine across a node when it's selected */
 @keyframes node-enter {
@@ -530,3 +533,14 @@ svg.react-flow__connectionline.react-flow__container { z-index: 0; }
 .react-flow__handle.wire-in { width: 1px; height: 1px; min-width: 0; min-height: 0; border: 0; background: transparent; }
 .react-flow__handle.wire-out { top: 82px; right: 0; }
 .react-flow__handle.wire-in { left: 0; }
+
+/* Warm film grain laid over a photo: fractal noise tinted amber (red up, blue down), blended as an overlay. */
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='2.2 0 0 0 -0.45 1.9 0 0 0 -0.5 1.4 0 0 0 -0.45 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  opacity: 0.3;
+}

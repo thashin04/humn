@@ -1,7 +1,6 @@
-import { Check, Pause, Play, Refresh, SoundHigh, Xmark } from 'iconoir-react'
+import { Check, MusicNote, Pause, Play, Refresh, SoundHigh, Xmark } from 'iconoir-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
-import iconTake from '@/assets/figma/node-icon-take.svg'
 import { TAKE_BARS } from '@/components/nodes/waves'
 import { useProgress } from '@/components/nodes/usePlayback'
 import { type SongNode, type TakeEdit } from '@/data/nodes'
@@ -68,7 +67,7 @@ function Edit({ take }: { take: SongNode<'take'> }) {
   return (
     <>
       <div className="flex items-start gap-2.5 px-5 pt-[18px] pb-3">
-        <img src={iconTake} alt="" className="mt-0.5 size-[18px] shrink-0" />
+        <MusicNote className="mt-0.5 size-[18px] shrink-0 text-ink-2" />
         <div className="min-w-0 flex-1">
           <p className="text-[15px] leading-[1.3] font-medium text-ink-1">Take {v}</p>
           <p className="type-small truncate text-ink-3">
@@ -82,7 +81,7 @@ function Edit({ take }: { take: SongNode<'take'> }) {
           onClick={() => onNodesChange([{ type: 'select', id, selected: false }])}
           className="-mt-1 -mr-1.5 flex size-7 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-well hover:text-ink-1"
         >
-          <Xmark width={16} height={16} strokeWidth={1.5} />
+          <Xmark width={16} height={16} />
         </button>
       </div>
 
@@ -99,7 +98,7 @@ function Edit({ take }: { take: SongNode<'take'> }) {
                 playing ? 'bg-ink text-on-ink' : 'text-ink-1 hover:bg-well',
               )}
             >
-              {playing ? <Pause width={15} height={15} strokeWidth={1.75} /> : <Play width={15} height={15} strokeWidth={1.75} />}
+              {playing ? <Pause width={15} height={15} /> : <Play width={15} height={15} />}
             </button>
             <p className="flex-1 text-center font-mono text-[13px] text-ink-1">{stamp(playing ? progress * length : e.from)}</p>
             <span className="size-8" />
@@ -115,7 +114,7 @@ function Edit({ take }: { take: SongNode<'take'> }) {
 
         <Section title="Volume" note="How loud this take plays.">
           <div className="flex items-center gap-3">
-            <SoundHigh width={16} height={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
+            <SoundHigh width={16} height={16} className="shrink-0 text-ink-2" />
             <input
               type="range"
               min={0}
@@ -146,7 +145,7 @@ function Edit({ take }: { take: SongNode<'take'> }) {
             onClick={() => editTake(id, undefined)}
             className="type-caption flex items-center gap-2 self-start rounded-full py-1 pr-2 text-ink-2 transition-colors hover:text-ink-1"
           >
-            <Refresh width={15} height={15} strokeWidth={1.5} />
+            <Refresh width={15} height={15} />
             Reset edits
           </button>
         )}
@@ -157,7 +156,7 @@ function Edit({ take }: { take: SongNode<'take'> }) {
           <>
             <div className="flex items-center gap-2">
               <span className="type-caption flex h-7 items-center gap-1.5 rounded-full bg-ink pr-3 pl-2 text-on-ink">
-                <Check width={13} height={13} strokeWidth={2.2} />
+                <Check width={13} height={13} />
                 In timeline
               </span>
               <span className="flex-1" />

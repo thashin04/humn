@@ -1,15 +1,14 @@
 import { Handle, Position, useReactFlow, useUpdateNodeInternals, type NodeProps } from '@xyflow/react'
-import { Check, NavArrowDown, Plus, Refresh } from 'iconoir-react'
+import { AppWindow, Check, NavArrowDown, Plus, Refresh } from 'iconoir-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import iconSection from '@/assets/figma/node-icon-section.svg'
 import { KIND_ICONS } from '@/components/chrome/kindIcons'
 import { slotSentence } from '@/data/interpret'
 import { DRAWERS } from '@/data/library'
 import { DEFAULT_ROLE, ROLES, type AnySongNode, type Kind, type Role, type SongNode } from '@/data/nodes'
 import { bars, LENGTHS, PARTS } from '@/data/parts'
 import { cn } from '@/lib/utils'
-import { useSong } from '@/store/song'
+import { useInPickedClip, useSong } from '@/store/song'
 import { NodeShell } from './NodeShell'
 
 const ADDABLE: Kind[] = ['lyrics', 'voice', 'photo', 'sound', 'color', 'instrument']
@@ -43,14 +42,16 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
   const layout = filled.map((f) => f.role).join()
   useEffect(() => updateNodeInternals(id), [layout, id, updateNodeInternals])
   const count = filled.reduce((n, f) => n + f.cards.length, 0)
+  // Picking one of this part's clips in the timeline lights it up here too.
+  const inPickedClip = useInPickedClip(id)
 
   return (
     <NodeShell
       width={320}
       tall
-      icon={iconSection}
+      icon={AppWindow}
       label={data.name}
-      selected={selected}
+      selected={selected || inPickedClip}
       targeted={targeted}
       tab={
         <Menu
@@ -62,7 +63,7 @@ export function SectionNode({ id, data, selected }: NodeProps<SongNode<'section'
           onPick={(name) => set({ name })}
           trigger={
             <>
-              <img src={iconSection} alt="" className="size-[15px]" />
+              <AppWindow className="size-[15px] shrink-0 text-ink-1" />
               <span className="type-title whitespace-nowrap text-ink-1">{data.name}</span>
             </>
           }
@@ -157,7 +158,7 @@ function HearButton({ section, disabled, onClick }: { section: string; disabled:
             <span aria-hidden className="size-3.5 animate-spin rounded-full border-[1.5px] border-current border-t-transparent" />
           ) : state ? (
             <motion.span animate={{ rotate: turns * 360 }} transition={{ type: 'spring', visualDuration: 0.6, bounce: 0.15 }}>
-              <Refresh width={15} height={15} strokeWidth={1.75} />
+              <Refresh width={15} height={15} />
             </motion.span>
           ) : (
             <KindIcon kind="sound" className="size-4" />
@@ -251,7 +252,7 @@ function Thumb({ cards, role }: { cards: AnySongNode[]; role: Role }) {
 function KindIcon({ kind, className }: { kind: Kind; className?: string }) {
   // A take carried on from the last part shows as sound.
   const Icon = KIND_ICONS[kind] ?? KIND_ICONS.sound
-  return Icon ? <Icon strokeWidth={1.5} className={className} /> : null
+  return Icon ? <Icon className={className} /> : null
 }
 
 /**
@@ -297,7 +298,7 @@ function AddInfluence({ section, empty, hot }: { section: string; empty: Role[];
           </>
         ) : (
           <>
-            <Plus width={16} height={16} strokeWidth={1.5} className="text-ink-2" />
+            <Plus width={16} height={16} className="text-ink-2" />
             Add an input
           </>
         )}
@@ -375,7 +376,7 @@ function Menu({
         )}
       >
         {trigger}
-        <NavArrowDown width={14} height={14} strokeWidth={1.5} className={cn('text-ink-3 transition-transform duration-200', open && 'rotate-180')} />
+        <NavArrowDown width={14} height={14} className={cn('text-ink-3 transition-transform duration-200', open && 'rotate-180')} />
       </button>
       {open && (
         <div
