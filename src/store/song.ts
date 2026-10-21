@@ -69,6 +69,8 @@ type SongState = {
   fresh: { id: string; source: string; section: string; role: Role } | null
   /** The section just created from the suggestion; its settings open right away, until it's deselected. */
   made: string | null
+  /** A first part just started from a suggestion (demo): its settings wait, and open once something else is plugged into it. */
+  opensOnPlug: string | null
   /** The take that's playing; the wires into its section flow while it does. */
   playing: string | null
   /** The input currently being inspected in the selected section. */
@@ -173,6 +175,7 @@ export const useSong = create<SongState>()(
   drafting: null,
   fresh: null,
   made: null,
+  opensOnPlug: null,
   playing: null,
   focusedInputId: null,
   editing: null,
@@ -271,6 +274,13 @@ export const useSong = create<SongState>()(
       })
       return { ...remember(s), ...keep(s, nodes), fresh: pulse(set, { id: `${source}|${section}`, source, section, role }) }
     })
+    // The first part someone started, now with more plugged into it: its settings open (demo).
+    if (get().opensOnPlug === section)
+      set((s) => ({
+        ...keep(s, s.nodes.map((n) => (!!n.selected === (n.id === section) ? n : ({ ...n, selected: n.id === section } as AnySongNode)))),
+        made: section,
+        opensOnPlug: null,
+      }))
   },
   disconnect: (source, section) =>
     set((s) => ({ ...remember(s), ...keep(s, unplug(s.nodes, (id) => id === source, section)) })),
@@ -408,11 +418,11 @@ export const useSong = create<SongState>()(
     } as AnySongNode
     set((s) => keep(s, [...s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), section]))
     if (source) get().connect(source, id, role)
-    // The new section ends up selected, with its settings open and its first input in focus. Pull back so the cards and it are all in view.
+    // Demo: nothing's picked yet, so its settings stay closed until something more is plugged into it (see connect).
+    // Pull back so the cards and it are all in view.
     set((s) => ({
-      ...keep(s, s.nodes.map((n) => (!!n.selected === (n.id === id) ? n : ({ ...n, selected: n.id === id } as AnySongNode)))),
-      made: id,
-      focusedInputId: source,
+      ...keep(s, s.nodes.map((n) => (n.selected ? ({ ...n, selected: false } as AnySongNode) : n))),
+      opensOnPlug: id,
       fitRequest: s.fitRequest + 1,
     }))
   },
