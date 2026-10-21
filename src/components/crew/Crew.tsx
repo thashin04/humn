@@ -406,7 +406,13 @@ async function script(rf: RF, stopped: () => boolean) {
       await note('thashin', 0, 1, 'the hum at the start 😭')
     })(),
   ])
-  // They keep looking around a little longer, then settle.
-  await sleep(6000)
+  // They stay a beat, still, then head off their own way one after another, fading as they go.
   looking = false
+  await sleep(2600)
+  for (const who of CREW) {
+    if (stopped()) return
+    void move(who, () => off(who), 1.4)
+    window.setTimeout(() => put(who, { shown: false }), 450)
+    await sleep(rand(350, 700))
+  }
 }
