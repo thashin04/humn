@@ -235,9 +235,12 @@ export function TimelineView() {
 
   // With a card selected, the arrow keys are the canvas's.
   const cardPicked = useSong((s) => s.nodes.some((n) => n.selected))
+  // Folded away, it only listens for Space, to pause the song it's still playing.
+  const open = useSong((s) => s.timelineOpen)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof Element && e.target.closest('input, textarea, button, [contenteditable]')) return
+      if (!open && !(e.key === ' ' && playing)) return
       if (e.key === ' ') {
         e.preventDefault()
         toggle()

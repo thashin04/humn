@@ -71,6 +71,9 @@ type SongState = {
   made: string | null
   /** The section the person picked themselves (demo): its settings open only for that, never when the app selects one. */
   picked: string | null
+  /** A section whose new ideas should be brought into view beside its open settings (demo). */
+  frameTakes: string | null
+  clearFrameTakes: () => void
   /** The take that's playing; the wires into its section flow while it does. */
   playing: string | null
   /** The input currently being inspected in the selected section. */
@@ -141,6 +144,10 @@ type SongState = {
 let freshTimer = 0
 
 type Fresh = NonNullable<SongState['fresh']>
+/** The timeline rising (demo): whatever has a side panel open (a take, a part) lets go, so the panel steps aside for it. */
+const panelsAside = (nodes: AnySongNode[]) =>
+  nodes.map((n) => (n.selected && (n.type === 'take' || n.type === 'section') ? ({ ...n, selected: false } as AnySongNode) : n))
+
 /** Marks a connection as just made, for its pulse, and clears it once the pulse has run. */
 function pulse(set: (fn: (s: SongState) => Partial<SongState> | SongState) => void, fresh: Fresh) {
   clearTimeout(freshTimer)
@@ -176,6 +183,8 @@ export const useSong = create<SongState>()(
   fresh: null,
   made: null,
   picked: null,
+  frameTakes: null,
+  clearFrameTakes: () => set({ frameTakes: null }),
   playing: null,
   focusedInputId: null,
   editing: null,
@@ -305,17 +314,19 @@ export const useSong = create<SongState>()(
         }) as AnySongNode,
     )
     if (s.playing && proposed.has(s.playing)) set({ playing: null })
-    // The verse lets go, so its panel steps aside and the new ideas are in view.
+    // Everything else lets go; the part itself stays picked, so its panel stays open while its ideas are made (demo).
     set((s) => ({
       ...remember(s),
       ...keep(s, [
         ...unplug(s.nodes.filter((n) => !proposed.has(n.id)), (id) => proposed.has(id)).map((n) =>
-          n.selected ? ({ ...n, selected: false } as AnySongNode) : n,
+          n.selected && n.id !== sectionId ? ({ ...n, selected: false } as AnySongNode) : n,
         ),
         ...made,
       ]),
       made: null,
       focusedInputId: null,
+      // Its settings are open beside it: bring the ideas into the room left of them.
+      frameTakes: s.picked === sectionId ? sectionId : null,
     }))
     const ids = new Set(made.map((t) => t.id))
     // The takes finishing isn't something someone did, so it isn't a step to undo.
@@ -331,7 +342,8 @@ export const useSong = create<SongState>()(
     set((s) => {
       const take = s.nodes.find((n) => n.id === takeId)
       if (take?.type !== 'take' || take.data.state !== 'done' || take.data.added || !s.songId) return s
-      const nodes = s.nodes.map((n) => (n.id === takeId ? ({ ...n, data: { ...n.data, added: true } } as AnySongNode) : n))
+      const added = s.nodes.map((n) => (n.id === takeId ? ({ ...n, data: { ...n.data, added: true } } as AnySongNode) : n))
+      const nodes = s.timelineOpen ? added : panelsAside(added)
       const section = s.nodes.find((n) => n.id === take.data.sectionId)
       const clips = s.arrangements[s.songId]
       const arrangements =
@@ -445,7 +457,12 @@ export const useSong = create<SongState>()(
       lastKey = ''
       return { ...restore(s, ahead), past: [...s.past, snapshot(s)], future: s.future.slice(1) }
     }),
-  toggleTimeline: () => set((s) => ({ timelineOpen: !s.timelineOpen, clip: null })),
+  toggleTimeline: () =>
+    set((s) => ({
+      timelineOpen: !s.timelineOpen,
+      clip: null,
+      ...(!s.timelineOpen && { ...keep(s, panelsAside(s.nodes)), editing: null, focusedInputId: null }),
+    })),
   setDockHeight: (dockHeight) => set({ dockHeight }),
   pickClip: (clip) =>
     set((s) =>

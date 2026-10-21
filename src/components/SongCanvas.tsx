@@ -17,7 +17,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { Plus } from 'iconoir-react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { useShallow } from 'zustand/react/shallow'
@@ -239,21 +239,18 @@ export function SongCanvas() {
           <Crew />
         </div>
 
-        {/* The dock grows up from the bottom edge, and the canvas gives way as it does. */}
-        <AnimatePresence initial={false}>
-          {timelineOpen && (
-            <motion.div
-              key="timeline"
-              className="shrink-0 overflow-hidden pt-2"
-              initial={{ height: 0 }}
-              animate={{ height: 'auto' }}
-              exit={{ height: 0 }}
-              transition={still ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0 }}
-            >
-              <TimelineView />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* The dock grows up from the bottom edge, and the canvas gives way as it does. Closed, it folds away but stays
+            (demo), so a song that's playing keeps playing. */}
+        <motion.div
+          className="shrink-0 overflow-hidden"
+          initial={false}
+          animate={timelineOpen ? { height: 'auto', paddingTop: 8 } : { height: 0, paddingTop: 0 }}
+          transition={still ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0 }}
+          inert={!timelineOpen}
+          aria-hidden={!timelineOpen}
+        >
+          <TimelineView />
+        </motion.div>
       </div>
       {templatePicker.open && <TemplatePicker />}
     </motion.div>
@@ -360,6 +357,21 @@ function Canvas() {
     fitted.current = fitRequest
     fitView({ padding: 0.25, maxZoom: 1, duration: 500 })
   }, [measured, fitRequest, fitView])
+  // Ideas being made for a part whose settings are open (demo): frame the part, what's plugged into it and its ideas
+  // in the room left of the panel, so the ideas don't come in behind it.
+  const frameTakes = useSong((s) => s.frameTakes)
+  const clearFrameTakes = useSong((s) => s.clearFrameTakes)
+  useEffect(() => {
+    if (!measured || !frameTakes) return
+    const section = nodes.find((n) => n.id === frameTakes)
+    const ids = [
+      frameTakes,
+      ...(section?.type === 'section' ? Object.values(section.data.sources).flat() : []),
+      ...nodes.filter((n) => n.type === 'take' && n.data.sectionId === frameTakes && !n.data.branchOf).map((n) => n.id),
+    ]
+    fitView({ nodes: ids.map((id) => ({ id })), padding: { top: '90px', bottom: '110px', left: '70px', right: '360px' }, maxZoom: 1, duration: 500 })
+    clearFrameTakes()
+  }, [measured, frameTakes, nodes, fitView, clearFrameTakes])
   // Asked from the timeline to show a card or section: bring it into view.
   useEffect(() => {
     if (!measured || !focus) return
