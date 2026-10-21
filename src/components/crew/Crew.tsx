@@ -9,18 +9,20 @@ import { useWorkspace } from '@/store/workspace'
 import { CREW, useCrew, type Cursor, type P, type Who } from './store'
 
 /**
- * The team, live (demo). Once the song is shared to "Team 😎", Thashin, Naziat
- * and Tory join: their cursors come in and, as in the demo video, they build a
- * Chorus off the Verse: Thashin carries the Verse on into it, they bring in a
- * Feeling, Brushed drums, Strings and a sound and wire each in, make its takes
- * and put Take A in the song, then keep going off that: a Bridge carried on
- * from the Chorus, with a piano and a Feeling, and two ideas for it, while
- * they leave notes on the timeline; then remake the Bridge's ideas with a
- * guitar and a music box plugged straight in, and start a Verse 2. They play nothing themselves: if the
- * song's playing, the Chorus is heard when the playhead gets to it. They work
- * at once, each moving their own way, and look around while the others are
- * busy. Everything they do goes through the app's own
- * actions, so it's all real once they've done it: undo, play, move, unplug.
+ * The team, live (demo: a soundtrack for the game Mosswood). Once the song is
+ * shared to "Team 😎", Thashin, Naziat and Tory join: their cursors come in
+ * and they build a Chorus off the Verse. Thashin carries the Verse on into it,
+ * they bring in the game's art (the village and the woods), Strings, Brushed
+ * drums and a night sound and wire each in, make its takes and put Take A in
+ * the song. Then they keep going off that: a Bridge carried on from the Chorus,
+ * with the world art and a piano, and two ideas for it, while they leave notes
+ * on the timeline; then they remake the Bridge's ideas with a guitar and a
+ * music box plugged straight in, and start a Verse 2 with lines and the
+ * character art. They play nothing themselves: if the song's playing, the
+ * Chorus is heard when the playhead gets to it. They work at once, each moving
+ * their own way, and look around while the others are busy. Everything they do
+ * goes through the app's own actions, so it's all real once they've done it:
+ * undo, play, move, unplug.
  */
 
 const put = (who: Who, patch: Partial<Cursor>) =>
@@ -323,41 +325,53 @@ async function script(rf: RF, stopped: () => boolean) {
   // Far enough right that the cards they bring in fit between what's there and the Chorus, wired in from its left.
   const chorusAt = { x: right + 640, y: top + 200 }
   let chorus = ''
-  // A column in the gap left of the Chorus (centres; the cards are about 270 wide), all below the wire the Verse carries
-  // on into it along, and in the order of the sockets they plug into, so no wire crosses another. Fixed to where the
-  // Chorus was put, not its corner, which rises as it grows with each thing plugged in.
+  // A column in the gap left of the Chorus (centres, `dy` below the wire the Verse carries on into it along), in the
+  // order of the sockets they plug into, so no wire crosses another. Fixed to where the Chorus was put, not its corner,
+  // which rises as it grows with each thing plugged in. (An image card is about 220 tall, the others about 90.)
   const verseLine = portY(vt?.id) ?? chorusAt.y - 105
-  const cardAt = (row: number) => () => ({ x: chorusAt.x - 410, y: verseLine + 105 + row * 130 })
-  const made = work('thashin', async () => {
+  const cardAt = (dy: number) => () => ({ x: chorusAt.x - 410, y: verseLine + dy })
+  // The game's art (demo: a game soundtrack, for Mosswood).
+  const art = {
+    village: { caption: 'Willow Village', src: '/game/village.jpg' },
+    woods: { caption: 'The Whispering Woods', src: '/game/woods.jpg' },
+    world: { caption: 'Mosswood, world exploration', src: '/game/world.jpg' },
+    character: { caption: 'Mosswood, character sheet', src: '/game/character.jpg' },
+  }
+  const placed = work('thashin', async () => {
     await move('thashin', () => screen(chorusAt))
     await click()
     chorus = song().addNode('section', chorusAt, { ...structuredClone(STARTING_DATA.section), name: 'Chorus' })
     await sleep(200)
     fit()
+  })
+  const made = placed.then(() => work('thashin', async () => {
     await sleep(400)
     const from = verseTake()
     if (from?.type === 'take' && from.data.added) await wire('thashin', from.id, chorus, 'follows')
-  })
-  // Naziat brings a Feeling and then Strings; Tory, Brushed drums and then a sound to sit underneath.
+    // Then a sound to sit underneath it.
+    const night = await bring('thashin', 'sound', cardAt(563), { label: 'Night in the woods', duration: 64 })
+    await wire('thashin', night, chorus, 'texture')
+  }))
+  // Naziat brings the village and then Strings; Tory, the woods at night and then Brushed drums.
   const naziat = (async () => {
     await sleep(rand(300, 500))
-    const joy = await bring('naziat', 'feeling', cardAt(0), { name: 'Joy', amount: 0.7 })
-    await made
-    await wire('naziat', joy, chorus, 'mood')
-    const strings = await bring('naziat', 'instrument', cardAt(3), { tab: 'Strings', name: 'Strings', detail: 'slow and swelling', thumb: INSTRUMENT_PHOTOS.Strings })
+    const village = await bring('naziat', 'photo', cardAt(150), art.village)
+    await placed
+    await wire('naziat', village, chorus, 'mood')
+    const strings = await bring('naziat', 'instrument', cardAt(805), { tab: 'Strings', name: 'Strings', detail: 'slow and swelling', thumb: INSTRUMENT_PHOTOS.Strings })
     await wire('naziat', strings, chorus, 'instruments')
   })()
   const tory = (async () => {
     await sleep(rand(700, 1000))
-    const drums = await bring('tory', 'instrument', cardAt(2), { tab: 'Drums', name: 'Brushed drums', detail: 'soft, behind the beat', thumb: INSTRUMENT_PHOTOS['Brushed drums'] })
-    await made
+    const woods = await bring('tory', 'photo', cardAt(385), art.woods)
+    await placed
+    await wire('tory', woods, chorus, 'mood')
+    const drums = await bring('tory', 'instrument', cardAt(680), { tab: 'Drums', name: 'Brushed drums', detail: 'soft, behind the beat', thumb: INSTRUMENT_PHOTOS['Brushed drums'] })
     await wire('tory', drums, chorus, 'instruments')
-    const crickets = await bring('tory', 'sound', cardAt(1), { label: 'Crickets at night', duration: 64 })
-    await wire('tory', crickets, chorus, 'texture')
   })()
-  await made
+  await sleep(1200)
   fit()
-  await Promise.all([naziat, tory])
+  await Promise.all([naziat, tory, made])
   if (stopped()) return
 
   // ---- Thashin hears two ideas for it, and as soon as they're made, puts Take A in the song after the Verse
@@ -401,14 +415,14 @@ async function script(rf: RF, stopped: () => boolean) {
     })
 
   // ---- and they keep going off it: Thashin starts a Bridge past the Chorus's takes and carries the Chorus on into it,
-  // Tory brings an Upright piano and Naziat (once her note's down) a Feeling, and Thashin hears two ideas for it.
+  // Tory brings an Upright piano and Naziat (once that note's down) the world art, and Thashin hears two ideas for it.
   // (Its takes stay proposed, so the song that's playing doesn't change.)
   const now = song().nodes.map((n) => node(n.id)).filter((n): n is InternalNode<AnySongNode> => !!n)
   const bridgeAt = { x: Math.max(...now.map((n) => n.internals.positionAbsolute.x + (n.measured.width ?? 260))) + 640, y: chorusAt.y }
   let bridge = ''
   // Below the wire the Chorus carries on along, in socket order (the Feeling, then the piano), as for the Chorus.
   const chorusLine = portY(takeAId) ?? bridgeAt.y - 105
-  const bridgeCardAt = (row: number) => () => ({ x: bridgeAt.x - 410, y: chorusLine + 105 + row * 130 })
+  const bridgeCardAt = (dy: number) => () => ({ x: bridgeAt.x - 410, y: chorusLine + dy })
   const bridgeCards: string[] = []
   // Just this part in view: the Chorus take it carries on from, the Bridge, and what's brought to it.
   const frameBridge = () =>
@@ -431,21 +445,21 @@ async function script(rf: RF, stopped: () => boolean) {
   })
   const piano = (async () => {
     await sleep(rand(500, 800))
-    const id = await bring('tory', 'instrument', bridgeCardAt(1), { tab: 'Keyboard', name: 'Upright piano', detail: 'a bit out of tune', thumb: INSTRUMENT_PHOTOS['Upright piano'] })
+    const id = await bring('tory', 'instrument', bridgeCardAt(340), { tab: 'Keyboard', name: 'Upright piano', detail: 'a bit out of tune', thumb: INSTRUMENT_PHOTOS['Upright piano'] })
     bridgeCards.push(id)
     await started
     await wire('tory', id, bridge, 'instruments')
   })()
   const longing = (async () => {
-    await note('naziat', ci, 2, 'this part made me cry 🥹')
-    const id = await bring('naziat', 'feeling', bridgeCardAt(0), { name: 'Longing', amount: 0.6 })
+    await note('naziat', ci, 2, 'the village theme is so cozy 🥹')
+    const id = await bring('naziat', 'photo', bridgeCardAt(150), art.world)
     bridgeCards.push(id)
     await started
     await wire('naziat', id, bridge, 'mood')
   })()
   await started
   frameBridge()
-  await note('thashin', 0, 1, 'the hum at the start 😭')
+  await note('thashin', 0, 1, 'this hum is so mosswood 🌿')
   await Promise.all([piano, longing])
   if (stopped()) return
   frameBridge()
@@ -504,7 +518,7 @@ async function script(rf: RF, stopped: () => boolean) {
   await sleep(2600)
   if (stopped()) return
 
-  // ---- and Thashin starts a second verse under the Bridge; Naziat writes it some lines and Tory gives it a feeling
+  // ---- and Thashin starts a second verse under the Bridge; Naziat writes it some lines and Tory brings the character
   const verse2At = { x: bridgeAt.x, y: bridgeAt.y + 700 }
   const v2Cards: string[] = []
   const v2CardAt = (dy: number) => () => ({ x: verse2At.x - 410, y: verse2At.y - 50 + dy })
@@ -521,14 +535,14 @@ async function script(rf: RF, stopped: () => boolean) {
   })
   const lyricsIn = (async () => {
     await sleep(rand(300, 500))
-    const id = await bring('naziat', 'lyrics', v2CardAt(0), { text: 'the porch light left on for us' })
+    const id = await bring('naziat', 'lyrics', v2CardAt(0), { text: 'through the mossy gate' })
     v2Cards.push(id)
     await v2Started
     await wire('naziat', id, verse2, 'lyrics')
   })()
   const nostalgiaIn = (async () => {
     await sleep(rand(800, 1100))
-    const id = await bring('tory', 'feeling', v2CardAt(140), { name: 'Nostalgia', amount: 0.8 })
+    const id = await bring('tory', 'photo', v2CardAt(185), art.character)
     v2Cards.push(id)
     await v2Started
     await wire('tory', id, verse2, 'mood')
