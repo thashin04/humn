@@ -108,7 +108,7 @@ function Settings({ section, onOpenInput }: { section: SongNode<'section'>; onOp
           <textarea
             value={data.direction ?? ''}
             onChange={(e) => set({ direction: e.target.value })}
-            placeholder="Let the house set the mood, and the piano come in slowly."
+            placeholder="Let the colorful screens set a warm mood, and the piano comes in slowly."
             rows={3}
             className="type-body field-sizing-content min-h-[76px] w-full resize-none rounded-[12px] border border-rule bg-well px-3 py-2.5 text-ink-1 outline-none transition-colors placeholder:text-ink-3 focus:border-rule-strong focus:bg-card"
           />
