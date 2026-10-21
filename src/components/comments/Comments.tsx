@@ -66,26 +66,26 @@ export function Pin({
   )
 }
 
-/** The card beside an open pin: who said what, and a way to clear it once it's dealt with. */
+/** The card beside an open pin, dark so it reads over cards and clips: who said what, and a way to clear it once it's dealt with. */
 export function Thread({ comment }: { comment: SongComment }) {
   const resolve = useSong((s) => s.resolveComment)
   const c = collaborator(comment.author)
   return (
-    <div className="nodrag nopan nowheel w-[240px] animate-node-enter rounded-[14px] bg-card p-3 text-left shadow-lift">
+    <div className="nodrag nopan nowheel w-[240px] animate-node-enter rounded-[14px] bg-ink p-3 text-left shadow-lift">
       <div className="flex items-center gap-2">
-        <p className="type-caption font-medium text-ink-1">{c.name}</p>
-        <p className="type-small flex-1 text-ink-3">{ago(comment.at)}</p>
+        <p className="type-caption font-medium text-on-ink">{c.name}</p>
+        <p className="type-small flex-1 text-on-ink/55">{ago(comment.at)}</p>
         <button
           type="button"
           title="Resolve"
           aria-label="Resolve comment"
           onClick={() => resolve(comment.id)}
-          className="flex size-7 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-well hover:text-ink-1"
+          className="flex size-7 items-center justify-center rounded-full text-on-ink/70 transition-colors hover:bg-on-ink/10 hover:text-on-ink"
         >
           <Check width={15} height={15} />
         </button>
       </div>
-      <p className="type-body mt-1 break-words whitespace-pre-wrap text-ink-1">{comment.text}</p>
+      <p className="type-body mt-1 break-words whitespace-pre-wrap text-on-ink">{comment.text}</p>
     </div>
   )
 }

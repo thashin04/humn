@@ -84,7 +84,8 @@ function linesOf(nodes: AnySongNode[]): PipeEdge[] {
             targetHandle: 'add',
             selectable: false,
             focusable: false,
-            data: { role: roleOf(nodes.find((n) => n.id === src)?.type), lane: 0 },
+            // A lane out from the take's own wire in, so the two don't run down the same line.
+            data: { role: roleOf(nodes.find((n) => n.id === src)?.type), lane: 2 },
           }))
       : [],
   )

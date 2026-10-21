@@ -283,7 +283,8 @@ async function script(rf: RF, stopped: () => boolean) {
     const take = node(vt.id)
     const left = take?.internals.positionAbsolute.x ?? vt.position.x - 140
     const topY = take?.internals.positionAbsolute.y ?? vt.position.y - 70
-    const crickets = await bring('naziat', 'sound', () => ({ x: left - 150, y: topY - 95 }), { label: 'Crickets at night', duration: 64 })
+    // Up and to the left, so its wire runs across and drops in clear of the take's own wire in.
+    const crickets = await bring('naziat', 'sound', () => ({ x: left - 270, y: topY - 95 }), { label: 'Crickets at night', duration: 64 })
     // Tory comes over to watch it happen.
     void work('tory', () => move('tory', onNode(vt.id, 0.55, 0.15)))
     await wire('naziat', crickets, vt.id, 'texture', 'add')
