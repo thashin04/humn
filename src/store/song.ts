@@ -69,7 +69,7 @@ type SongState = {
   fresh: { id: string; source: string; section: string; role: Role } | null
   /** The section just created from the suggestion; its settings open right away, until it's deselected. */
   made: string | null
-  /** The section the person picked themselves (demo): its settings open only for that, never when the app selects one. */
+  /** The section or take the person picked themselves (demo): its panel opens only for that, never when the app selects one. */
   picked: string | null
   /** A section whose new ideas should be brought into view beside its open settings (demo). */
   frameTakes: string | null
@@ -103,7 +103,8 @@ type SongState = {
    */
   makeTakes: (sectionId: string) => void
   /** Puts a proposed take in the song: it joins the end of the timeline, which opens to show it. */
-  addToTimeline: (takeId: string) => void
+  /** Puts a take in the song; the timeline rises to show it, unless `open` is false (demo: the team adding one). */
+  addToTimeline: (takeId: string, open?: boolean) => void
   /** Trims, levels or fades a take; where it's already in the song, its clips follow. */
   editTake: (takeId: string, edit: TakeEdit | undefined) => void
   /**
@@ -233,10 +234,10 @@ export const useSong = create<SongState>()(
       const nodes = next.filter((node) => !removed.has(node.id))
       const picking = changes.some((c) => c.type === 'select' && c.selected)
       const left = changes.some((c) => (c.type === 'select' && !c.selected) || c.type === 'remove' ? c.id === s.made : false)
-      // A section picked by the person (React Flow says so only for their own clicks and drags), or let go of.
+      // A section or take picked by the person (React Flow says so only for their own clicks and drags), or let go of.
       const pickedNow = changes.find(
         (c): c is Extract<(typeof changes)[number], { type: 'select' }> =>
-          c.type === 'select' && c.selected && s.nodes.find((n) => n.id === c.id)?.type === 'section',
+          c.type === 'select' && c.selected && ['section', 'take'].includes(s.nodes.find((n) => n.id === c.id)?.type ?? ''),
       )?.id
       const letGo = changes.some((c) => ((c.type === 'select' && !c.selected) || c.type === 'remove') && c.id === s.picked)
       // Letting go of the card being edited closes its settings.
@@ -338,19 +339,19 @@ export const useSong = create<SongState>()(
       MAKING_MS,
     )
   },
-  addToTimeline: (takeId) =>
+  addToTimeline: (takeId, open = true) =>
     set((s) => {
       const take = s.nodes.find((n) => n.id === takeId)
       if (take?.type !== 'take' || take.data.state !== 'done' || take.data.added || !s.songId) return s
       const added = s.nodes.map((n) => (n.id === takeId ? ({ ...n, data: { ...n.data, added: true } } as AnySongNode) : n))
-      const nodes = s.timelineOpen ? added : panelsAside(added)
+      const nodes = s.timelineOpen || !open ? added : panelsAside(added)
       const section = s.nodes.find((n) => n.id === take.data.sectionId)
       const clips = s.arrangements[s.songId]
       const arrangements =
         clips && section?.type === 'section'
           ? { ...s.arrangements, [s.songId]: [...clips, newClip(section, take)] }
           : s.arrangements
-      return { ...remember(s), ...keep(s, nodes), arrangements, timelineOpen: true, playing: null }
+      return { ...remember(s), ...keep(s, nodes), arrangements, timelineOpen: open || s.timelineOpen, playing: null }
     }),
   editTake: (takeId, edit) =>
     set((s) => {
@@ -501,7 +502,7 @@ export const useSong = create<SongState>()(
       s.songId ? { comments: { ...s.comments, [s.songId]: (s.comments[s.songId] ?? []).filter((c) => c.id !== id) } } : s,
     ),
   showOnCanvas: (id) =>
-    set((s) => ({ ...keep(s, s.nodes.map((n) => ({ ...n, selected: n.id === id }))), clip: null, focus: id })),
+    set((s) => ({ ...keep(s, s.nodes.map((n) => ({ ...n, selected: n.id === id }))), clip: null, focus: id, picked: id })),
   clearFocus: () => set({ focus: null }),
   openTemplatePicker: () => set((s) => ({ templatePicker: { ...s.templatePicker, open: true } })),
   closeTemplatePicker: () => set((s) => ({ templatePicker: { ...s.templatePicker, open: false } })),

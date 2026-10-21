@@ -22,7 +22,10 @@ const decibels = (v: number) => (v <= 0.001 ? '−∞ dB' : `${Math.round(20 * M
 export function TakePanel() {
   const take = useSong((s) => {
     const picked = s.nodes.filter((n) => n.selected)
-    return picked.length === 1 && picked[0].type === 'take' && picked[0].data.state === 'done' ? (picked[0] as SongNode<'take'>) : null
+    // Demo: only one the person picked themselves, not one the app selected (a take just wired on into the next part).
+    return picked.length === 1 && picked[0].type === 'take' && picked[0].data.state === 'done' && picked[0].id === s.picked
+      ? (picked[0] as SongNode<'take'>)
+      : null
   })
 
   return (

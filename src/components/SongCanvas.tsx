@@ -434,8 +434,8 @@ function Canvas() {
             if (commenting) setDraft(screenToFlowPosition({ x: e.clientX, y: e.clientY }))
           }}
           onNodeClick={(e, node) => {
-            // A section clicked is one the person picked (demo: its settings open only then).
-            if (!commenting && node.type === 'section') useSong.setState({ picked: node.id })
+            // A section or take clicked is one the person picked (demo: its panel opens only then).
+            if (!commenting && (node.type === 'section' || node.type === 'take')) useSong.setState({ picked: node.id })
             if (!commenting) return
             setOpenComment(null)
             setDraft(screenToFlowPosition({ x: e.clientX, y: e.clientY }))
