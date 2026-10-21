@@ -397,7 +397,8 @@ async function script(rf: RF, stopped: () => boolean) {
   const items = clipsOf(s.nodes, s.songId ? s.arrangements[s.songId] : undefined)
   const startOf = (i: number) => items.slice(0, i).reduce((t, it) => t + playTime(it.clip), 0)
   const ci = items.findIndex((it) => it.take.id === takeAId)
-  const note = (who: Who, clipIndex: number, into: number, text: string) =>
+  /** Someone's cursor goes to a clip and a note goes up there, from `from` (demo: the notes are from Daniel and Maya). */
+  const note = (who: Who, clipIndex: number, into: number, text: string, from: string) =>
     work(who, async () => {
       const clip = items[clipIndex]
       if (!clip) return
@@ -409,7 +410,7 @@ async function script(rf: RF, stopped: () => boolean) {
       put(who, { typing: true })
       await sleep(rand(1100, 1600))
       put(who, { typing: false })
-      useSong.getState().addComment({ t: startOf(clipIndex) + into }, text, who, true)
+      useSong.getState().addComment({ t: startOf(clipIndex) + into }, text, from, true)
     })
 
   // ---- and they keep going off it: Thashin starts a Bridge past the Chorus's takes and carries the Chorus on into it,
@@ -528,10 +529,10 @@ async function script(rf: RF, stopped: () => boolean) {
     await sleep(500)
   }
   await Promise.all([
-    note('naziat', ci, 2, 'the village theme is so cozy 🥹'),
+    note('naziat', ci, 2, 'the village theme is so cozy 🥹', 'maya'),
     (async () => {
       await sleep(rand(400, 700))
-      await note('thashin', 0, 1, 'this hum is so mosswood 🌿')
+      await note('thashin', 0, 1, 'this hum is so mosswood 🌿', 'daniel')
     })(),
   ])
   if (stopped()) return

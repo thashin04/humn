@@ -10,6 +10,9 @@ export const collaborators: Collaborator[] = [
   { id: 'thashin', name: 'Thashin', initial: 'T', color: '#d9622b', photo: '/avatars/thashin.jpg' },
   { id: 'naziat', name: 'Naziat', initial: 'N', color: '#c2417a', photo: '/avatars/naziat.jpg' },
   { id: 'tory', name: 'Tory', initial: 'T', color: '#3e7f5e', photo: '/avatars/tory.jpg' },
+  // Who the team's notes on the timeline are from (demo): new names, the same faces.
+  { id: 'daniel', name: 'Daniel', initial: 'D', color: '#d9622b', photo: '/avatars/thashin.jpg' },
+  { id: 'maya', name: 'Maya', initial: 'M', color: '#c2417a', photo: '/avatars/naziat.jpg' },
 ]
 
 /** Who's in each group chat a song can be shared to (demo). */
