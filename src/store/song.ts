@@ -69,8 +69,8 @@ type SongState = {
   fresh: { id: string; source: string; section: string; role: Role } | null
   /** The section just created from the suggestion; its settings open right away, until it's deselected. */
   made: string | null
-  /** A first part just started from a suggestion (demo): its settings wait, and open once something else is plugged into it. */
-  opensOnPlug: string | null
+  /** The section the person picked themselves (demo): its settings open only for that, never when the app selects one. */
+  picked: string | null
   /** The take that's playing; the wires into its section flow while it does. */
   playing: string | null
   /** The input currently being inspected in the selected section. */
@@ -175,7 +175,7 @@ export const useSong = create<SongState>()(
   drafting: null,
   fresh: null,
   made: null,
-  opensOnPlug: null,
+  picked: null,
   playing: null,
   focusedInputId: null,
   editing: null,
@@ -224,6 +224,12 @@ export const useSong = create<SongState>()(
       const nodes = next.filter((node) => !removed.has(node.id))
       const picking = changes.some((c) => c.type === 'select' && c.selected)
       const left = changes.some((c) => (c.type === 'select' && !c.selected) || c.type === 'remove' ? c.id === s.made : false)
+      // A section picked by the person (React Flow says so only for their own clicks and drags), or let go of.
+      const pickedNow = changes.find(
+        (c): c is Extract<(typeof changes)[number], { type: 'select' }> =>
+          c.type === 'select' && c.selected && s.nodes.find((n) => n.id === c.id)?.type === 'section',
+      )?.id
+      const letGo = changes.some((c) => ((c.type === 'select' && !c.selected) || c.type === 'remove') && c.id === s.picked)
       // Letting go of the card being edited closes its settings.
       const stopEditing = changes.some(
         (c) => (c.type === 'select' && !c.selected) || c.type === 'remove' ? c.id === s.editing : false,
@@ -235,6 +241,7 @@ export const useSong = create<SongState>()(
         nodes,
         saved: s.songId ? { ...s.saved, [s.songId]: nodes } : s.saved,
         ...(left && { made: null }),
+        ...(pickedNow ? { picked: pickedNow } : letGo && { picked: null }),
       }
     }),
   addNode: (kind, at, data) => {
@@ -274,13 +281,6 @@ export const useSong = create<SongState>()(
       })
       return { ...remember(s), ...keep(s, nodes), fresh: pulse(set, { id: `${source}|${section}`, source, section, role }) }
     })
-    // The first part someone started, now with more plugged into it: its settings open (demo).
-    if (get().opensOnPlug === section)
-      set((s) => ({
-        ...keep(s, s.nodes.map((n) => (!!n.selected === (n.id === section) ? n : ({ ...n, selected: n.id === section } as AnySongNode)))),
-        made: section,
-        opensOnPlug: null,
-      }))
   },
   disconnect: (source, section) =>
     set((s) => ({ ...remember(s), ...keep(s, unplug(s.nodes, (id) => id === source, section)) })),
@@ -418,11 +418,9 @@ export const useSong = create<SongState>()(
     } as AnySongNode
     set((s) => keep(s, [...s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), section]))
     if (source) get().connect(source, id, role)
-    // Demo: nothing's picked yet, so its settings stay closed until something more is plugged into it (see connect).
-    // Pull back so the cards and it are all in view.
+    // Demo: nothing's picked, so its settings stay closed until the person picks it. Pull back so the cards and it are all in view.
     set((s) => ({
       ...keep(s, s.nodes.map((n) => (n.selected ? ({ ...n, selected: false } as AnySongNode) : n))),
-      opensOnPlug: id,
       fitRequest: s.fitRequest + 1,
     }))
   },

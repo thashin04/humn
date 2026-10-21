@@ -17,22 +17,18 @@ const VOCALS: { id: Vocals; label: string }[] = [
 
 /**
  * Settings for the selected section, sliding out from the right like the
- * rail's drawer does from the left. Opens when one section is selected;
- * clicking away or closing it deselects the section.
+ * rail's drawer does from the left. Opens when the person picks one section
+ * (demo: not when the app selects one); clicking away or closing it
+ * deselects the section.
  */
 export function SectionPanel() {
   const section = useSong((s) => {
     const picked = s.nodes.filter((n) => n.selected)
     if (picked.length !== 1 || picked[0].type !== 'section') return null
     const section = picked[0] as SongNode<'section'>
-    // Once something beyond the prompt is shaping it (until then there's little to set), when it's just been
-    // created, or when one of its inputs has been picked to look at.
-    const shaped = ROLES.some(
-      (r) =>
-        r.id !== 'intent' &&
-        (section.data.sources[r.id] ?? []).some((src) => s.nodes.some((x) => x.id === src)),
-    )
-    return shaped || section.id === s.made || !!s.focusedInputId ? section : null
+    // Demo: only once the person has picked it themselves (or one of its inputs, to look at), never because the app
+    // selected it (a part just made, cards gathered into one).
+    return section.id === s.picked || !!s.focusedInputId ? section : null
   })
   // A card on its own, opened from its Edit button.
   const card = useSong((s) => {
@@ -108,7 +104,7 @@ function Settings({ section, onOpenInput }: { section: SongNode<'section'>; onOp
           <textarea
             value={data.direction ?? ''}
             onChange={(e) => set({ direction: e.target.value })}
-            placeholder="Let the colorful screens set a warm mood, and the piano comes in slowly."
+            placeholder="Let the game environment set a warm mood, and the piano comes in slowly."
             rows={3}
             className="type-body field-sizing-content min-h-[76px] w-full resize-none rounded-[12px] border border-rule bg-well px-3 py-2.5 text-ink-1 outline-none transition-colors placeholder:text-ink-3 focus:border-rule-strong focus:bg-card"
           />
