@@ -32,6 +32,13 @@ export type DrawerSpec = {
 const gradient = (a: string, b: string, angle: number) => `linear-gradient(${angle}deg, ${a} 14.29%, ${b} 85.71%)`
 const chords = (s: string) => s.split(' ').map((c) => c.replace(/([A-G])b/g, '$1♭'))
 
+/** Photos for the instruments' cards (Pexels: 17082397, 15441048, 7095712), in public/instruments. */
+export const INSTRUMENT_PHOTOS: Record<string, string> = {
+  'Upright piano': '/instruments/piano.jpg',
+  'Brushed drums': '/instruments/drums.jpg',
+  Strings: '/instruments/strings.jpg',
+}
+
 export const DRAWERS: Record<Kind, DrawerSpec> = {
   words: {
     label: 'Prompt',
@@ -145,7 +152,7 @@ export const DRAWERS: Record<Kind, DrawerSpec> = {
         ['Voices', 'Choir', 'far away'],
         ['Keyboard', 'Synth pad', 'warm and wide'],
       ] as const
-    ).map(([tab, name, detail]) => ({ name, meta: detail, data: { tab, name, detail } })),
+    ).map(([tab, name, detail]) => ({ name, meta: detail, data: { tab, name, detail, ...(INSTRUMENT_PHOTOS[name] && { thumb: INSTRUMENT_PHOTOS[name] }) } })),
   },
   chords: {
     label: 'Chords',

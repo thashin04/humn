@@ -18,7 +18,11 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { nanoid } from 'nanoid'
 import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
+import { DEMO_LENGTH, STRINGS_TRACK } from '@/audio/demo'
+import type { Part } from '@/audio/engine'
 import { takeScore } from '@/audio/scores'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { INSTRUMENT_PHOTOS } from '@/data/library'
 import { useSound } from '@/audio/useSound'
 import { DraftPin, PinWithCard } from '@/components/comments/Comments'
 import { TAKE_A, TAKE_B } from '@/components/nodes/waves'
@@ -26,7 +30,7 @@ import { CLIP_DEFAULTS, EFFECTS, SPEEDS, clipsOf, newClip, playTime, type Clip }
 import { ME } from '@/data/collaborators'
 import { clock, type AnySongNode, type SongNode } from '@/data/nodes'
 import { cn } from '@/lib/utils'
-import { useSong } from '@/store/song'
+import { useSong, type Track } from '@/store/song'
 
 // The track's name column; room before the first clip; the song track's height.
 const HEAD = 112
@@ -39,6 +43,14 @@ const DOCK_MIN = 200
 const CANVAS_MIN = 470
 const NAMES = ['Verse', 'Chorus', 'Bridge', 'Outro']
 const MOVE = 'transform .35s var(--ease-spring), width .35s var(--ease-spring)'
+/** What a track can be (demo): an instrument playing along under the whole song. Strings are heard. */
+const TRACK_CHOICES: [string, string][] = [
+  ['Strings', 'slow and swelling'],
+  ['Brushed drums', 'soft, behind the beat'],
+  ['Acoustic guitar', 'fingerpicked'],
+  ['Synth pad', 'warm and wide'],
+]
+const NO_TRACKS: Track[] = []
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
 const half = (n: number) => Math.round(n * 2) / 2
@@ -88,7 +100,8 @@ export function TimelineView() {
   const dockHeight = clamp(useSong((s) => s.dockHeight), DOCK_MIN, Math.max(DOCK_MIN, windowHeight - CANVAS_MIN))
   const setDockHeight = useSong((s) => s.setDockHeight)
   const saved = useSong((s) => (s.songId ? s.arrangements[s.songId] : undefined))
-  const { arrange, addNode, makeTakes } = useSong()
+  const { arrange, addNode, makeTakes, addTrack, removeTrack } = useSong()
+  const tracks = useSong((s) => (s.songId ? (s.tracks[s.songId] ?? NO_TRACKS) : NO_TRACKS))
   const items = useMemo(() => clipsOf(nodes, saved), [nodes, saved])
   const clips = items.map((i) => i.clip)
   const times = clips.map(playTime)
@@ -153,16 +166,22 @@ export function TimelineView() {
   useSound(
     playing,
     () =>
-      items.map(({ clip: c, take }, i) => ({
+      items.map(({ clip: c, take }, i): Part => ({
         score: takeScore(nodes, take),
         at: starts[i],
         start: c.from,
         length: c.length,
         mix: { ...c, volume: c.muted ? 0 : c.volume },
-      })),
+      })).concat(
+        // The tracks play along under the whole song, from the top (demo: the Strings are heard).
+        tracks
+          .filter((tr) => /string/i.test(tr.name))
+          .map(() => ({ score: { length: DEMO_LENGTH, notes: [], beds: [], file: STRINGS_TRACK }, at: 0, start: 0, length: Math.min(total, DEMO_LENGTH), mix: { volume: 1 } })),
+      ),
     () => time,
     () => setPlaying(false),
-    anchor.current.wall,
+    // A seek starts it again from there, and so does a track joining, so it's heard straight away.
+    `${anchor.current.wall}|${tracks.length}`,
   )
 
   /** Cuts the selected clip (or whichever is under the playhead) in two where the playhead is. */
@@ -239,6 +258,9 @@ export function TimelineView() {
   const moveComment = useSong((s) => s.moveComment)
   const [draft, setDraft] = useState<number | null>(null)
   const [openNote, setOpenNote] = useState<string | null>(null)
+  // Notes left while you watched (demo) show open, until closed.
+  const [closedNotes, setClosedNotes] = useState<string[]>([])
+  const isOpen = (c: { id: string; show?: boolean }) => openNote === c.id || (!!c.show && !closedNotes.includes(c.id))
   if (!commenting && draft !== null) setDraft(null)
   const content = useRef<HTMLDivElement>(null)
   const noteAt = (clientX: number) => {
@@ -379,8 +401,13 @@ export function TimelineView() {
                     <div key={c.id} className="absolute top-[38px] left-0" style={{ transform: `translateX(${PAD + c.t * pps}px)` }}>
                       <PinWithCard
                         comment={c}
-                        open={openNote === c.id}
-                        onToggle={() => setOpenNote(openNote === c.id ? null : c.id)}
+                        open={isOpen(c)}
+                        onToggle={() => {
+                          if (isOpen(c)) {
+                            setOpenNote(null)
+                            if (c.show) setClosedNotes((l) => [...l, c.id])
+                          } else setOpenNote(c.id)
+                        }}
                         // Along the lane only: sideways is earlier or later in the song.
                         onDrag={((from) => (dx: number) => moveComment(c.id, { t: clamp(from + dx / pps, 0, total) }))(c.t)}
                       />
@@ -412,6 +439,7 @@ export function TimelineView() {
                 {items.map(({ clip, section, take }, i) => (
                   <div
                     key={clip.id}
+                    data-clip={clip.id}
                     className="absolute top-2 left-0"
                     style={{
                       height: TRACK_H,
@@ -445,6 +473,65 @@ export function TimelineView() {
                   Add section
                 </button>
               </div>
+            </div>
+
+            {/* The tracks under the song (demo), each sliding in, its clip growing along the song. */}
+            <AnimatePresence initial={false}>
+              {tracks.map((tr) => (
+                <motion.div
+                  key={tr.id}
+                  className="flex overflow-hidden border-b border-rule"
+                  initial={{ height: 0 }}
+                  animate={{ height: 64 }}
+                  exit={{ height: 0 }}
+                  transition={still ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0.15 }}
+                >
+                  <div className="group/track sticky left-0 z-10 flex w-[112px] shrink-0 flex-col justify-center gap-0.5 border-r border-rule bg-card px-4">
+                    <p className="type-caption text-ink-1">{tr.name}</p>
+                    <p className="type-small text-ink-3">1 clip</p>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${tr.name}`}
+                      onClick={() => removeTrack(tr.id)}
+                      className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full text-ink-3 opacity-0 transition-opacity group-hover/track:opacity-100 hover:bg-well"
+                    >
+                      <Xmark width={11} height={11} />
+                    </button>
+                  </div>
+                  <div className="relative flex-1" onPointerDown={scrub}>
+                    <TrackClip track={tr} width={total * pps} still={!!still} />
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            <div className="flex h-10 border-b border-rule">
+              <div className="sticky left-0 z-10 flex w-[112px] shrink-0 items-center border-r border-rule bg-card px-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="type-caption flex h-7 items-center gap-1 rounded-[8px] px-2 whitespace-nowrap text-ink-2 transition-colors hover:bg-well hover:text-ink-1 data-[popup-open]:bg-well data-[popup-open]:text-ink-1">
+                    <Plus width={14} height={14} />
+                    Add track
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="start" className="w-60 rounded-[14px] border border-rule bg-card p-1.5 shadow-lift ring-0">
+                    <p className="type-small px-2.5 py-1.5 text-ink-3">Add a track</p>
+                    {TRACK_CHOICES.map(([name, detail]) => (
+                      <DropdownMenuItem key={name} onClick={() => addTrack(name, detail)} className="gap-2.5 rounded-[10px] px-2.5 py-1.5">
+                        <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-well">
+                          {INSTRUMENT_PHOTOS[name] ? (
+                            <img src={INSTRUMENT_PHOTOS[name]} alt="" className="size-full object-cover" />
+                          ) : (
+                            <span className="size-2 rounded-full bg-[var(--soft-role-instruments)]" />
+                          )}
+                        </span>
+                        <span className="flex min-w-0 flex-col">
+                          <span className="text-[13px] leading-[1.3] font-medium text-ink-1">{name}</span>
+                          <span className="font-mono text-[10.5px] leading-[1.3] text-ink-3">{detail}</span>
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="flex-1" />
             </div>
 
             {sel < 0 && total > 0 && (
@@ -519,6 +606,39 @@ export function TimelineView() {
           panelSlot,
         )}
     </div>
+  )
+}
+
+/** A track's clip (demo): the instrument across the whole song, in its colour, growing in from the left as it's added. */
+function TrackClip({ track, width, still }: { track: Track; width: number; still: boolean }) {
+  // A slow swell, the same every time for the same track.
+  const bars = Math.max(0, Math.floor((width - 14) / 4))
+  const seed = [...track.id].reduce((t, c) => t + c.charCodeAt(0), 0)
+  return (
+    <motion.div
+      className="absolute top-2 left-0 flex h-12 flex-col overflow-hidden rounded-[10px] border"
+      style={{
+        width,
+        x: PAD,
+        originX: 0,
+        background: 'color-mix(in srgb, var(--soft-role-instruments) 10%, var(--soft-card))',
+        borderColor: 'color-mix(in srgb, var(--soft-role-instruments) 28%, transparent)',
+      }}
+      initial={still ? false : { scaleX: 0, opacity: 0 }}
+      animate={{ scaleX: 1, opacity: 1 }}
+      transition={{ type: 'spring', duration: 0.7, bounce: 0 }}
+    >
+      <div className="flex h-[18px] shrink-0 items-center gap-1.5 pt-1 pl-2.5">
+        <p className="text-[11px] leading-none font-medium text-ink-1">{track.name}</p>
+        <p className="font-mono text-[10px] leading-none text-ink-3">{track.detail}</p>
+      </div>
+      <div className="flex min-h-0 flex-1 items-center gap-px overflow-hidden px-1.5" aria-hidden>
+        {Array.from({ length: bars }, (_, i) => {
+          const swell = 0.35 + 0.65 * Math.abs(Math.sin(i * 0.045 + seed)) * (0.75 + 0.25 * Math.sin(i * 0.31 + seed))
+          return <span key={i} className="w-[3px] shrink-0 rounded-full" style={{ height: 3 + 18 * swell, background: 'var(--soft-role-instruments)', opacity: 0.7 }} />
+        })}
+      </div>
+    </motion.div>
   )
 }
 

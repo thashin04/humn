@@ -153,7 +153,13 @@ export function NodeShell({ width, icon: Icon, label, meta, tall, tab, selected,
   const plugged = useSong((s) => !!port && s.fresh?.source === id)
   // Is this card's pipe plugged into a section? Then its hump flows into the pipe.
   const piped = useSong(
-    (s) => !!port && s.nodes.some((n) => n.type === 'section' && Object.values(n.data.sources).some((ids) => ids?.includes(id!))),
+    (s) =>
+      !!port &&
+      s.nodes.some(
+        (n) =>
+          (n.type === 'section' && Object.values(n.data.sources).some((ids) => ids?.includes(id!))) ||
+          (n.type === 'take' && !!n.data.sources?.includes(id!)),
+      ),
   )
   const [tabRef, tabSize] = useSize<HTMLDivElement>()
   const [content, contentSize] = useSize<HTMLDivElement>()

@@ -1,7 +1,9 @@
 import { Position, type NodeProps } from '@xyflow/react'
 import { Check, MusicNote, PauseSolid, PlaySolid } from 'iconoir-react'
 import { useContext, type CSSProperties } from 'react'
-import { clock, type SongNode } from '@/data/nodes'
+import { useShallow } from 'zustand/react/shallow'
+import { nameOf } from '@/data/library'
+import { clock, roleOf, type SongNode } from '@/data/nodes'
 import { cn } from '@/lib/utils'
 import { useInPickedClip, useSong } from '@/store/song'
 import { NodeShell } from './NodeShell'
@@ -28,6 +30,21 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
     return n?.type === 'section' ? n.data.name : 'Verse'
   })
   const progress = useProgress(playing, data.length, () => setPlaying(null))
+  // Cards plugged straight into the take (demo), and a wire being pulled toward it.
+  // (Selected as plain strings, so the selection stays equal while nothing changes.)
+  const plugged = useSong(
+    useShallow((s) =>
+      (data.sources ?? []).flatMap((src) => {
+        const n = s.nodes.find((m) => m.id === src)
+        return n ? [`${roleOf(n.type)}|${nameOf(n.data as Record<string, unknown>)}`] : []
+      }),
+    ),
+  )
+  const inputs = plugged.map((p) => ({ role: p.slice(0, p.indexOf('|')), name: p.slice(p.indexOf('|') + 1) }))
+  const hot = useSong((s) => (s.snap?.section === id ? s.snap.role : null))
+  const socket = (
+    <NodeHandle type="target" id="add" position={Position.Left} isConnectableStart={false} className="wire-socket" />
+  )
   const making = data.state === 'making'
   const added = !!data.added && !making
   const bars = TAKE_BARS[data.version]
@@ -78,8 +95,27 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
           </button>
         </div>
 
+        {/* What's plugged straight into the take, on its own socket; or, while a wire is pulled to it, where it'll land. */}
+        {(inputs.length > 0 || hot) && (
+          <div
+            className={cn(
+              'relative flex h-9 items-center gap-2 rounded-[10px] border px-2.5 transition-[border-color,background-color] duration-200',
+              hot ? 'border-[var(--c)] bg-[color-mix(in_srgb,var(--c)_6%,var(--soft-card))]' : 'border-rule',
+            )}
+            style={{ '--c': `var(--soft-role-${hot ?? inputs[0].role})` } as CSSProperties}
+          >
+            {socket}
+            {!preview && <span aria-hidden data-hump="" className="wire-hump" />}
+            <span className="size-1.5 shrink-0 rounded-full bg-[var(--c)]" />
+            <p className="type-caption min-w-0 truncate text-ink-1">
+              {hot && !inputs.length ? 'Plug in to make it again' : `With ${inputs.map((i) => i.name).join(' + ')}`}
+            </p>
+          </div>
+        )}
+
         {added ? (
-          <div className="flex h-10 items-center gap-2">
+          <div className="relative flex h-10 items-center gap-2">
+            {!inputs.length && !hot && socket}
             <span className="type-caption flex h-7 items-center gap-1.5 rounded-full bg-ink pr-3 pl-2 text-on-ink">
               <Check width={13} height={13} />
               In timeline
@@ -96,7 +132,8 @@ export function TakeNode({ id, data, selected }: NodeProps<SongNode<'take'>>) {
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="relative flex items-center gap-2">
+            {!inputs.length && !hot && socket}
             <span className="type-small flex h-6 shrink-0 items-center rounded-full border border-dashed border-rule-strong px-2 text-ink-3">
               Proposed
             </span>

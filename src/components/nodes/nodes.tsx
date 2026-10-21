@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import place from '@/assets/figma/node-place.svg'
 import { PauseSolid, PlaySolid } from 'iconoir-react'
 import { chordsScore, instrumentScore, soundScore, voiceScore } from '@/audio/scores'
+import { INSTRUMENT_PHOTOS } from '@/data/library'
 import { KIND_ICONS } from '@/components/chrome/kindIcons'
 import { clock, type SongNode } from '@/data/nodes'
 import { cn } from '@/lib/utils'
@@ -268,7 +269,10 @@ export function InstrumentNode({ data, selected }: NodeProps<SongNode<'instrumen
     <NodeShell width={270} icon={KIND_ICONS.instrument} label={data.tab} selected={selected} port="instruments">
       <div className="relative h-20">
         <div className="absolute top-3 left-3 size-14 overflow-hidden rounded-[10px] bg-photo">
-          {data.thumb && <img src={data.thumb} alt="" className="size-full object-cover" draggable={false} />}
+          {/* Its own photo, or the app's for an instrument it knows (demo). */}
+          {(data.thumb ?? INSTRUMENT_PHOTOS[data.name]) && (
+            <img src={data.thumb ?? INSTRUMENT_PHOTOS[data.name]} alt="" className="size-full object-cover" draggable={false} />
+          )}
         </div>
         <p className="type-title absolute top-[21px] left-[81px] max-w-[125px] truncate text-ink-1">{data.name}</p>
         <p className="type-small absolute top-[43px] left-[81px] max-w-[125px] truncate text-ink-3">{data.detail}</p>

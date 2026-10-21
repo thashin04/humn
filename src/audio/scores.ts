@@ -1,5 +1,6 @@
 import { interpret } from '@/data/interpret'
 import type { AnySongNode, SongNode } from '@/data/nodes'
+import { HUM, takeFile } from './demo'
 import type { Bed, Note, Score, Timbre } from './engine'
 
 /** The same "random" every time for the same name, so a card always sounds like itself. */
@@ -189,7 +190,13 @@ export function soundScore(label: string, length: number, level = 1, file?: stri
 }
 
 /** A hum, a whistle, a la-la: a tune on its own, from what it's called. */
-export function voiceScore(label: string, length: number, file?: string): Score {
+export function voiceScore(_label: string, length: number, file?: string): Score {
+  // Demo: a voice without its own recording is the real hum.
+  return { length, notes: [], beds: [], file: file ?? HUM.src }
+}
+
+/** The synth's hum, kept for when the demo's recording isn't wanted. */
+export function synthVoiceScore(label: string, length: number, file?: string): Score {
   if (file) return { length, notes: [], beds: [], file }
   const l = label.toLowerCase()
   const folk = /folk|old/.test(l)
@@ -241,6 +248,17 @@ const HOMES = [
  * livelier for a lively part. A and B are two ways of playing the same things.
  */
 export function takeScore(nodes: AnySongNode[], take: SongNode<'take'>): Score {
+  // Demo: the video's songs, by part, A or B, and with Strings when they're plugged into the take.
+  const part = nodes.find((n) => n.id === take.data.sectionId)
+  const strings = (take.data.sources ?? []).some((id) => {
+    const n = nodes.find((m) => m.id === id)
+    return n?.type === 'instrument' && timbreOf(n.data.name) === 'strings'
+  })
+  return { length: take.data.length, notes: [], beds: [], file: takeFile(part?.type === 'section' ? part.data.name : '', take.data.version, strings) }
+}
+
+/** The synth's version of a take, kept for when the demo's songs aren't wanted. */
+export function synthTakeScore(nodes: AnySongNode[], take: SongNode<'take'>): Score {
   const section = nodes.find((n): n is SongNode<'section'> => n.id === take.data.sectionId && n.type === 'section')
   const feeding = (role: string) =>
     (section?.data.sources[role as keyof typeof section.data.sources] ?? []).flatMap((id) => nodes.filter((n) => n.id === id))

@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download, ShareAndroid } from 'iconoir-react'
+import { Download, NavArrowLeft, ShareAndroid } from 'iconoir-react'
 import { Faces } from '@/components/Avatar'
+import { useCrew } from '@/components/crew/store'
+import { CHATS } from '@/data/collaborators'
 
 export function People({ ids, songId, title }: { ids: string[]; songId: string; title: string }) {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState('')
+  // Share canvas asks which group chat to send it to (demo); the team then joins, live.
+  const [picking, setPicking] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const link = `${window.location.origin}/song/${songId}`
 
   useEffect(() => {
     const closeOnOutsidePress = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+        setPicking(false)
+      }
     }
 
     document.addEventListener('pointerdown', closeOnOutsidePress)
@@ -23,9 +30,15 @@ export function People({ ids, songId, title }: { ids: string[]; songId: string; 
     window.setTimeout(() => setStatus(''), 1800)
   }
 
-  const shareCanvas = async () => {
-    if (navigator.share) await navigator.share({ title, url: link })
-    else await copyCanvasLink()
+  const shareTo = (chat: (typeof CHATS)[number]) => {
+    setStatus(`Shared with ${chat.name}`)
+    window.setTimeout(() => {
+      setOpen(false)
+      setPicking(false)
+      setStatus('')
+      // The team opens it straight away and starts working on it with you.
+      if (chat.id === 'team') useCrew.getState().start(songId)
+    }, 900)
   }
 
   const exportSong = () => {
@@ -63,13 +76,47 @@ export function People({ ids, songId, title }: { ids: string[]; songId: string; 
         inert={!open}
         className={`absolute top-full right-0 z-20 mt-2 w-71.5 rounded-[18px] border border-rule bg-card p-4 shadow-lift transition-[opacity,transform,visibility] duration-500 ease-soft ${open ? 'visible translate-y-0 opacity-100' : 'pointer-events-none invisible -translate-y-2 opacity-0'}`}
       >
+        {picking ? (
+          <div className="relative flex flex-col gap-3">
+            <div className="flex items-center gap-1.5">
+              <button
+                aria-label="Back"
+                onClick={() => setPicking(false)}
+                className="-ml-1.5 flex size-7 items-center justify-center rounded-full text-ink-2 hover:bg-well"
+              >
+                <NavArrowLeft width={16} height={16} />
+              </button>
+              <div>
+                <p className="type-title text-ink">Share canvas</p>
+                <p className="type-caption text-ink-3">Send a link to a chat</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              {CHATS.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => shareTo(chat)}
+                  className="flex min-h-12 items-center gap-3 rounded-[10px] bg-well px-3 text-left transition-colors hover:bg-level"
+                >
+                  <Faces ids={chat.members} ring="var(--soft-well)" />
+                  <span className="type-action flex-1 text-ink">{chat.name}</span>
+                  <span className="type-caption text-ink-3">{chat.members.length}</span>
+                </button>
+              ))}
+              <button onClick={copyCanvasLink} className="type-caption self-start rounded-[8px] px-2 py-1 text-ink-2 hover:bg-well">
+                Copy link instead
+              </button>
+            </div>
+            {status && <p className="type-caption text-ink-2">{status}</p>}
+          </div>
+        ) : (
         <div className="relative flex flex-col gap-3">
             <div>
               <p className="type-title text-ink">Share this song</p>
               <p className="type-caption mt-1 text-ink-3">Send someone a way into “{title}”.</p>
             </div>
             <div className="flex flex-col gap-2">
-              <button onClick={shareCanvas} className="flex min-h-11 items-center gap-3 rounded-[10px] bg-well px-3 text-left hover:bg-level">
+              <button onClick={() => setPicking(true)} className="flex min-h-11 items-center gap-3 rounded-[10px] bg-well px-3 text-left hover:bg-level">
                 <ShareAndroid className="size-4 text-ink-2" />
                 <span className="flex flex-col">
                   <span className="type-action text-ink">Share canvas</span>
@@ -86,6 +133,7 @@ export function People({ ids, songId, title }: { ids: string[]; songId: string; 
             </div>
             {status && <p className="type-caption text-ink-2">{status}</p>}
         </div>
+        )}
         </div>
     </div>
   )

@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
 import { useYours } from '@/store/yours'
 import { KIND_ICONS } from './kindIcons'
+import { Recorder } from './Recorder'
+import { HUM } from '@/audio/demo'
 import { useAddNode } from './useAddNode'
 
 const ROLE_TEXT: Record<Role, string> = {
@@ -30,6 +32,9 @@ export function Drawer({ kind, onClose }: { kind: Kind; onClose: () => void }) {
   const spec = DRAWERS[kind]
   const [source, setSource] = useState<Source>('yours')
   const [query, setQuery] = useState('')
+  // Recording a hum (demo): the recorder opens under the tiles; Done keeps it with your recordings.
+  const [recording, setRecording] = useState(false)
+  const keep = useYours((s) => s.keep)
   const kept = useYours((s) => s.kept).filter((k) => k.kind === kind)
   const nodes = useSong((s) => s.nodes)
   const prompt = nodes.some((n) => n.type === 'words' && n.data.text.trim())
@@ -94,7 +99,16 @@ export function Drawer({ kind, onClose }: { kind: Kind; onClose: () => void }) {
           <>
             <Heading label={spec.yoursTitle} right={String(kept.length)} />
             <Grid photo={kind === 'photo'} square>
-              {!query && spec.own.map((a) => <OwnTile key={a.label} kind={kind} action={a} />)}
+              {!query && spec.own.map((a) => <OwnTile key={a.label} kind={kind} action={a} onRecord={() => setRecording(true)} />)}
+              {recording && (
+                <Recorder
+                  onDone={(seconds) => {
+                    setRecording(false)
+                    const data = { label: 'Your hum', duration: seconds, src: HUM.src }
+                    keep({ kind, name: data.label, meta: `0:${String(seconds).padStart(2, '0')} · You`, data })
+                  }}
+                />
+              )}
               {mine.map((item) => (
                 <ItemTile key={item.id} kind={kind} item={item} square inSong={inSong.has(nameOf(item.data))} />
               ))}
@@ -257,7 +271,7 @@ function TilePreview({ kind, data, label }: { kind: Kind; data: Record<string, u
 }
 
 /** Dashed "make your own" tile. Uploads read a file; recording is pretend for now. */
-function OwnTile({ kind, action }: { kind: Kind; action: OwnAction }) {
+function OwnTile({ kind, action, onRecord }: { kind: Kind; action: OwnAction; onRecord: () => void }) {
   const add = useAddNode()
   const keep = useYours((s) => s.keep)
   const file = useRef<HTMLInputElement>(null)
@@ -266,7 +280,9 @@ function OwnTile({ kind, action }: { kind: Kind; action: OwnAction }) {
   const run = () => {
     if (action.does === 'upload') return file.current?.click()
     if (action.does === 'record') {
-      const data = kind === 'voice' ? { label: 'Your hum', duration: 4 } : { label: 'New sound', duration: 4 }
+      // A hum is "recorded" (demo); other recordings are still pretend.
+      if (kind === 'voice') return onRecord()
+      const data = { label: 'New sound', duration: 4 }
       keep({ kind, name: data.label, meta: '0:04 · You', data })
       return add(kind, data)
     }

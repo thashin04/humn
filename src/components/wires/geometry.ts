@@ -67,7 +67,9 @@ export type Snap = { section: string; role: Role; at: XYPosition }
 export function findSnap(lookup: Map<string, InternalNode>, kind: string | undefined, p: XYPosition): Snap | null {
   let best: (Snap & { dist: number }) | null = null
   for (const n of lookup.values()) {
-    if (n.type !== 'section') continue
+    // A finished take takes a card straight in too (demo), into its one socket.
+    const take = n.type === 'take' && (n.data as { state?: string }).state === 'done' && kind !== 'take'
+    if (n.type !== 'section' && !take) continue
     const { x, y } = n.internals.positionAbsolute
     const w = n.measured.width ?? 0
     const h = n.measured.height ?? 0
@@ -77,6 +79,11 @@ export function findSnap(lookup: Map<string, InternalNode>, kind: string | undef
     if (dist > PULL || (best && dist >= best.dist)) continue
 
     const sockets = n.internals.handleBounds?.target ?? []
+    if (take) {
+      const socket = sockets.find((h) => h.id === 'add')
+      if (socket) best = { dist, section: n.id, role: roleOf(kind), at: { x: x + socket.x, y: y + socket.y + socket.height / 2 } }
+      continue
+    }
     // Empty slots share one landing row, so over it the card keeps its own slot if that's one of them.
     const over = dist === 0 ? sockets.filter((s) => p.y >= y + s.y - 2 && p.y <= y + s.y + s.height + 2) : []
     const role = (over.length === 1 ? (over[0].id as Role) : roleOf(kind)) as Role

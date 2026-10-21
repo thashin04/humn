@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { KIND_ICONS } from '@/components/chrome/kindIcons'
 import { slotSentence } from '@/data/interpret'
-import { DRAWERS } from '@/data/library'
+import { DRAWERS, INSTRUMENT_PHOTOS } from '@/data/library'
 import { DEFAULT_ROLE, ROLES, type AnySongNode, type Kind, type Role, type SongNode } from '@/data/nodes'
 import { bars, LENGTHS, PARTS } from '@/data/parts'
 import { cn } from '@/lib/utils'
@@ -228,10 +228,10 @@ function Thumb({ cards, role }: { cards: AnySongNode[]; role: Role }) {
         {more}
       </span>
     )
-  if (first.type === 'instrument' && first.data.thumb)
+  if (first.type === 'instrument' && (first.data.thumb ?? INSTRUMENT_PHOTOS[first.data.name]))
     return (
       <span className={base}>
-        <img src={first.data.thumb} alt="" draggable={false} className="size-full object-cover" />
+        <img src={first.data.thumb ?? INSTRUMENT_PHOTOS[first.data.name]} alt="" draggable={false} className="size-full object-cover" />
         {more}
       </span>
     )

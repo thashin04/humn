@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
 import { useShallow } from 'zustand/react/shallow'
 import { TakeSound } from '@/audio/TakeSound'
+import { Crew } from '@/components/crew/Crew'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import { People } from '@/components/chrome/People'
 import { Rail } from '@/components/chrome/Rail'
@@ -42,7 +43,7 @@ import { GHOST_ID, type GhostNode } from '@/components/nodes/ghost'
 import { ME } from '@/data/collaborators'
 import { interpret } from '@/data/interpret'
 import { NODE_DRAG_TYPE } from '@/data/library'
-import { ROLES, type AnySongNode, type Kind } from '@/data/nodes'
+import { roleOf, ROLES, type AnySongNode, type Kind } from '@/data/nodes'
 import type { TemplateId } from '@/data/templates'
 import { cn } from '@/lib/utils'
 import { useSong } from '@/store/song'
@@ -69,7 +70,25 @@ function wiresOf(nodes: AnySongNode[]): PipeEdge[] {
 
 function linesOf(nodes: AnySongNode[]): PipeEdge[] {
   const ids = new Set(nodes.map((n) => n.id))
-  return nodes.flatMap((sec): PipeEdge[] =>
+  // Cards plugged straight into a take (demo) wire into its socket, in their own role's colour.
+  const intoTakes = nodes.flatMap((t): PipeEdge[] =>
+    t.type === 'take'
+      ? (t.data.sources ?? [])
+          .filter((src) => ids.has(src))
+          .map((src) => ({
+            id: `${src}|${t.id}`,
+            type: 'pipe' as const,
+            source: src,
+            sourceHandle: 'port',
+            target: t.id,
+            targetHandle: 'add',
+            selectable: false,
+            focusable: false,
+            data: { role: roleOf(nodes.find((n) => n.id === src)?.type), lane: 0 },
+          }))
+      : [],
+  )
+  return [...intoTakes, ...nodes.flatMap((sec): PipeEdge[] =>
     sec.type === 'take'
       ? ids.has(sec.data.branchOf ?? sec.data.sectionId)
         ? [
@@ -104,7 +123,7 @@ function linesOf(nodes: AnySongNode[]): PipeEdge[] {
               data: { role: r.id, lane: rows.length - 1 - row },
             })),
         ),
-  )
+  )]
 }
 
 /**
@@ -215,6 +234,8 @@ export function SongCanvas() {
             <Help />
             <TakeSound />
           </div>
+          {/* The team, live, once the song's shared to them (demo). */}
+          <Crew />
         </div>
 
         {/* The dock grows up from the bottom edge, and the canvas gives way as it does. */}

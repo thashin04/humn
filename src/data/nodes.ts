@@ -77,6 +77,8 @@ export type TakeData = {
   added?: boolean
   edit?: TakeEdit
   branchOf?: string
+  /** Cards plugged straight into this take (demo): it's made again with them in it. */
+  sources?: string[]
 }
 
 type DataOf = {
@@ -109,7 +111,7 @@ export const STARTING_DATA: { [K in NodeKind]: DataOf[K] } = {
   feeling: { name: 'Nostalgia', amount: 0.7 },
   sound: { label: 'Rain on the lake', duration: 72 },
   color: { label: 'Open road', gradient: 'linear-gradient(135deg, #d5ac7e 14.29%, #87ceeb 85.71%)' },
-  instrument: { tab: 'Keyboard', name: 'Upright piano', detail: 'a bit out of tune' },
+  instrument: { tab: 'Keyboard', name: 'Upright piano', detail: 'a bit out of tune', thumb: '/instruments/piano.jpg' },
   chords: { chords: ['F', 'Dm', 'B♭', 'C'] },
   section: { name: 'Verse', length: 30, sources: {} },
   take: { sectionId: '', state: 'making', version: 'A', length: 30 },

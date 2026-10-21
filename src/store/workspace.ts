@@ -11,6 +11,8 @@ type WorkspaceState = {
   layout: 'grid' | 'list'
   createSong: (init?: { title?: string; folderId?: string | null }) => string
   updateSongTitle: (songId: string, title: string) => void
+  /** People join a song (demo: the team it was shared to). */
+  joinSong: (songId: string, ids: string[]) => void
   duplicateSong: (songId: string) => string | undefined
   moveSong: (songId: string, folderId: string | null) => void
   trashSong: (songId: string) => void
@@ -42,6 +44,12 @@ export const useWorkspace = create<WorkspaceState>()(
         }))
         return id
       },
+      joinSong: (songId, ids) =>
+        set((s) => ({
+          songs: s.songs.map((song) =>
+            song.id === songId ? { ...song, collaboratorIds: [...song.collaboratorIds, ...ids.filter((id) => !song.collaboratorIds.includes(id))] } : song,
+          ),
+        })),
       updateSongTitle: (songId, title) =>
         set((s) => ({
           songs: s.songs.map((song) => (song.id === songId ? { ...song, title, editedAt: Date.now() } : song)),

@@ -17,7 +17,12 @@ export type SongComment = {
   /** When it was written. */
   at: number
   where: { x: number; y: number } | { t: number }
+  /** Left by someone else while you watched (demo): shown open until it's closed. */
+  show?: boolean
 }
+
+/** An instrument playing along under the whole song in the timeline (demo): Strings, drums… */
+export type Track = { id: string; name: string; detail: string }
 
 /** What undo puts back: the canvas and the song's clips. */
 type Snapshot = { nodes: AnySongNode[]; clips: Clip[] | undefined }
@@ -45,6 +50,10 @@ type SongState = {
   arrangements: Record<string, Clip[]>
   /** Each song's comments, oldest first. */
   comments: Record<string, SongComment[]>
+  /** Each song's tracks under the song in the timeline (demo). */
+  tracks: Record<string, Track[]>
+  addTrack: (name: string, detail: string) => void
+  removeTrack: (id: string) => void
   /** A node to bring into view once the canvas is showing again. */
   focus: string | null
   templatePicker: { open: boolean; selected: TemplateId }
@@ -77,7 +86,10 @@ type SongState = {
   setDrawer: (kind: Kind | null) => void
   setDragKind: (kind: Kind | null) => void
   setSnap: (snap: { section: string; role: Role } | null) => void
-  /** Plugs a card into a section's socket. A card plugs in one place, so this moves it if it was elsewhere. */
+  /**
+   * Plugs a card into a section's socket, or straight into a take (demo), which is then made again with it in.
+   * A card plugs in one place, so this moves it if it was elsewhere.
+   */
   connect: (source: string, section: string, role: Role) => void
   disconnect: (source: string, section: string) => void
   /**
@@ -112,7 +124,7 @@ type SongState = {
   pickClip: (id: string | null) => void
   /** Sets the current song's clips. */
   arrange: (clips: Clip[]) => void
-  addComment: (where: SongComment['where'], text: string, author: string) => void
+  addComment: (where: SongComment['where'], text: string, author: string, show?: boolean) => void
   moveComment: (id: string, where: SongComment['where']) => void
   /** Resolving a comment clears it away. */
   resolveComment: (id: string) => void
@@ -151,6 +163,7 @@ export const useSong = create<SongState>()(
   clip: null,
   arrangements: {},
   comments: {},
+  tracks: {},
   focus: null,
   templatePicker: { open: false, selected: 'roadtrip' },
   drawer: null,
@@ -245,7 +258,8 @@ export const useSong = create<SongState>()(
   setDrawer: (drawer) => set({ drawer }),
   setDragKind: (dragKind) => set({ dragKind }),
   setSnap: (snap) => set((s) => (s.snap?.section === snap?.section && s.snap?.role === snap?.role ? s : { snap })),
-  connect: (source, section, role) =>
+  connect: (source, section, role) => {
+    if (get().nodes.find((n) => n.id === section)?.type === 'take') return plugIntoTake(source, section, role)
     set((s) => {
       // The card just plugged in becomes the selection.
       const nodes = unplug(s.nodes, (id) => id === source).map((n) => {
@@ -256,7 +270,8 @@ export const useSong = create<SongState>()(
           : m
       })
       return { ...remember(s), ...keep(s, nodes), fresh: pulse(set, { id: `${source}|${section}`, source, section, role }) }
-    }),
+    })
+  },
   disconnect: (source, section) =>
     set((s) => ({ ...remember(s), ...keep(s, unplug(s.nodes, (id) => id === source, section)) })),
   makeTakes: (sectionId) => {
@@ -433,13 +448,19 @@ export const useSong = create<SongState>()(
   // Dragging a clip's edge or a slider in its panel is one step until it rests.
   arrange: (order) =>
     set((s) => (s.songId ? { ...remember(s, 'arrange'), arrangements: { ...s.arrangements, [s.songId]: order } } : s)),
-  addComment: (where, text, author) =>
+  addTrack: (name, detail) =>
+    set((s) =>
+      s.songId ? { tracks: { ...s.tracks, [s.songId]: [...(s.tracks[s.songId] ?? []), { id: nanoid(8), name, detail }] } } : s,
+    ),
+  removeTrack: (id) =>
+    set((s) => (s.songId ? { tracks: { ...s.tracks, [s.songId]: (s.tracks[s.songId] ?? []).filter((t) => t.id !== id) } } : s)),
+  addComment: (where, text, author, show) =>
     set((s) =>
       s.songId
         ? {
             comments: {
               ...s.comments,
-              [s.songId]: [...(s.comments[s.songId] ?? []), { id: nanoid(8), author, text, at: Date.now(), where }],
+              [s.songId]: [...(s.comments[s.songId] ?? []), { id: nanoid(8), author, text, at: Date.now(), where, ...(show && { show }) }],
             },
           }
         : s,
@@ -464,7 +485,7 @@ export const useSong = create<SongState>()(
     {
       name: 'humn-songs',
       version: 4,
-      partialize: (s) => ({ saved: s.saved, arrangements: s.arrangements, comments: s.comments, dockHeight: s.dockHeight }),
+      partialize: (s) => ({ saved: s.saved, arrangements: s.arrangements, comments: s.comments, tracks: s.tracks, dockHeight: s.dockHeight }),
       // v1 kept each song as { nodes, edges }; plug those edges back into their sections.
       migrate: (old) => {
         const state = old as { saved?: Record<string, unknown> }
@@ -499,9 +520,38 @@ export const useSong = create<SongState>()(
   ),
 )
 
+/**
+ * A card plugged straight into a take (demo): it comes out of anywhere else it was, and the take is made
+ * again with it in ("Making", then done), so what it plays changes (Strings join it, for one).
+ */
+function plugIntoTake(source: string, takeId: string, role: Role) {
+  const set = useSong.setState
+  set((s) => {
+    const nodes = unplug(s.nodes, (id) => id === source).map((n) => {
+      if (n.id !== takeId || n.type !== 'take') return n.id === source ? ({ ...n, selected: true } as AnySongNode) : n.selected ? ({ ...n, selected: false } as AnySongNode) : n
+      return { ...n, selected: false, data: { ...n.data, sources: [...(n.data.sources ?? []), source], state: 'making' } } as AnySongNode
+    })
+    return {
+      ...remember(s),
+      ...keep(s, nodes),
+      playing: s.playing === takeId ? null : s.playing,
+      fresh: pulse(set, { id: `${source}|${takeId}`, source, section: takeId, role }),
+    }
+  })
+  window.setTimeout(
+    () => set((s) => keep(s, s.nodes.map((n) => (n.id === takeId && n.type === 'take' ? ({ ...n, data: { ...n.data, state: 'done' } } as AnySongNode) : n)))),
+    MAKING_MS * 0.7,
+  )
+}
+
 /** Takes matching cards out of every socket (or just `section`'s), leaving untouched sections as they were. */
 function unplug(nodes: AnySongNode[], match: (id: string) => boolean, section?: string): AnySongNode[] {
   return nodes.map((n) => {
+    // A take's own inputs (demo) come out the same way.
+    if (n.type === 'take' && (!section || n.id === section) && n.data.sources?.some(match)) {
+      const left = n.data.sources.filter((id) => !match(id))
+      return { ...n, data: { ...n.data, sources: left.length ? left : undefined } } as AnySongNode
+    }
     if (n.type !== 'section' || (section && n.id !== section)) return n
     const entries = Object.entries(n.data.sources) as [Role, string[]][]
     if (!entries.some(([, ids]) => ids.some(match))) return n

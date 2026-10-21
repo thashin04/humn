@@ -6,7 +6,7 @@ import photo from '@/assets/photos/template-photo.jpg'
 import { FeelingNode, PhotoNode } from '@/components/nodes/nodes'
 import { Preview } from '@/components/nodes/previewContext'
 import { TakeNode } from '@/components/nodes/take'
-import { DEFAULT_ROLE, type Kind, type SongNode } from '@/data/nodes'
+import { type Kind, type SongNode } from '@/data/nodes'
 import { useSong } from '@/store/song'
 
 /** An empty song: a fan of examples that opens the templates, or add your own first node. */
@@ -51,11 +51,6 @@ export function EmptyState() {
               >
                 <span className="relative flex size-[52px] items-center justify-center rounded-full bg-card shadow-lift transition-transform duration-300 ease-spring group-hover:-translate-y-0.5 group-hover:scale-[1.06] group-active:scale-95">
                   <Icon className="size-5 text-ink-1" />
-                  {/* The colour of the part of the song it feeds. */}
-                  <span
-                    className="absolute top-3 right-3 size-1.5 rounded-full"
-                    style={{ background: `var(--soft-role-${DEFAULT_ROLE[a.kind]})` }}
-                  />
                 </span>
                 <span className="type-caption text-ink-2">{a.label}</span>
               </button>
