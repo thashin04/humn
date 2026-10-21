@@ -203,6 +203,12 @@ async function script(rf: RF, stopped: () => boolean) {
     if (!n || !h) return null
     return screen({ x: n.internals.positionAbsolute.x + h.x + h.width / 2, y: n.internals.positionAbsolute.y + h.y + h.height / 2 })
   }
+  /** How far down the canvas a card's connector is (where a wire from it runs across). */
+  const portY = (id: string | undefined) => {
+    const n = id ? node(id) : undefined
+    const h = n?.internals.handleBounds?.source?.find((b) => b.id === 'port')
+    return n && h ? n.internals.positionAbsolute.y + h.y + h.height / 2 : null
+  }
   /** Somewhere on a node (a fraction across and down it). */
   const onNode = (id: string, fx: number, fy: number) => () => {
     const n = node(id)
@@ -317,9 +323,11 @@ async function script(rf: RF, stopped: () => boolean) {
   // Far enough right that the cards they bring in fit between what's there and the Chorus, wired in from its left.
   const chorusAt = { x: right + 640, y: top + 200 }
   let chorus = ''
-  // A column in the gap left of the Chorus, clear of its lanes (centres; the cards are about 270 wide). Fixed to where the
+  // A column in the gap left of the Chorus (centres; the cards are about 270 wide), all below the wire the Verse carries
+  // on into it along, and in the order of the sockets they plug into, so no wire crosses another. Fixed to where the
   // Chorus was put, not its corner, which rises as it grows with each thing plugged in.
-  const cardAt = (dy: number) => () => ({ x: chorusAt.x - 410, y: chorusAt.y - 50 + dy })
+  const verseLine = portY(vt?.id) ?? chorusAt.y - 105
+  const cardAt = (row: number) => () => ({ x: chorusAt.x - 410, y: verseLine + 105 + row * 130 })
   const made = work('thashin', async () => {
     await move('thashin', () => screen(chorusAt))
     await click()
@@ -336,15 +344,15 @@ async function script(rf: RF, stopped: () => boolean) {
     const joy = await bring('naziat', 'feeling', cardAt(0), { name: 'Joy', amount: 0.7 })
     await made
     await wire('naziat', joy, chorus, 'mood')
-    const strings = await bring('naziat', 'instrument', cardAt(270), { tab: 'Strings', name: 'Strings', detail: 'slow and swelling', thumb: INSTRUMENT_PHOTOS.Strings })
+    const strings = await bring('naziat', 'instrument', cardAt(3), { tab: 'Strings', name: 'Strings', detail: 'slow and swelling', thumb: INSTRUMENT_PHOTOS.Strings })
     await wire('naziat', strings, chorus, 'instruments')
   })()
   const tory = (async () => {
     await sleep(rand(700, 1000))
-    const drums = await bring('tory', 'instrument', cardAt(130), { tab: 'Drums', name: 'Brushed drums', detail: 'soft, behind the beat', thumb: INSTRUMENT_PHOTOS['Brushed drums'] })
+    const drums = await bring('tory', 'instrument', cardAt(2), { tab: 'Drums', name: 'Brushed drums', detail: 'soft, behind the beat', thumb: INSTRUMENT_PHOTOS['Brushed drums'] })
     await made
     await wire('tory', drums, chorus, 'instruments')
-    const crickets = await bring('tory', 'sound', cardAt(-130), { label: 'Crickets at night', duration: 64 })
+    const crickets = await bring('tory', 'sound', cardAt(1), { label: 'Crickets at night', duration: 64 })
     await wire('tory', crickets, chorus, 'texture')
   })()
   await made
@@ -398,7 +406,9 @@ async function script(rf: RF, stopped: () => boolean) {
   const now = song().nodes.map((n) => node(n.id)).filter((n): n is InternalNode<AnySongNode> => !!n)
   const bridgeAt = { x: Math.max(...now.map((n) => n.internals.positionAbsolute.x + (n.measured.width ?? 260))) + 640, y: chorusAt.y }
   let bridge = ''
-  const bridgeCardAt = (dy: number) => () => ({ x: bridgeAt.x - 410, y: bridgeAt.y - 50 + dy })
+  // Below the wire the Chorus carries on along, in socket order (the Feeling, then the piano), as for the Chorus.
+  const chorusLine = portY(takeAId) ?? bridgeAt.y - 105
+  const bridgeCardAt = (row: number) => () => ({ x: bridgeAt.x - 410, y: chorusLine + 105 + row * 130 })
   const bridgeCards: string[] = []
   // Just this part in view: the Chorus take it carries on from, the Bridge, and what's brought to it.
   const frameBridge = () =>
@@ -421,14 +431,14 @@ async function script(rf: RF, stopped: () => boolean) {
   })
   const piano = (async () => {
     await sleep(rand(500, 800))
-    const id = await bring('tory', 'instrument', bridgeCardAt(0), { tab: 'Keyboard', name: 'Upright piano', detail: 'a bit out of tune', thumb: INSTRUMENT_PHOTOS['Upright piano'] })
+    const id = await bring('tory', 'instrument', bridgeCardAt(1), { tab: 'Keyboard', name: 'Upright piano', detail: 'a bit out of tune', thumb: INSTRUMENT_PHOTOS['Upright piano'] })
     bridgeCards.push(id)
     await started
     await wire('tory', id, bridge, 'instruments')
   })()
   const longing = (async () => {
     await note('naziat', ci, 2, 'this part made me cry 🥹')
-    const id = await bring('naziat', 'feeling', bridgeCardAt(-130), { name: 'Longing', amount: 0.6 })
+    const id = await bring('naziat', 'feeling', bridgeCardAt(0), { name: 'Longing', amount: 0.6 })
     bridgeCards.push(id)
     await started
     await wire('naziat', id, bridge, 'mood')

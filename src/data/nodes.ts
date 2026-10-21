@@ -4,6 +4,9 @@ import type { Node } from '@xyflow/react'
 export type Role = 'intent' | 'lyrics' | 'melody' | 'harmony' | 'mood' | 'texture' | 'instruments' | 'follows'
 
 export const ROLES: { id: Role; name: string }[] = [
+  // A take that's in the song, plugged into the next part so it picks up where that one left off. First, so its wire
+  // (coming from the part before, above the rest) comes into the top row without crossing the others on the way.
+  { id: 'follows', name: 'Carries on' },
   { id: 'intent', name: 'Intent' },
   { id: 'lyrics', name: 'Lyrics' },
   { id: 'melody', name: 'Melody' },
@@ -11,8 +14,6 @@ export const ROLES: { id: Role; name: string }[] = [
   { id: 'mood', name: 'Mood' },
   { id: 'texture', name: 'Texture' },
   { id: 'instruments', name: 'Instruments' },
-  // A take that's in the song, plugged into the next part so it picks up where that one left off.
-  { id: 'follows', name: 'Carries on' },
 ]
 
 export type Kind = 'words' | 'lyrics' | 'voice' | 'photo' | 'feeling' | 'sound' | 'color' | 'instrument' | 'chords'
