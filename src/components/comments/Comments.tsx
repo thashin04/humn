@@ -56,12 +56,12 @@ export function Pin({
       }}
       aria-label={`Comment from ${c.name}`}
       className={cn(
-        'nodrag nopan flex size-7 touch-none items-center justify-center rounded-full rounded-bl-[3px] border-2 border-card text-[11px] font-semibold text-on-ink shadow-lift transition-transform duration-200 ease-spring hover:scale-110',
+        'nodrag nopan flex size-7 touch-none items-center justify-center overflow-hidden rounded-full rounded-bl-[3px] border-2 border-card text-[11px] font-semibold text-on-ink shadow-lift transition-transform duration-200 ease-spring hover:scale-110',
         open && 'scale-110',
       )}
       style={{ background: c.color }}
     >
-      {c.initial}
+      {c.photo ? <img src={c.photo} alt="" draggable={false} className="pointer-events-none size-full object-cover" /> : c.initial}
     </button>
   )
 }
