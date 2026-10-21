@@ -15,10 +15,10 @@ import { CREW, useCrew, type Cursor, type P, type Who } from './store'
  * they bring in the game's art (the village and the woods), Strings, Brushed
  * drums and a night sound and wire each in, make its takes and put Take A in
  * the song. Then they keep going off that: a Bridge carried on from the Chorus,
- * with the world art and a piano, and two ideas for it, while they leave notes
- * on the timeline; then they remake the Bridge's ideas with a guitar and a
- * music box plugged straight in, and start a Verse 2 with lines and the
- * character art. They play nothing themselves: if the song's playing, the
+ * with the world art and a piano, and two ideas for it; then they remake the
+ * Bridge's ideas with a guitar and a music box plugged straight in, start a
+ * Verse 2 with lines and the character art, and near the end open the
+ * timeline (if it's closed) and leave notes on it. They play nothing themselves: if the song's playing, the
  * Chorus is heard when the playhead gets to it. They work at once, each moving
  * their own way, and look around while the others are busy. Everything they do
  * goes through the app's own actions, so it's all real once they've done it:
@@ -386,15 +386,15 @@ async function script(rf: RF, stopped: () => boolean) {
   await work('thashin', () => move('thashin', () => rect(buttonIn(id, /Add to timeline/))))
   while (takeA()?.data.state !== 'done' && !stopped()) await sleep(120)
   await sleep(250)
-  await press('thashin', id, /Add to timeline/, () => song().addToTimeline(id))
+  // (Without raising the timeline: if it's closed it stays closed until they go to leave their notes, near the end.)
+  await press('thashin', id, /Add to timeline/, () => song().addToTimeline(id, false))
   const takeAId = id
-  // The timeline rises (if it wasn't up already) and the canvas gives it room: frame everything again once it has.
   await sleep(700)
   fit()
   await sleep(800)
   if (stopped()) return
 
-  // ---- notes on the timeline: Naziat on the Chorus, Thashin on the hum at the start
+  // ---- notes on the timeline, for near the end: Naziat on the Chorus, Thashin on the hum at the start
   const s = song()
   const items = clipsOf(s.nodes, s.songId ? s.arrangements[s.songId] : undefined)
   const startOf = (i: number) => items.slice(0, i).reduce((t, it) => t + playTime(it.clip), 0)
@@ -415,7 +415,7 @@ async function script(rf: RF, stopped: () => boolean) {
     })
 
   // ---- and they keep going off it: Thashin starts a Bridge past the Chorus's takes and carries the Chorus on into it,
-  // Tory brings an Upright piano and Naziat (once that note's down) the world art, and Thashin hears two ideas for it.
+  // Tory brings an Upright piano and Naziat the world art, and Thashin hears two ideas for it.
   // (Its takes stay proposed, so the song that's playing doesn't change.)
   const now = song().nodes.map((n) => node(n.id)).filter((n): n is InternalNode<AnySongNode> => !!n)
   const bridgeAt = { x: Math.max(...now.map((n) => n.internals.positionAbsolute.x + (n.measured.width ?? 260))) + 640, y: chorusAt.y }
@@ -451,7 +451,7 @@ async function script(rf: RF, stopped: () => boolean) {
     await wire('tory', id, bridge, 'instruments')
   })()
   const longing = (async () => {
-    await note('naziat', ci, 2, 'the village theme is so cozy 🥹')
+    await sleep(rand(200, 400))
     const id = await bring('naziat', 'photo', bridgeCardAt(150), art.world)
     bridgeCards.push(id)
     await started
@@ -459,17 +459,11 @@ async function script(rf: RF, stopped: () => boolean) {
   })()
   await started
   frameBridge()
-  await note('thashin', 0, 1, 'this hum is so mosswood 🌿')
   await Promise.all([piano, longing])
   if (stopped()) return
   frameBridge()
   await sleep(400)
   await press('thashin', bridge, /Hear 2 ideas/, () => song().makeTakes(bridge))
-  await sleep(400)
-  frameBridge()
-  await sleep(3400)
-  frameBridge()
-  await sleep(900)
   if (stopped()) return
 
   /** Frames these cards and the spots around `extra` (where cards are about to go), so where they're working is in view. */
@@ -488,8 +482,10 @@ async function script(rf: RF, stopped: () => boolean) {
   }
   const takesOf = (section: string) => song().nodes.filter((n): n is SongNode<'take'> => n.type === 'take' && n.data.sectionId === section)
 
-  // ---- they keep at the Bridge's ideas: Naziat plugs an Acoustic guitar straight into Take A and Tory a Music box into
-  // Take B, and each is made again with it in (still proposed, so the song that's playing doesn't change)
+  // ---- while the Bridge's ideas are made, Thashin starts a second verse under it; once they're made, Naziat plugs an
+  // Acoustic guitar straight into its Take A and Tory a Music box into Take B (each is made again with it in, still
+  // proposed, so the song that's playing doesn't change), then they bring Verse 2 its lines and the character art
+  await sleep(400)
   const bA = takesOf(bridge).find((t) => t.data.version === 'A')?.id
   const bB = takesOf(bridge).find((t) => t.data.version === 'B')?.id
   if (!bA || !bB) return
@@ -503,69 +499,82 @@ async function script(rf: RF, stopped: () => boolean) {
   const guitarAt = { x: edges(bA).left - 270, y: Math.min(edges(bA).top, edges(bridge).top) - 75 }
   const musicBoxAt = { x: edges(bB).left - 290, y: Math.max(edges(bB).bottom, edges(bridge).bottom) + 75 }
   const bridgeIds = () => [bridge, ...bridgeCards, ...takesOf(bridge).map((t) => t.id)]
-  frameAround(bridgeIds(), [guitarAt, musicBoxAt])
-  await sleep(500)
-  const guitarIn = (async () => {
-    const id = await bring('naziat', 'instrument', () => guitarAt, { tab: 'Strings', name: 'Acoustic guitar', detail: 'fingerpicked', thumb: INSTRUMENT_PHOTOS['Acoustic guitar'] })
-    await wire('naziat', id, bA, 'instruments', 'add')
-  })()
-  const musicBoxIn = (async () => {
-    await sleep(rand(500, 800))
-    const id = await bring('tory', 'instrument', () => musicBoxAt, { tab: 'Keyboard', name: 'Music box', detail: 'small and bright', thumb: INSTRUMENT_PHOTOS['Music box'] })
-    await wire('tory', id, bB, 'instruments', 'add')
-  })()
-  await Promise.all([guitarIn, musicBoxIn])
-  await sleep(2600)
-  if (stopped()) return
-
-  // ---- and Thashin starts a second verse under the Bridge; Naziat writes it some lines and Tory brings the character
   const verse2At = { x: bridgeAt.x, y: bridgeAt.y + 700 }
   const v2Cards: string[] = []
   const v2CardAt = (dy: number) => () => ({ x: verse2At.x - 410, y: verse2At.y - 50 + dy })
-  // Where its cards and takes will be, framed before anyone heads there.
+  // Where Verse 2's cards and takes will be.
   const v2Spots = [{ x: verse2At.x - 545, y: verse2At.y - 200 }, { x: verse2At.x + 560, y: verse2At.y + 230 }]
   let verse2 = ''
   const v2Ids = () => [verse2, ...v2Cards, ...takesOf(verse2).map((t) => t.id)].filter(Boolean)
-  frameAround([], v2Spots)
-  await sleep(700)
+  // Both in view: the Bridge and where its new cards go, and where Verse 2 will be.
+  const frameBoth = () => frameAround([...bridgeIds(), ...v2Ids()], [guitarAt, musicBoxAt, ...v2Spots])
+  frameBoth()
+  await sleep(600)
   const v2Started = work('thashin', async () => {
     await move('thashin', () => screen(verse2At))
     await click()
     verse2 = song().addNode('section', verse2At, { ...structuredClone(STARTING_DATA.section), name: 'Verse 2' })
   })
-  const lyricsIn = (async () => {
-    await sleep(rand(300, 500))
-    const id = await bring('naziat', 'lyrics', v2CardAt(0), { text: 'through the mossy gate' })
-    v2Cards.push(id)
+  const bridgeMade = async () => {
+    while (takesOf(bridge).some((t) => t.data.state !== 'done') && !stopped()) await sleep(120)
+  }
+  const naziatOn = (async () => {
+    await bridgeMade()
+    const guitar = await bring('naziat', 'instrument', () => guitarAt, { tab: 'Strings', name: 'Acoustic guitar', detail: 'fingerpicked', thumb: INSTRUMENT_PHOTOS['Acoustic guitar'] })
+    await wire('naziat', guitar, bA, 'instruments', 'add')
+    const lyrics = await bring('naziat', 'lyrics', v2CardAt(0), { text: 'through the mossy gate' })
+    v2Cards.push(lyrics)
     await v2Started
-    await wire('naziat', id, verse2, 'lyrics')
+    await wire('naziat', lyrics, verse2, 'lyrics')
   })()
-  const nostalgiaIn = (async () => {
-    await sleep(rand(800, 1100))
-    const id = await bring('tory', 'photo', v2CardAt(185), art.character)
-    v2Cards.push(id)
+  const toryOn = (async () => {
+    await bridgeMade()
+    await sleep(rand(400, 700))
+    const box = await bring('tory', 'instrument', () => musicBoxAt, { tab: 'Keyboard', name: 'Music box', detail: 'small and bright', thumb: INSTRUMENT_PHOTOS['Music box'] })
+    await wire('tory', box, bB, 'instruments', 'add')
+    const character = await bring('tory', 'photo', v2CardAt(185), art.character)
+    v2Cards.push(character)
     await v2Started
-    await wire('tory', id, verse2, 'mood')
+    await wire('tory', character, verse2, 'mood')
   })()
-  await Promise.all([v2Started, lyricsIn, nostalgiaIn])
+  await Promise.all([v2Started, naziatOn, toryOn])
   if (stopped()) return
-  frameAround(v2Ids(), v2Spots)
-  await sleep(400)
+  frameBoth()
+  await sleep(300)
   await press('thashin', verse2, /Hear 2 ideas/, () => song().makeTakes(verse2))
-  await sleep(400)
-  frameAround(v2Ids(), v2Spots)
-  await sleep(3400)
-  frameAround(v2Ids(), v2Spots)
-  await sleep(900)
+  if (stopped()) return
+
+  // ---- and while Verse 2's ideas are made, Thashin opens the timeline (if it isn't up) and they leave their notes on it
+  const timelineButton = () => [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Timeline')
+  if (!song().timelineOpen) {
+    await work('thashin', async () => {
+      await move('thashin', () => rect(timelineButton()))
+      await click()
+      if (!song().timelineOpen) song().toggleTimeline()
+    })
+    // The canvas gives the timeline room: once it has, frame Verse 2 and its ideas again in what's left.
+    await sleep(850)
+    frameAround(v2Ids(), v2Spots)
+    await sleep(500)
+  }
+  await Promise.all([
+    note('naziat', ci, 2, 'the village theme is so cozy 🥹'),
+    (async () => {
+      await sleep(rand(400, 700))
+      await note('thashin', 0, 1, 'this hum is so mosswood 🌿')
+    })(),
+  ])
   if (stopped()) return
 
   // They stay a beat, still, then head off their own way one after another, fading as they go.
   looking = false
-  await sleep(2600)
+  await sleep(1800)
   for (const who of CREW) {
     if (stopped()) return
-    void move(who, () => off(who), 1.4)
+    // One spot off their side to head for (not a new one every frame).
+    const away = off(who)
+    void move(who, () => away, 1.4)
     window.setTimeout(() => put(who, { shown: false }), 450)
-    await sleep(rand(350, 700))
+    await sleep(rand(300, 550))
   }
 }
