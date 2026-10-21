@@ -3,19 +3,22 @@ import { useEffect, useRef } from 'react'
 import { INSTRUMENT_PHOTOS } from '@/data/library'
 import { clipsOf, playTime } from '@/data/clips'
 import { collaborator } from '@/data/collaborators'
-import { STARTING_DATA, type AnySongNode, type Role } from '@/data/nodes'
+import { STARTING_DATA, type AnySongNode, type Role, type SongNode } from '@/data/nodes'
 import { useSong } from '@/store/song'
 import { useWorkspace } from '@/store/workspace'
 import { CREW, useCrew, type Cursor, type P, type Who } from './store'
 
 /**
  * The team, live (demo). Once the song is shared to "Team 😎", Thashin, Naziat
- * and Tory join: their cursors come in, Naziat plugs a sound straight into the
- * Verse's Take A (it's made again with it in), and then, as in the demo video,
- * they build a Chorus off it: Thashin carries the Verse on into it, they bring
- * in a Feeling, Brushed drums and Strings and wire each in, make its takes,
- * play one, put it in the song, and leave notes on the timeline. They work at once, each moving their own way, and look around
- * while the others are busy. Everything they do goes through the app's own
+ * and Tory join: their cursors come in and, as in the demo video, they build a
+ * Chorus off the Verse: Thashin carries the Verse on into it, they bring in a
+ * Feeling, Brushed drums, Strings and a sound and wire each in, make its takes
+ * and put Take A in the song, then keep going off that: a Bridge carried on
+ * from the Chorus, with a piano and a Feeling, and two ideas for it, while
+ * they leave notes on the timeline. They play nothing themselves: if the
+ * song's playing, the Chorus is heard when the playhead gets to it. They work
+ * at once, each moving their own way, and look around while the others are
+ * busy. Everything they do goes through the app's own
  * actions, so it's all real once they've done it: undo, play, move, unplug.
  */
 
@@ -273,34 +276,15 @@ async function script(rf: RF, stopped: () => boolean) {
     put(who, { at: off(who), shown: true })
     const near = vt ? onNode(vt.id, ...spots[who]) : null
     void move(who, () => near?.() ?? { x: window.innerWidth * fallback[who][0], y: window.innerHeight * fallback[who][1] })
-    await sleep(rand(150, 450))
+    await sleep(rand(150, 350))
   }
-  await sleep(500)
+  await sleep(300)
   if (stopped()) return
-
-  // ---- first, Naziat brings a sound and plugs it straight into the Verse's Take A, which makes it again with it in
-  if (vt) {
-    const take = node(vt.id)
-    const left = take?.internals.positionAbsolute.x ?? vt.position.x - 140
-    const topY = take?.internals.positionAbsolute.y ?? vt.position.y - 70
-    // Up and to the left, so its wire runs across and drops in clear of the take's own wire in.
-    const crickets = await bring('naziat', 'sound', () => ({ x: left - 270, y: topY - 95 }), { label: 'Crickets at night', duration: 64 })
-    // Tory comes over to watch it happen.
-    void work('tory', () => move('tory', onNode(vt.id, 0.55, 0.15)))
-    await wire('naziat', crickets, vt.id, 'texture', 'add')
-    await sleep(2600)
-    if (stopped()) return
-    // Once it's back, it goes in the song if it wasn't already.
-    const again = verseTake()
-    if (again?.type === 'take' && !again.data.added) {
-      await press('tory', again.id, /Add to timeline/, () => song().addToTimeline(again.id))
-      await sleep(600)
-    }
-  }
   looking = true
   for (const who of CREW) void wander(who)
 
-  // ---- then they build off it: Thashin starts a Chorus to the right and carries the Verse on into it
+  // ---- they build the next part off the Verse: Thashin starts a Chorus to the right and carries the Verse on into it.
+  // (They don't play anything: what's heard is the song in the timeline, and the Chorus comes in when it gets there.)
   const nodes = song().nodes.map((n) => node(n.id)).filter((n): n is InternalNode<AnySongNode> => !!n)
   const right = Math.max(...nodes.map((n) => n.internals.positionAbsolute.x + (n.measured.width ?? 260)), 0)
   const sections = nodes.filter((n) => n.type === 'section')
@@ -315,76 +299,59 @@ async function script(rf: RF, stopped: () => boolean) {
     await move('thashin', () => screen(chorusAt))
     await click()
     chorus = song().addNode('section', chorusAt, { ...structuredClone(STARTING_DATA.section), name: 'Chorus' })
-    await sleep(250)
+    await sleep(200)
     fit()
-    await sleep(500)
+    await sleep(400)
     const from = verseTake()
     if (from?.type === 'take' && from.data.added) await wire('thashin', from.id, chorus, 'follows')
   })
-  const joyP = (async () => {
-    await sleep(rand(600, 900))
-    return bring('naziat', 'feeling', cardAt(0), { name: 'Joy', amount: 0.7 })
+  // Naziat brings a Feeling and then Strings; Tory, Brushed drums and then a sound to sit underneath.
+  const naziat = (async () => {
+    await sleep(rand(300, 500))
+    const joy = await bring('naziat', 'feeling', cardAt(0), { name: 'Joy', amount: 0.7 })
+    await made
+    await wire('naziat', joy, chorus, 'mood')
+    const strings = await bring('naziat', 'instrument', cardAt(270), { tab: 'Strings', name: 'Strings', detail: 'slow and swelling', thumb: INSTRUMENT_PHOTOS.Strings })
+    await wire('naziat', strings, chorus, 'instruments')
   })()
-  const drumsP = (async () => {
-    await sleep(rand(1300, 1700))
-    return bring('tory', 'instrument', cardAt(130), { tab: 'Drums', name: 'Brushed drums', detail: 'soft, behind the beat', thumb: INSTRUMENT_PHOTOS['Brushed drums'] })
+  const tory = (async () => {
+    await sleep(rand(700, 1000))
+    const drums = await bring('tory', 'instrument', cardAt(130), { tab: 'Drums', name: 'Brushed drums', detail: 'soft, behind the beat', thumb: INSTRUMENT_PHOTOS['Brushed drums'] })
+    await made
+    await wire('tory', drums, chorus, 'instruments')
+    const crickets = await bring('tory', 'sound', cardAt(-130), { label: 'Crickets at night', duration: 64 })
+    await wire('tory', crickets, chorus, 'texture')
   })()
-  if (stopped()) return
-
-  // ---- each plugs theirs in as soon as it's down; Naziat goes back for Strings while Tory's still wiring
-  const joy = await joyP
   await made
-  const joyIn = wire('naziat', joy, chorus, 'mood')
-  const drums = await drumsP
   fit()
-  await joyIn
-  const drumsIn = wire('tory', drums, chorus, 'instruments')
-  const strings = await bring('naziat', 'instrument', cardAt(270), { tab: 'Strings', name: 'Strings', detail: 'slow and swelling', thumb: INSTRUMENT_PHOTOS.Strings })
-  await drumsIn
-  fit()
-  await sleep(450)
-  // Thashin's already on his way to Hear 2 ideas while the last wire goes in.
-  const toHear = work('thashin', () => move('thashin', () => rect(buttonIn(chorus, /Hear 2 ideas/))))
-  await wire('naziat', strings, chorus, 'instruments')
-  await toHear
+  await Promise.all([naziat, tory])
   if (stopped()) return
 
-  // ---- Thashin hears two ideas for it
-  await work('thashin', async () => {
-    await sleep(rand(200, 400))
-    await click()
-    song().makeTakes(chorus)
-  })
-  await sleep(500)
+  // ---- Thashin hears two ideas for it, and as soon as they're made, puts Take A in the song after the Verse
   fit()
-  await sleep(3200)
-  if (stopped()) return
-
-  // ---- Tory plays the Chorus's Take A, and a moment in Naziat puts it in the song (it keeps playing)
-  const takeA = song().nodes.find((n) => n.type === 'take' && n.data.sectionId === chorus && n.data.version === 'A')?.id
-  if (!takeA) return
-  const toAdd = (async () => {
-    await sleep(500)
-    await work('naziat', () => move('naziat', () => rect(buttonIn(takeA, /Add to timeline/))))
-  })()
-  await press('tory', takeA, /^Play take A/, () => song().setPlaying(takeA))
-  await toAdd
-  await sleep(900)
-  await press('naziat', takeA, /Add to timeline/, () => {
-    song().addToTimeline(takeA)
-    song().setPlaying(takeA)
-  })
-  // The timeline rises and the canvas gives it room: frame everything again once it has.
+  await press('thashin', chorus, /Hear 2 ideas/, () => song().makeTakes(chorus))
+  await sleep(400)
+  fit()
+  const takeA = () => song().nodes.find((n): n is SongNode<'take'> => n.type === 'take' && n.data.sectionId === chorus && n.data.version === 'A')
+  // Over to where Take A's button will be while it's made.
+  const id = takeA()?.id
+  if (!id || stopped()) return
+  await work('thashin', () => move('thashin', () => rect(buttonIn(id, /Add to timeline/))))
+  while (takeA()?.data.state !== 'done' && !stopped()) await sleep(120)
+  await sleep(250)
+  await press('thashin', id, /Add to timeline/, () => song().addToTimeline(id))
+  const takeAId = id
+  // The timeline rises (if it wasn't up already) and the canvas gives it room: frame everything again once it has.
   await sleep(700)
   fit()
   await sleep(800)
   if (stopped()) return
 
-  // ---- and they leave notes on the timeline at once: Naziat on the Chorus, Thashin on the hum at the start
+  // ---- notes on the timeline: Naziat on the Chorus, Thashin on the hum at the start
   const s = song()
   const items = clipsOf(s.nodes, s.songId ? s.arrangements[s.songId] : undefined)
   const startOf = (i: number) => items.slice(0, i).reduce((t, it) => t + playTime(it.clip), 0)
-  const ci = items.findIndex((it) => it.take.id === takeA)
+  const ci = items.findIndex((it) => it.take.id === takeAId)
   const note = (who: Who, clipIndex: number, into: number, text: string) =>
     work(who, async () => {
       const clip = items[clipIndex]
@@ -399,13 +366,63 @@ async function script(rf: RF, stopped: () => boolean) {
       put(who, { typing: false })
       useSong.getState().addComment({ t: startOf(clipIndex) + into }, text, who, true)
     })
-  await Promise.all([
-    note('naziat', ci, 2, 'this part made me cry 🥹'),
-    (async () => {
-      await sleep(rand(500, 900))
-      await note('thashin', 0, 1, 'the hum at the start 😭')
-    })(),
-  ])
+
+  // ---- and they keep going off it: Thashin starts a Bridge past the Chorus's takes and carries the Chorus on into it,
+  // Tory brings an Upright piano and Naziat (once her note's down) a Feeling, and Thashin hears two ideas for it.
+  // (Its takes stay proposed, so the song that's playing doesn't change.)
+  const now = song().nodes.map((n) => node(n.id)).filter((n): n is InternalNode<AnySongNode> => !!n)
+  const bridgeAt = { x: Math.max(...now.map((n) => n.internals.positionAbsolute.x + (n.measured.width ?? 260))) + 640, y: chorusAt.y }
+  let bridge = ''
+  const bridgeCardAt = (dy: number) => () => ({ x: bridgeAt.x - 410, y: bridgeAt.y - 50 + dy })
+  const bridgeCards: string[] = []
+  // Just this part in view: the Chorus take it carries on from, the Bridge, and what's brought to it.
+  const frameBridge = () =>
+    rf.fitView({
+      nodes: [takeAId, bridge, ...bridgeCards, ...song().nodes.filter((n) => n.type === 'take' && n.data.sectionId === bridge).map((n) => n.id)]
+        .filter(Boolean)
+        .map((id) => ({ id })),
+      padding: 0.2,
+      maxZoom: 0.9,
+      duration: 700,
+    })
+  const started = work('thashin', async () => {
+    await move('thashin', () => screen(bridgeAt))
+    await click()
+    bridge = song().addNode('section', bridgeAt, { ...structuredClone(STARTING_DATA.section), name: 'Bridge' })
+    await sleep(200)
+    frameBridge()
+    await sleep(500)
+    await wire('thashin', takeAId, bridge, 'follows')
+  })
+  const piano = (async () => {
+    await sleep(rand(500, 800))
+    const id = await bring('tory', 'instrument', bridgeCardAt(0), { tab: 'Keyboard', name: 'Upright piano', detail: 'a bit out of tune', thumb: INSTRUMENT_PHOTOS['Upright piano'] })
+    bridgeCards.push(id)
+    await started
+    await wire('tory', id, bridge, 'instruments')
+  })()
+  const longing = (async () => {
+    await note('naziat', ci, 2, 'this part made me cry 🥹')
+    const id = await bring('naziat', 'feeling', bridgeCardAt(-130), { name: 'Longing', amount: 0.6 })
+    bridgeCards.push(id)
+    await started
+    await wire('naziat', id, bridge, 'mood')
+  })()
+  await started
+  frameBridge()
+  await note('thashin', 0, 1, 'the hum at the start 😭')
+  await Promise.all([piano, longing])
+  if (stopped()) return
+  frameBridge()
+  await sleep(400)
+  await press('thashin', bridge, /Hear 2 ideas/, () => song().makeTakes(bridge))
+  await sleep(400)
+  frameBridge()
+  await sleep(3400)
+  frameBridge()
+  await sleep(900)
+  if (stopped()) return
+
   // They stay a beat, still, then head off their own way one after another, fading as they go.
   looking = false
   await sleep(2600)

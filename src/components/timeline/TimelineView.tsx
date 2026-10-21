@@ -163,26 +163,39 @@ export function TimelineView() {
   }
   const current = starts.findIndex((st, i) => time >= st && time < st + times[i])
   // The song out loud: each clip's take, played as the clip sets it. A seek starts it again from there.
-  useSound(
+  const partOf = (i: number): Part => {
+    const { clip: c, take } = items[i]
+    return { score: takeScore(nodes, take), at: starts[i], start: c.from, length: c.length, mix: { ...c, volume: c.muted ? 0 : c.volume } }
+  }
+  // The clips in what's sounding, so one put in the song while it plays can join it.
+  const heard = useRef(new Set<string>())
+  const join = useSound(
     playing,
-    () =>
-      items.map(({ clip: c, take }, i): Part => ({
-        score: takeScore(nodes, take),
-        at: starts[i],
-        start: c.from,
-        length: c.length,
-        mix: { ...c, volume: c.muted ? 0 : c.volume },
-      })).concat(
+    () => {
+      heard.current = new Set(clips.map((c) => c.id))
+      return items.map((_, i) => partOf(i)).concat(
         // The tracks play along under the whole song, from the top (demo: the Strings are heard).
         tracks
           .filter((tr) => /string/i.test(tr.name))
           .map(() => ({ score: { length: DEMO_LENGTH, notes: [], beds: [], file: STRINGS_TRACK }, at: 0, start: 0, length: Math.min(total, DEMO_LENGTH), mix: { volume: 1 } })),
-      ),
+      )
+    },
     () => time,
     () => setPlaying(false),
     // A seek starts it again from there, and so does a track joining, so it's heard straight away.
     `${anchor.current.wall}|${tracks.length}`,
   )
+  // A take put in the song at the end while it plays (someone else adding the next part) comes in when the playhead gets there.
+  const ids = clips.map((c) => c.id).join()
+  useEffect(() => {
+    if (!playing) return
+    const fresh = clips.flatMap((c, i) => (heard.current.has(c.id) ? [] : [i]))
+    if (!fresh.length) return
+    for (const i of fresh) heard.current.add(clips[i].id)
+    // Only clips after everything already sounding; anything else moves the song under it.
+    if (fresh.every((i) => i >= clips.length - fresh.length)) join(fresh.map(partOf))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids, playing])
 
   /** Cuts the selected clip (or whichever is under the playhead) in two where the playhead is. */
   const split = () => {

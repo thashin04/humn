@@ -373,11 +373,14 @@ function effectChain(ctx: AudioContext, effect: Effect, strength: number, dest: 
 
 let current: { stop: () => void } | null = null
 
+/** Stops what `play` started; `join` adds more to it while it plays (on the same clock: a clip just put in the song). */
+export type Playback = (() => void) & { join: (parts: Part[]) => void }
+
 /**
  * Plays `parts` from `from` seconds in. Only one thing plays at a time: what
  * was playing stops, and hears about it through its own `onCut`. Returns stop.
  */
-export function play(parts: Part[], from = 0, onCut?: () => void): () => void {
+export function play(parts: Part[], from = 0, onCut?: () => void): Playback {
   current?.stop()
   const { ctx, master } = audio()
   const voice = ctx.createGain()
@@ -397,11 +400,12 @@ export function play(parts: Part[], from = 0, onCut?: () => void): () => void {
   // Everything to play, on one clock, scheduled a little ahead as it comes.
   type Due = { when: number; go: () => void }
   const due: Due[] = []
-  for (const part of parts) {
+  /** Lines a part up on the clock, where `from` seconds into the song falls at `t0`. */
+  const add = (part: Part, from: number, t0: number) => {
     const mix = part.mix ?? {}
     const speed = mix.speed ?? 1
     const span = part.length / speed
-    if (part.at + span <= from) continue
+    if (part.at + span <= from) return
     const into = Math.max(0, from - part.at)
     const begin = t0 + Math.max(0, part.at - from)
     const end = begin + span - into
@@ -443,6 +447,7 @@ export function play(parts: Part[], from = 0, onCut?: () => void): () => void {
       timers.push(window.setTimeout(() => el.pause(), (end - ctx.currentTime) * 1000))
     }
   }
+  for (const part of parts) add(part, from, t0)
   due.sort((a, b) => a.when - b.when)
   let next = 0
   const pump = () => {
@@ -481,5 +486,13 @@ export function play(parts: Part[], from = 0, onCut?: () => void): () => void {
     },
   }
   current = handle
-  return stop
+  const join = (more: Part[]) => {
+    if (done) return
+    // From where the song has got to, just ahead of now.
+    const at = ctx.currentTime + 0.06
+    for (const part of more) add(part, from + (at - t0), at)
+    due.splice(next, due.length - next, ...due.slice(next).sort((a, b) => a.when - b.when))
+    pump()
+  }
+  return Object.assign(stop, { join })
 }
