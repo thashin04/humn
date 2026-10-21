@@ -37,6 +37,8 @@ export const INSTRUMENT_PHOTOS: Record<string, string> = {
   'Upright piano': '/instruments/piano.jpg',
   'Brushed drums': '/instruments/drums.jpg',
   Strings: '/instruments/strings.jpg',
+  'Acoustic guitar': '/instruments/guitar.jpg',
+  'Music box': '/instruments/music-box.jpg',
 }
 
 export const DRAWERS: Record<Kind, DrawerSpec> = {

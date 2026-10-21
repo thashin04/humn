@@ -1,4 +1,4 @@
-import { useReactFlow, type InternalNode } from '@xyflow/react'
+import { useReactFlow, useViewport, type InternalNode } from '@xyflow/react'
 import { useEffect, useRef } from 'react'
 import { INSTRUMENT_PHOTOS } from '@/data/library'
 import { clipsOf, playTime } from '@/data/clips'
@@ -15,7 +15,8 @@ import { CREW, useCrew, type Cursor, type P, type Who } from './store'
  * Feeling, Brushed drums, Strings and a sound and wire each in, make its takes
  * and put Take A in the song, then keep going off that: a Bridge carried on
  * from the Chorus, with a piano and a Feeling, and two ideas for it, while
- * they leave notes on the timeline. They play nothing themselves: if the
+ * they leave notes on the timeline; then remake the Bridge's ideas with a
+ * guitar and a music box plugged straight in, and start a Verse 2. They play nothing themselves: if the
  * song's playing, the Chorus is heard when the playhead gets to it. They work
  * at once, each moving their own way, and look around while the others are
  * busy. Everything they do goes through the app's own
@@ -41,6 +42,15 @@ const HANDS: Record<Who, Hand> = {
 // A move in progress is replaced by the next one for the same person (so looking around never gets in the way of work).
 const moves: Record<Who, number> = { thashin: 0, naziat: 0, tory: 0 }
 
+/** Between the screen and the canvas (set while the crew is on the canvas). */
+let canvas: { toFlow: (p: P) => P; toScreen: (p: P) => P } | null = null
+/** Where a cursor is on the screen now: if it's pinned to the canvas, wherever that spot has moved to. */
+const where = (c: Cursor): P => (c.pin && canvas ? canvas.toScreen(c.pin) : c.at)
+const onCanvas = (p: P) => {
+  const r = document.querySelector('.react-flow')?.getBoundingClientRect()
+  return !!r && p.x > r.left && p.x < r.right && p.y > r.top && p.y < r.bottom
+}
+
 /**
  * Moves a cursor to wherever `to` is (asked every frame, so it follows the canvas as it moves): along a curve
  * that bends their way, as long as the distance asks for, a little past the mark, then settling back onto it.
@@ -49,7 +59,7 @@ function move(who: Who, to: () => P | null, slow = 1) {
   const id = ++moves[who]
   return new Promise<void>((done) => {
     const hand = HANDS[who]
-    const from = { ...useCrew.getState().cursors[who].at }
+    const from = where(useCrew.getState().cursors[who])
     const first = to() ?? from
     const dist = Math.hypot(first.x - from.x, first.y - from.y)
     const ms = Math.min(1400, Math.max(260, (230 + dist * 0.85) / hand.pace)) * slow
@@ -76,9 +86,14 @@ function move(who: Who, to: () => P | null, slow = 1) {
         const e = s * s * (3 - 2 * s)
         at = { x: past.x + (target.x - past.x) * e, y: past.y + (target.y - past.y) * e }
       }
-      put(who, { at })
-      if (k < 1) requestAnimationFrame(step)
-      else done()
+      if (k < 1) {
+        put(who, { at, pin: null })
+        requestAnimationFrame(step)
+      } else {
+        // Come to rest: on the canvas, it stays with what it's on as the canvas moves.
+        put(who, { at, pin: canvas && onCanvas(at) ? canvas.toFlow(at) : null })
+        done()
+      }
     }
     requestAnimationFrame(step)
   })
@@ -100,6 +115,14 @@ export function Crew() {
   const run = useCrew((s) => s.run)
   const cursors = useCrew((s) => s.cursors)
   const ran = useRef(0)
+  // Drawn again whenever the canvas moves, so a pinned cursor goes with it.
+  useViewport()
+  useEffect(() => {
+    canvas = { toFlow: (p) => rf.screenToFlowPosition(p), toScreen: (p) => rf.flowToScreenPosition(p) }
+    return () => {
+      canvas = null
+    }
+  }, [rf])
 
   useEffect(() => {
     if (!run || ran.current === run) return
@@ -118,7 +141,8 @@ export function Crew() {
           const c = cursors[who]
           if (!c.wire) return null
           const { from } = c.wire
-          const to = { x: c.at.x - 1, y: c.at.y - 1 }
+          const at = where(c)
+          const to = { x: at.x - 1, y: at.y - 1 }
           const dx = Math.max(36, Math.abs(to.x - from.x) * 0.5)
           const d = `M${from.x} ${from.y}C${from.x + dx} ${from.y} ${to.x - dx} ${to.y} ${to.x} ${to.y}`
           return (
@@ -140,10 +164,11 @@ export function Crew() {
 /** Figma's cursor at its own size: a small tilted arrowhead in the person's colour with a white rim, and their name. */
 function FigmaCursor({ who, cursor }: { who: Who; cursor: Cursor }) {
   const c = collaborator(who)
+  const at = where(cursor)
   return (
     <div
       className="absolute top-0 left-0 transition-opacity duration-300"
-      style={{ transform: `translate(${cursor.at.x}px, ${cursor.at.y}px)`, opacity: cursor.shown ? 1 : 0 }}
+      style={{ transform: `translate(${at.x}px, ${at.y}px)`, opacity: cursor.shown ? 1 : 0 }}
     >
       <svg width={18} height={20} viewBox="-3 -3 30 34" className="absolute -top-[2px] -left-[2px] overflow-visible drop-shadow-[0_1px_2px_rgb(0_0_0/0.2)]">
         <path
@@ -201,7 +226,7 @@ async function script(rf: RF, stopped: () => boolean) {
     const others = CREW.filter((w) => w !== who && busy[w])
     if (others.length && Math.random() < 0.6) {
       // Toward someone at work, not on top of them.
-      const at = useCrew.getState().cursors[others[Math.floor(Math.random() * others.length)]].at
+      const at = where(useCrew.getState().cursors[others[Math.floor(Math.random() * others.length)]])
       return { x: at.x + rand(-120, 120), y: at.y + rand(50, 110) * (Math.random() < 0.5 ? -1 : 1) }
     }
     const cards = song().nodes.filter((n) => n.type !== 'take' || Math.random() < 0.4)
@@ -420,6 +445,93 @@ async function script(rf: RF, stopped: () => boolean) {
   frameBridge()
   await sleep(3400)
   frameBridge()
+  await sleep(900)
+  if (stopped()) return
+
+  /** Frames these cards and the spots around `extra` (where cards are about to go), so where they're working is in view. */
+  const frameAround = (ids: string[], extra: P[] = []) => {
+    const boxes = ids.flatMap((id) => {
+      const n = node(id)
+      if (!n) return []
+      const { x, y } = n.internals.positionAbsolute
+      return [{ x0: x, y0: y, x1: x + (n.measured.width ?? 260), y1: y + (n.measured.height ?? 120) }]
+    })
+    for (const p of extra) boxes.push({ x0: p.x - 150, y0: p.y - 60, x1: p.x + 150, y1: p.y + 60 })
+    if (!boxes.length) return
+    const x0 = Math.min(...boxes.map((b) => b.x0))
+    const y0 = Math.min(...boxes.map((b) => b.y0))
+    void rf.fitBounds({ x: x0, y: y0, width: Math.max(...boxes.map((b) => b.x1)) - x0, height: Math.max(...boxes.map((b) => b.y1)) - y0 }, { padding: 0.12, duration: 700 })
+  }
+  const takesOf = (section: string) => song().nodes.filter((n): n is SongNode<'take'> => n.type === 'take' && n.data.sectionId === section)
+
+  // ---- they keep at the Bridge's ideas: Naziat plugs an Acoustic guitar straight into Take A and Tory a Music box into
+  // Take B, and each is made again with it in (still proposed, so the song that's playing doesn't change)
+  const bA = takesOf(bridge).find((t) => t.data.version === 'A')?.id
+  const bB = takesOf(bridge).find((t) => t.data.version === 'B')?.id
+  if (!bA || !bB) return
+  const edges = (id: string) => {
+    const n = node(id)
+    const y = n?.internals.positionAbsolute.y ?? 0
+    return { left: n?.internals.positionAbsolute.x ?? 0, top: y, bottom: y + (n?.measured.height ?? 150) }
+  }
+  // Above Take A and below Take B, each to the left, so their wires run in clear of the takes' own wires (and clear of
+  // the Bridge, which is as tall as what's plugged into it).
+  const guitarAt = { x: edges(bA).left - 270, y: Math.min(edges(bA).top, edges(bridge).top) - 75 }
+  const musicBoxAt = { x: edges(bB).left - 290, y: Math.max(edges(bB).bottom, edges(bridge).bottom) + 75 }
+  const bridgeIds = () => [bridge, ...bridgeCards, ...takesOf(bridge).map((t) => t.id)]
+  frameAround(bridgeIds(), [guitarAt, musicBoxAt])
+  await sleep(500)
+  const guitarIn = (async () => {
+    const id = await bring('naziat', 'instrument', () => guitarAt, { tab: 'Strings', name: 'Acoustic guitar', detail: 'fingerpicked', thumb: INSTRUMENT_PHOTOS['Acoustic guitar'] })
+    await wire('naziat', id, bA, 'instruments', 'add')
+  })()
+  const musicBoxIn = (async () => {
+    await sleep(rand(500, 800))
+    const id = await bring('tory', 'instrument', () => musicBoxAt, { tab: 'Keyboard', name: 'Music box', detail: 'small and bright', thumb: INSTRUMENT_PHOTOS['Music box'] })
+    await wire('tory', id, bB, 'instruments', 'add')
+  })()
+  await Promise.all([guitarIn, musicBoxIn])
+  await sleep(2600)
+  if (stopped()) return
+
+  // ---- and Thashin starts a second verse under the Bridge; Naziat writes it some lines and Tory gives it a feeling
+  const verse2At = { x: bridgeAt.x, y: bridgeAt.y + 700 }
+  const v2Cards: string[] = []
+  const v2CardAt = (dy: number) => () => ({ x: verse2At.x - 410, y: verse2At.y - 50 + dy })
+  // Where its cards and takes will be, framed before anyone heads there.
+  const v2Spots = [{ x: verse2At.x - 545, y: verse2At.y - 200 }, { x: verse2At.x + 560, y: verse2At.y + 230 }]
+  let verse2 = ''
+  const v2Ids = () => [verse2, ...v2Cards, ...takesOf(verse2).map((t) => t.id)].filter(Boolean)
+  frameAround([], v2Spots)
+  await sleep(700)
+  const v2Started = work('thashin', async () => {
+    await move('thashin', () => screen(verse2At))
+    await click()
+    verse2 = song().addNode('section', verse2At, { ...structuredClone(STARTING_DATA.section), name: 'Verse 2' })
+  })
+  const lyricsIn = (async () => {
+    await sleep(rand(300, 500))
+    const id = await bring('naziat', 'lyrics', v2CardAt(0), { text: 'the porch light left on for us' })
+    v2Cards.push(id)
+    await v2Started
+    await wire('naziat', id, verse2, 'lyrics')
+  })()
+  const nostalgiaIn = (async () => {
+    await sleep(rand(800, 1100))
+    const id = await bring('tory', 'feeling', v2CardAt(140), { name: 'Nostalgia', amount: 0.8 })
+    v2Cards.push(id)
+    await v2Started
+    await wire('tory', id, verse2, 'mood')
+  })()
+  await Promise.all([v2Started, lyricsIn, nostalgiaIn])
+  if (stopped()) return
+  frameAround(v2Ids(), v2Spots)
+  await sleep(400)
+  await press('thashin', verse2, /Hear 2 ideas/, () => song().makeTakes(verse2))
+  await sleep(400)
+  frameAround(v2Ids(), v2Spots)
+  await sleep(3400)
+  frameAround(v2Ids(), v2Spots)
   await sleep(900)
   if (stopped()) return
 
