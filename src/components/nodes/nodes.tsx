@@ -39,7 +39,7 @@ export function WordsNode({ id, data, selected }: NodeProps<SongNode<'words'>>) 
             ref={field}
             rows={1}
             value={data.text}
-              placeholder="What should this part be about?"
+              placeholder="Describe your music"
             onChange={(e) => updateData(id, { text: e.target.value })}
             onFocus={() => setDrafting(id)}
             onBlur={() => {
