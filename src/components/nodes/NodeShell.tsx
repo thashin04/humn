@@ -1,5 +1,5 @@
 import { Position, useNodeId, useUpdateNodeInternals } from '@xyflow/react'
-import { useContext, useEffect, useLayoutEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode, type RefObject, type SVGProps } from 'react'
+import { useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode, type RefObject, type SVGProps } from 'react'
 import grip from '@/assets/figma/node-grip.svg'
 import type { Role } from '@/data/nodes'
 import { cn } from '@/lib/utils'
@@ -147,6 +147,7 @@ type ShellProps = {
 
 export function NodeShell({ width, icon: Icon, label, meta, tall, tab, selected, port, targeted, ghost, dashed, className, children }: ShellProps) {
   const [box, size] = useSize<HTMLDivElement>()
+  const uid = useId().replace(/:/g, '')
   const id = useNodeId()
   const updateNodeInternals = useUpdateNodeInternals()
   const preview = useContext(Preview)
@@ -214,7 +215,27 @@ export function NodeShell({ width, icon: Icon, label, meta, tall, tab, selected,
           <path d={`M${size.w + 6} ${out}H${size.w + N + 1}`} stroke={`var(--soft-role-${port})`} strokeWidth={2} />
         )}
         {!ghost && humps.map((h) => <path key={h.y} d={`M-6 ${h.y}H${-N - 1}`} stroke={h.c} strokeWidth={2} />)}
-        {selected && <path d={line} fill="none" stroke="var(--soft-accent)" strokeWidth={1.5} />}
+        {/* Where the ring runs out along a neck, it fades into the pipe instead of stopping short. */}
+        {selected && (
+          <>
+            <defs>
+              <linearGradient id={`${uid}-fr`} gradientUnits="userSpaceOnUse" x1={size.w} x2={size.w + N} y1={0} y2={0}>
+                <stop offset="0" stopColor="#fff" />
+                <stop offset="1" stopColor="#fff" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id={`${uid}-fl`} gradientUnits="userSpaceOnUse" x1={0} x2={-N} y1={0} y2={0}>
+                <stop offset="0" stopColor="#fff" />
+                <stop offset="1" stopColor="#fff" stopOpacity={0} />
+              </linearGradient>
+              <mask id={`${uid}-ring`} maskUnits="userSpaceOnUse" x={-N - 4} y={-4} width={size.w + 2 * N + 8} height={size.h + 8}>
+                <rect x={0} y={-4} width={size.w} height={size.h + 8} fill="#fff" />
+                <rect x={size.w} y={-4} width={N + 4} height={size.h + 8} fill={piped ? `url(#${uid}-fr)` : '#fff'} />
+                <rect x={-N - 4} y={-4} width={N + 4} height={size.h + 8} fill={ghost ? '#fff' : `url(#${uid}-fl)`} />
+              </mask>
+            </defs>
+            <path d={line} fill="none" stroke="var(--soft-accent)" strokeWidth={1.5} mask={`url(#${uid}-ring)`} />
+          </>
+        )}
         <path
           d={halo}
           transform="translate(-4 -4)"
