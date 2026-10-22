@@ -1,18 +1,18 @@
 export type Collaborator = { id: string; name: string; initial: string; color: string; photo?: string }
 
-// From the Figma Avatar component (Ines, Kofi, Sol, Ada). Faces are Pexels photos (demo).
+// Demo collaborators use colored initials instead of profile photos.
 export const collaborators: Collaborator[] = [
-  { id: 'ines', name: 'Ines Chow', initial: 'I', color: '#3c3c40', photo: '/avatars/ines.jpg' },
-  { id: 'kofi', name: 'Kofi', initial: 'K', color: '#d2622e', photo: '/avatars/kofi.jpg' },
-  { id: 'sol', name: 'Sol', initial: 'S', color: '#3e7f5e', photo: '/avatars/sol.jpg' },
-  { id: 'ada', name: 'Ada', initial: 'A', color: '#7a5af8', photo: '/avatars/ada.jpg' },
+  { id: 'ines', name: 'Alex Smith', initial: 'A', color: '#3c3c40' },
+  { id: 'kofi', name: 'Kofi', initial: 'K', color: '#d2622e' },
+  { id: 'sol', name: 'Sol', initial: 'S', color: '#3e7f5e' },
+  { id: 'ada', name: 'Ada', initial: 'A', color: '#7a5af8' },
   // The team who join when the song is shared to them (demo).
-  { id: 'thashin', name: 'Thashin', initial: 'T', color: '#d9622b', photo: '/avatars/thashin.jpg' },
-  { id: 'naziat', name: 'Naziat', initial: 'N', color: '#c2417a', photo: '/avatars/naziat.jpg' },
-  { id: 'tory', name: 'Tory', initial: 'T', color: '#3e7f5e', photo: '/avatars/tory.jpg' },
-  // Who the team's notes on the timeline are from (demo): new names, the same faces.
-  { id: 'daniel', name: 'Daniel', initial: 'D', color: '#d9622b', photo: '/avatars/thashin.jpg' },
-  { id: 'maya', name: 'Maya', initial: 'M', color: '#c2417a', photo: '/avatars/naziat.jpg' },
+  { id: 'thashin', name: 'Thashin', initial: 'T', color: '#d9622b' },
+  { id: 'naziat', name: 'Naziat', initial: 'N', color: '#c2417a' },
+  { id: 'tory', name: 'Tory', initial: 'T', color: '#3e7f5e' },
+  // Who the team's notes on the timeline are from (demo): with matching collaborator colors.
+  { id: 'daniel', name: 'Daniel', initial: 'D', color: '#d9622b' },
+  { id: 'maya', name: 'Maya', initial: 'M', color: '#c2417a' },
 ]
 
 /** Who's in each group chat a song can be shared to (demo). */

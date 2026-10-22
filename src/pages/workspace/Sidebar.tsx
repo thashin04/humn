@@ -203,7 +203,7 @@ function NavItem({
       <div
         {...dropProps}
         className={cn(
-          'group relative flex shrink-0 items-center rounded-full transition-[background-color,color,box-shadow,transform] duration-500 ease-out hover:translate-x-0.5',
+          'group relative flex shrink-0 items-center rounded-full transition-[background-color,color,box-shadow] duration-300 ease-in motion-reduce:transition-none',
           collapsed ? 'size-[38px] justify-center' : 'h-8 w-full',
           active ? 'bg-nav-active text-nav-ink' : 'text-nav-ink-2 hover:bg-well',
           over && 'ring-[1.5px] ring-select',
@@ -215,7 +215,7 @@ function NavItem({
           aria-current={active ? 'page' : undefined}
           className={cn('flex size-full items-center rounded-full', collapsed ? 'justify-center' : 'gap-2.5 px-3')}
         >
-          <ItemIcon className={cn('size-4 shrink-0', active ? 'text-ink' : 'text-ink-1')} strokeWidth={active ? STROKE_ACTIVE : STROKE} />
+          <ItemIcon className={cn('size-4 shrink-0 transition-[color,stroke-width] duration-300 ease-in motion-reduce:transition-none', active ? 'text-ink' : 'text-ink-1')} strokeWidth={active ? STROKE_ACTIVE : STROKE} />
           {!collapsed && (
             <>
               <span className="type-nav flex-1 truncate text-left">{label}</span>
